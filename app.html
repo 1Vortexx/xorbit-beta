@@ -2660,7 +2660,7 @@
           style="font-weight: 600"
           id="xorbitMenu"
         >
-          X-ORBIT
+          X-ORBIT <span id="betaBadgeMenuBar" style="display:none;font-size:0.55rem;font-weight:700;background:#ff9f0a;color:#000;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle;letter-spacing:0.04em;">BETA</span>
           <div class="xorbit-menu" id="xorbitDropdown">
             <div class="xorbit-menu-item" onclick="showAccountInfo()">
               <i class="fas fa-user-circle"></i>
@@ -3023,6 +3023,15 @@
           <i class="fas fa-comment-dots"></i>
           <span>Jitter</span>
         </div>
+        <div
+          class="desktop-icon"
+          data-app="Magma"
+          data-src="magma.html"
+          data-icon="fas fa-fire"
+        >
+          <i class="fas fa-fire"></i>
+          <span>Magma</span>
+        </div>
         <!-- Minimalist theme folder – hidden in all other themes -->
         <div id="desktopFolder" class="desktop-icon">
           <i class="fas fa-folder-open"></i>
@@ -3170,6 +3179,15 @@
       </div>
       <div
         class="dock-item"
+        data-app="Magma"
+        data-src="magma.html"
+        data-icon="fas fa-fire"
+      >
+        <i class="fas fa-fire"></i>
+        <div class="tooltip">Magma</div>
+      </div>
+      <div
+        class="dock-item"
         data-app="Notifications"
         data-src="notification-center.html"
         data-icon="fas fa-bell"
@@ -3299,7 +3317,7 @@
 
           // Query the update_check table
           const { data, error } = await supabaseClient
-            .from("update_check")
+            .from(UPDATE_CHECK_TABLE)
             .select("*")
             .single();
 
@@ -4526,8 +4544,8 @@
           // Start periodic ban checking
           startBanChecking();
 
-          // Prompt PWA install after a short delay so the desktop finishes loading
-          setTimeout(showPwaPrompt, 2000);
+          // Show What's New modal if version changed, then PWA prompt after
+          setTimeout(() => { showWhatsNew(); setTimeout(showPwaPrompt, 1000); }, 1500);
         } else if (event.data && event.data.type === "settings-updated") {
           settings = { ...settings, ...event.data.settings };
           applySettings();
@@ -6132,6 +6150,14 @@
         <div class="settings-nav-item" data-section="other">
           <i class="fas fa-layer-group"></i><span>Other</span>
         </div>
+
+        ${IS_BETA_BUILD ? `
+        <div class="settings-group-label">Developer</div>
+        <div class="settings-nav-item" data-section="devtools">
+          <i class="fas fa-terminal"></i><span>Dev Tools</span>
+        </div>
+        ` : ''}
+
       </div>
       
       <!-- ── Main Content ─────────────────────────────────── -->
@@ -6168,7 +6194,7 @@
                   <div class="upd-avail-card">
                     <div class="upd-avail-row">
                       <div class="upd-app-icon" style="background:linear-gradient(135deg,#0a84ff 0%,#00c6ff 50%,#0a84ff 100%);display:flex;align-items:center;justify-content:center;border-radius:10px;">
-                        <span style="font-size:0.72rem;font-weight:800;color:#fff;letter-spacing:0.05em;text-shadow:0 1px 3px rgba(0,0,0,0.3);">V6</span>
+                        <span style="font-size:0.6rem;font-weight:800;color:#fff;letter-spacing:0.03em;text-shadow:0 1px 3px rgba(0,0,0,0.3);">BETA</span>
                       </div>
                       <div class="upd-avail-info">
                         <div class="upd-avail-name" id="updateVersionName">X-ORBIT Desktop</div>
@@ -6205,7 +6231,7 @@
                       </div>
                       <div class="upd-text">
                         <div class="upd-title upd-title-ok">Up to date</div>
-                        <div class="upd-subtitle">v6.0.1 Sahara &mdash; latest version</div>
+                        <div class="upd-subtitle">v6.1.2 Beta &mdash; latest version</div>
                       </div>
                       <button class="xorbit-button" id="recheckUpdateBtn" style="margin-left:auto;font-size:0.74rem;padding:5px 12px;"><i class="fas fa-sync"></i> Check</button>
                     </div>
@@ -6641,6 +6667,123 @@
           </div>
         </div>
 
+        <!-- ══ DEV TOOLS (Beta only) ════════════════════════ -->
+        ${IS_BETA_BUILD ? `<div class="settings-section" id="devtools-section">
+          <div class="settings-header">
+            <h1><i class="fas fa-terminal"></i> <span class="settings-section-title-text">Developer Tools</span></h1>
+            <p class="settings-section-desc">Beta diagnostics, event simulation, and debug logging</p>
+          </div>
+          <button class="settings-back-btn" data-back="devtools"><i class="fas fa-chevron-left"></i> Dev Tools</button>
+          <div class="settings-subcat-index" id="devtools-index"></div>
+
+          <!-- Console Log Viewer -->
+          <div class="settings-subsection" data-sub-id="console-viewer" data-sub-icon="fas fa-scroll" data-sub-desc="View live console output and errors">
+            <div class="settings-subsection-title">Console Log Viewer</div>
+            <div class="setting-card" style="margin-bottom:8px;">
+              <div class="setting-card-header">
+                <div class="setting-card-title">
+                  <div class="setting-card-icon"><i class="fas fa-toggle-on"></i></div>
+                  <div><div class="setting-card-label">Enable Log Capture</div></div>
+                </div>
+                <div class="xorbit-toggle active" id="devLogToggle"></div>
+              </div>
+              <div class="setting-card-desc">Intercept console.log, warn, and error messages</div>
+            </div>
+            <div style="position:relative;">
+              <div id="devConsoleLog" style="
+                background:#0e0e10;
+                border:1px solid rgba(255,255,255,0.06);
+                border-radius:8px;
+                padding:10px 12px;
+                font-family:'Monaco','Menlo','Courier New',monospace;
+                font-size:0.65rem;
+                line-height:1.5;
+                color:#aeaeb2;
+                max-height:260px;
+                overflow-y:auto;
+                white-space:pre-wrap;
+                word-break:break-all;
+                scrollbar-width:thin;
+                scrollbar-color:rgba(255,255,255,0.1) transparent;
+              "><span style="color:#636366;">Waiting for logs...</span></div>
+              <div style="display:flex;gap:6px;margin-top:8px;">
+                <button class="xorbit-button" id="devClearLogsBtn" style="font-size:0.72rem;padding:5px 12px;"><i class="fas fa-trash"></i> Clear</button>
+                <button class="xorbit-button" id="devCopyLogsBtn" style="font-size:0.72rem;padding:5px 12px;"><i class="fas fa-copy"></i> Copy</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Event Triggers -->
+          <div class="settings-subsection" data-sub-id="event-triggers" data-sub-icon="fas fa-bolt" data-sub-desc="Simulate system events for testing">
+            <div class="settings-subsection-title">Event Triggers</div>
+            <div class="settings-subsection-grid">
+              <div class="setting-card">
+                <div class="setting-card-header">
+                  <div class="setting-card-title">
+                    <div class="setting-card-icon" style="color:#0a84ff;"><i class="fas fa-bell"></i></div>
+                    <div><div class="setting-card-label">Push Notification</div></div>
+                  </div>
+                </div>
+                <div class="setting-card-desc">Fire a test desktop notification</div>
+                <button class="xorbit-button" id="devTriggerNotif" style="margin-top:8px;font-size:0.72rem;padding:5px 12px;width:100%;"><i class="fas fa-bell"></i> Trigger Notification</button>
+              </div>
+              <div class="setting-card">
+                <div class="setting-card-header">
+                  <div class="setting-card-title">
+                    <div class="setting-card-icon" style="color:#30d158;"><i class="fas fa-comment-dots"></i></div>
+                    <div><div class="setting-card-label">DM Notification</div></div>
+                  </div>
+                </div>
+                <div class="setting-card-desc">Simulate an incoming Jitter DM</div>
+                <button class="xorbit-button" id="devTriggerDM" style="margin-top:8px;font-size:0.72rem;padding:5px 12px;width:100%;"><i class="fas fa-comment-dots"></i> Trigger DM</button>
+              </div>
+              <div class="setting-card">
+                <div class="setting-card-header">
+                  <div class="setting-card-title">
+                    <div class="setting-card-icon" style="color:#ff9f0a;"><i class="fas fa-arrow-up-from-bracket"></i></div>
+                    <div><div class="setting-card-label">Update Banner</div></div>
+                  </div>
+                </div>
+                <div class="setting-card-desc">Show the desktop update available badge</div>
+                <button class="xorbit-button" id="devTriggerUpdate" style="margin-top:8px;font-size:0.72rem;padding:5px 12px;width:100%;"><i class="fas fa-sync-alt"></i> Trigger Update Badge</button>
+              </div>
+              <div class="setting-card">
+                <div class="setting-card-header">
+                  <div class="setting-card-title">
+                    <div class="setting-card-icon" style="color:#ff453a;"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div><div class="setting-card-label">Error Toast</div></div>
+                  </div>
+                </div>
+                <div class="setting-card-desc">Display a simulated system error notification</div>
+                <button class="xorbit-button" id="devTriggerError" style="margin-top:8px;font-size:0.72rem;padding:5px 12px;width:100%;"><i class="fas fa-exclamation-triangle"></i> Trigger Error</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Build Info -->
+          <div class="settings-subsection" data-sub-id="build-info" data-sub-icon="fas fa-microchip" data-sub-desc="Current build details and environment">
+            <div class="settings-subsection-title">Build Info</div>
+            <div class="about-info-grid">
+              <div class="about-info-card">
+                <div class="about-info-label">Version</div>
+                <div class="about-info-value" id="devBuildVersion">--</div>
+              </div>
+              <div class="about-info-card">
+                <div class="about-info-label">Channel</div>
+                <div class="about-info-value" id="devBuildChannel">--</div>
+              </div>
+              <div class="about-info-card">
+                <div class="about-info-label">Update Table</div>
+                <div class="about-info-value" id="devBuildTable">--</div>
+              </div>
+              <div class="about-info-card">
+                <div class="about-info-label">Beta Build</div>
+                <div class="about-info-value" id="devBuildFlag">--</div>
+              </div>
+            </div>
+          </div>
+        </div>` : ''}
+
         <!-- ══ ABOUT ══════════════════════════════════════ -->
         <div class="settings-section" id="about-section">
           <div class="settings-header">
@@ -6651,7 +6794,7 @@
           <div class="about-hero">
             <div class="about-logo-ring"><i class="fas fa-globe"></i></div>
             <div class="about-os-name">X-ORBIT Desktop</div>
-            <div class="about-version-badge"><i class="fas fa-tag"></i> v6.0.1 Sahara</div>
+            <div class="about-version-badge"><i class="fas fa-tag"></i> v6.1.2 Beta</div>
             <div class="about-description">
               X-ORBIT Desktop is a web-based proxy OS built for students. X-ORBIT allows students and people around the world to browse the world wide web without restrictions or data leaks.
             </div>
@@ -6660,11 +6803,11 @@
           <div class="about-info-grid">
             <div class="about-info-card">
               <div class="about-info-label">Version</div>
-              <div class="about-info-value">v6.0.1 Sahara</div>
+              <div class="about-info-value">v6.1.2 Beta</div>
             </div>
             <div class="about-info-card">
               <div class="about-info-label">Build</div>
-              <div class="about-info-value">v5.5 Beta</div>
+              <div class="about-info-value">v6.1.2-beta</div>
             </div>
             <div class="about-info-card">
               <div class="about-info-label">Platform</div>
@@ -6797,7 +6940,7 @@
           const sectionId = sectionEl.id.replace("-section", "");
 
           // Restore section title
-          const sectionTitles = { general: "General", personalization: "Personalization", other: "Other", about: "About" };
+          const sectionTitles = { general: "General", personalization: "Personalization", other: "Other", devtools: "Dev Tools", about: "About" };
           if (titleText) titleText.textContent = sectionTitles[sectionId] || sectionId;
 
           showSectionIndex(sectionEl);
@@ -8637,7 +8780,7 @@
           <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
             <i class="fas fa-check-circle" style="font-size:1.6rem;color:#34c759;"></i>
             <div style="font-size:0.88rem;font-weight:600;color:#f5f5f7;margin-top:4px;">Up to date</div>
-            <div style="font-size:0.75rem;color:#8e8e93;">v6.0.1 Sahara &mdash; latest version</div>
+            <div style="font-size:0.75rem;color:#8e8e93;">v6.1.2 Beta &mdash; latest version</div>
           </div>
         `;
             }
@@ -9200,8 +9343,144 @@
       // ============================================
 
       // Add these global variables at the top with your other global variables:
-      const CURRENT_VERSION = "v6.0.1";
-      const CURRENT_VERSION_NAME = "X-ORBIT Desktop v6.0.1 Sahara";
+      const IS_BETA_BUILD = true;
+      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.1.2-beta" : "v6.0.1";
+      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.1.2 Beta" : "X-ORBIT Desktop v6.0.1 Sahara";
+      const UPDATE_CHECK_TABLE = IS_BETA_BUILD ? "update_check_beta" : "update_check";
+
+      // ── Beta Dev Tools ──────────────────────────────────────────────
+      const _devLogs = [];
+      let _devLogCapture = IS_BETA_BUILD;
+
+      if (IS_BETA_BUILD) {
+        // Show beta badge in menu bar on load
+        document.addEventListener("DOMContentLoaded", () => {
+          const betaBadge = document.getElementById("betaBadgeMenuBar");
+          if (betaBadge) betaBadge.style.display = "inline";
+        });
+
+        // Intercept console methods
+        const _origLog = console.log.bind(console);
+        const _origWarn = console.warn.bind(console);
+        const _origError = console.error.bind(console);
+
+        function _captureLog(level, args) {
+          if (!_devLogCapture) return;
+          const ts = new Date().toLocaleTimeString("en-US", { hour12: false });
+          const msg = Array.from(args).map(a =>
+            typeof a === "object" ? JSON.stringify(a, null, 1) : String(a)
+          ).join(" ");
+          _devLogs.push({ ts, level, msg });
+          if (_devLogs.length > 500) _devLogs.shift();
+          _renderDevLog();
+        }
+
+        console.log = function(...args) { _origLog(...args); _captureLog("log", args); };
+        console.warn = function(...args) { _origWarn(...args); _captureLog("warn", args); };
+        console.error = function(...args) { _origError(...args); _captureLog("error", args); };
+
+        function _renderDevLog() {
+          const el = document.getElementById("devConsoleLog");
+          if (!el) return;
+          const colors = { log: "#aeaeb2", warn: "#ff9f0a", error: "#ff453a" };
+          el.innerHTML = _devLogs.map(l =>
+            `<div><span style="color:#636366;">[${l.ts}]</span> <span style="color:${colors[l.level] || "#aeaeb2"};">${l.msg.replace(/</g,"&lt;")}</span></div>`
+          ).join("");
+          el.scrollTop = el.scrollHeight;
+        }
+      }
+
+      // Wire up dev tool buttons after settings window is opened
+      function initDevTools(settingsContent) {
+        if (!IS_BETA_BUILD) return;
+        console.log("[DevTools] Initializing dev tools panel");
+
+        // Build info
+        const bv = settingsContent.querySelector("#devBuildVersion");
+        const bc = settingsContent.querySelector("#devBuildChannel");
+        const bt = settingsContent.querySelector("#devBuildTable");
+        const bf = settingsContent.querySelector("#devBuildFlag");
+        if (bv) bv.textContent = CURRENT_VERSION;
+        if (bc) bc.textContent = IS_BETA_BUILD ? "Beta" : "Stable";
+        if (bt) bt.textContent = UPDATE_CHECK_TABLE;
+        if (bf) bf.textContent = String(IS_BETA_BUILD);
+
+        // Log toggle
+        const logToggle = settingsContent.querySelector("#devLogToggle");
+        if (logToggle) {
+          if (_devLogCapture) logToggle.classList.add("active");
+          else logToggle.classList.remove("active");
+          logToggle.addEventListener("click", () => {
+            _devLogCapture = !_devLogCapture;
+            logToggle.classList.toggle("active");
+            console.log("[DevTools] Log capture " + (_devLogCapture ? "enabled" : "disabled"));
+          });
+        }
+
+        // Clear / Copy logs
+        const clearBtn = settingsContent.querySelector("#devClearLogsBtn");
+        const copyBtn = settingsContent.querySelector("#devCopyLogsBtn");
+        if (clearBtn) clearBtn.addEventListener("click", () => {
+          _devLogs.length = 0;
+          const el = document.getElementById("devConsoleLog");
+          if (el) el.innerHTML = '<span style="color:#636366;">Logs cleared.</span>';
+        });
+        if (copyBtn) copyBtn.addEventListener("click", () => {
+          const text = _devLogs.map(l => `[${l.ts}] [${l.level}] ${l.msg}`).join("\n");
+          navigator.clipboard.writeText(text).then(() => {
+            copyBtn.innerHTML = '<i class="fas fa-check"></i> Copied';
+            setTimeout(() => { copyBtn.innerHTML = '<i class="fas fa-copy"></i> Copy'; }, 1500);
+          });
+        });
+
+        // Event triggers
+        const trigNotif = settingsContent.querySelector("#devTriggerNotif");
+        const trigDM = settingsContent.querySelector("#devTriggerDM");
+        const trigUpdate = settingsContent.querySelector("#devTriggerUpdate");
+        const trigError = settingsContent.querySelector("#devTriggerError");
+
+        console.log("[DevTools] Trigger buttons found:", !!trigNotif, !!trigDM, !!trigUpdate, !!trigError);
+
+        if (trigNotif) trigNotif.addEventListener("click", () => {
+          try {
+            console.log("[DevTools] Triggering test notification");
+            saveNotificationToCenter("update", "Test Notification", "This is a simulated notification from Dev Tools.");
+            trigNotif.innerHTML = '<i class="fas fa-check"></i> Sent';
+            setTimeout(() => { trigNotif.innerHTML = '<i class="fas fa-bell"></i> Trigger Notification'; }, 1500);
+          } catch(e) { console.error("[DevTools] Notification trigger error:", e); }
+        });
+
+        if (trigDM) trigDM.addEventListener("click", () => {
+          try {
+            console.log("[DevTools] Triggering test DM");
+            showDMBadge("DevUser", "Hey! This is a simulated DM from Dev Tools.");
+            trigDM.innerHTML = '<i class="fas fa-check"></i> Sent';
+            setTimeout(() => { trigDM.innerHTML = '<i class="fas fa-comment-dots"></i> Trigger DM'; }, 1500);
+          } catch(e) { console.error("[DevTools] DM trigger error:", e); }
+        });
+
+        if (trigUpdate) trigUpdate.addEventListener("click", () => {
+          try {
+            console.log("[DevTools] Triggering update badge");
+            // Force reset so badge can show again
+            desktopUpdateBadgeShown = false;
+            latestUpdateData = { version: "v99.0.0", versionName: "X-ORBIT Desktop v99.0.0 Test", size: "0 MB" };
+            showDesktopUpdateBadge();
+            trigUpdate.innerHTML = '<i class="fas fa-check"></i> Triggered';
+            setTimeout(() => { trigUpdate.innerHTML = '<i class="fas fa-sync-alt"></i> Trigger Update Badge'; }, 1500);
+          } catch(e) { console.error("[DevTools] Update trigger error:", e); }
+        });
+
+        if (trigError) trigError.addEventListener("click", () => {
+          try {
+            console.log("[DevTools] Triggering error notification");
+            saveNotificationToCenter("update", "System Error", "Simulated error: connection to cloud sync service failed (ERR_DEV_TEST).");
+            trigError.innerHTML = '<i class="fas fa-check"></i> Sent';
+            setTimeout(() => { trigError.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Trigger Error'; }, 1500);
+          } catch(e) { console.error("[DevTools] Error trigger error:", e); }
+        });
+      }
+
       let pendingUpdateOnClose = false;
       let latestUpdateData = null;
 
@@ -9222,7 +9501,7 @@
 
           // Query the update_check table
           const { data, error } = await supabaseClient
-            .from("update_check")
+            .from(UPDATE_CHECK_TABLE)
             .select("*")
             .single();
 
@@ -9810,6 +10089,9 @@
             checkForSystemUpdates();
           }, 500);
         }
+
+        // Initialize dev tools if beta build
+        initDevTools(settingsContent);
       }
 
       // Call this at the end of your setupSettingsEvents function:
@@ -9850,11 +10132,383 @@
           loadUserData();
           initDesktop();
           startBanChecking();
-          setTimeout(showPwaPrompt, 2000);
+          setTimeout(() => { showWhatsNew(); setTimeout(showPwaPrompt, 1000); }, 1500);
         } catch (e) {
           console.warn("[Restart] Could not restore session:", e);
         }
       })();
+    </script>
+
+    <!-- ── What's New Modal ──────────────────────────────────────────── -->
+    <style>
+      #whatsNewOverlay {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100vw; height: 100vh;
+        background: rgba(0, 0, 0, 0.92);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        z-index: 999998;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        opacity: 0;
+        transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      #whatsNewOverlay.show { display: flex; opacity: 1; }
+
+      #whatsNewCard {
+        background: #1c1c1e;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 16px;
+        width: 100%;
+        max-width: 520px;
+        max-height: 80vh;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transform: scale(0.92) translateY(20px);
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      #whatsNewOverlay.show #whatsNewCard {
+        transform: scale(1) translateY(0);
+      }
+
+      .wn-header {
+        padding: 24px 24px 16px;
+        text-align: center;
+        flex-shrink: 0;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+      }
+      .wn-header h2 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #f5f5f7;
+        margin: 0 0 4px;
+        letter-spacing: -0.02em;
+      }
+      .wn-header .wn-version {
+        font-size: 0.8rem;
+        color: #8e8e93;
+        font-weight: 500;
+      }
+
+      .wn-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 24px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255,255,255,0.15) transparent;
+      }
+      .wn-scroll::-webkit-scrollbar { width: 5px; }
+      .wn-scroll::-webkit-scrollbar-track { background: transparent; }
+      .wn-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+      .wn-version-block {
+        margin-bottom: 20px;
+      }
+      .wn-version-block:last-child { margin-bottom: 0; }
+
+      .wn-version-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #0a84ff;
+        margin-bottom: 4px;
+      }
+      .wn-version-subtitle {
+        font-size: 0.7rem;
+        color: #636366;
+        margin-bottom: 10px;
+      }
+
+      .wn-section-label {
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin: 10px 0 6px;
+        padding: 0;
+      }
+      .wn-section-label.added { color: #30d158; }
+      .wn-section-label.changed { color: #ff9f0a; }
+      .wn-section-label.fixed { color: #0a84ff; }
+
+      .wn-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 8px;
+      }
+      .wn-list li {
+        position: relative;
+        padding: 4px 0 4px 14px;
+        font-size: 0.78rem;
+        color: #aeaeb2;
+        line-height: 1.45;
+      }
+      .wn-list li::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 10px;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.25);
+      }
+
+      .wn-divider {
+        height: 1px;
+        background: rgba(255,255,255,0.06);
+        margin: 16px 0;
+      }
+
+      .wn-footer {
+        padding: 16px 24px;
+        flex-shrink: 0;
+        border-top: 1px solid rgba(255,255,255,0.06);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .wn-scroll-hint {
+        font-size: 0.7rem;
+        color: #636366;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        transition: opacity 0.3s;
+      }
+      .wn-scroll-hint.hidden { opacity: 0; pointer-events: none; }
+
+      #whatsNewContinueBtn {
+        width: 100%;
+        padding: 10px;
+        border: none;
+        border-radius: 10px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-family: 'Inter', sans-serif;
+      }
+      #whatsNewContinueBtn:disabled {
+        background: rgba(255,255,255,0.06);
+        color: #636366;
+        cursor: not-allowed;
+      }
+      #whatsNewContinueBtn:not(:disabled) {
+        background: #0a84ff;
+        color: #fff;
+      }
+      #whatsNewContinueBtn:not(:disabled):hover {
+        background: #0970e0;
+      }
+    </style>
+
+    <div id="whatsNewOverlay">
+      <div id="whatsNewCard">
+        <div class="wn-header">
+          <h2>What's New</h2>
+          <div class="wn-version" id="whatsNewVersionLabel"></div>
+        </div>
+        <div class="wn-scroll" id="whatsNewScroll"></div>
+        <div class="wn-footer">
+          <div class="wn-scroll-hint" id="whatsNewScrollHint">
+            <i class="fas fa-arrow-down"></i> Scroll to read all changes
+          </div>
+          <button id="whatsNewContinueBtn" disabled>Continue</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ── What's New – version changelog data ──
+      const WHATSNEW_CHANGELOG = [
+        {
+          version: "v6.1.2-beta",
+          name: "Beta",
+          date: "September 4, 2026",
+          sections: [
+            { type: "added", items: [
+              "Beta build system \u2014 separate update channel via update_check_beta table",
+              "Developer Tools panel in Settings with console log viewer",
+              "Event triggers for testing notifications, DMs, and update banners",
+              "Magma \u2014 built-in drawing/art app with layers, brushes, shapes, and export"
+            ]},
+            { type: "changed", items: [
+              "Version number now shows Beta suffix across all UI",
+              "Update checks use dedicated beta update channel in Supabase"
+            ]}
+          ]
+        },
+        {
+          version: "v6.0.1",
+          name: "Sahara",
+          date: "September 4, 2026",
+          sections: [
+            { type: "added", items: [
+              "Neutral Theme Overhaul \u2014 removed all purple tinting across the entire UI",
+              "Replaced all emoji icons with Font Awesome icons throughout the app",
+              "Minecraft free play daily limit increased from 30 min to 1 hour, weekly from 2.5 hr to 5 hr",
+              "Software update icon now features a branded V6 gradient badge"
+            ]},
+            { type: "changed", items: [
+              "Rebuilt Software Update UI with a minimalist horizontal layout",
+              "Weather icons now use Font Awesome with proper night/day variants",
+              "Changelog page redesigned to match the neutral app theme"
+            ]}
+          ]
+        },
+        {
+          version: "v6.0",
+          name: "Sahara",
+          date: "September 2, 2026",
+          sections: [
+            { type: "added", items: [
+              "Major version bump to v6.0 Sahara",
+              "Complete UI refresh with neutral dark theme",
+              "New software update check window with cleaner design"
+            ]}
+          ]
+        },
+        {
+          version: "v5.5.8",
+          name: "Ventas",
+          date: "August 18, 2026",
+          sections: [
+            { type: "added", items: [
+              "Powerwash trigger on login page for both regular and saved accounts",
+              "Lockdown email alert via notify-lockdown edge function"
+            ]},
+            { type: "changed", items: [
+              "Admin tag management and user tag editing improvements",
+              "Media removal actions and dev console enhancements"
+            ]}
+          ]
+        },
+        {
+          version: "v5.5.5",
+          name: "Ventas",
+          date: "August 4, 2026",
+          sections: [
+            { type: "added", items: [
+              "Gemini AI chat integration in the desktop",
+              "Dev console with runtime diagnostics"
+            ]},
+            { type: "fixed", items: [
+              "Settings panel scroll and layout fixes",
+              "Notification bell count accuracy improvements"
+            ]}
+          ]
+        },
+        {
+          version: "v5.5.0",
+          name: "Ventas",
+          date: "July 20, 2026",
+          sections: [
+            { type: "added", items: [
+              "Cloud Sync \u2014 settings and preferences saved to Supabase",
+              "Account management panel in settings",
+              "Spotlight search for apps and settings"
+            ]},
+            { type: "changed", items: [
+              "Settings UI restructured with sidebar navigation and subcategories",
+              "Dock animations refined with smoother transitions"
+            ]}
+          ]
+        }
+      ];
+
+      // ── Cookie helpers ──
+      function setVersionCookie(version) {
+        const d = new Date();
+        d.setTime(d.getTime() + 365 * 24 * 60 * 60 * 1000); // 1 year
+        document.cookie = "xorbit_last_version=" + encodeURIComponent(version) + ";expires=" + d.toUTCString() + ";path=/;SameSite=Lax";
+      }
+      function getVersionCookie() {
+        const match = document.cookie.match(/(?:^|;\s*)xorbit_last_version=([^;]*)/);
+        return match ? decodeURIComponent(match[1]) : null;
+      }
+
+      // ── Version comparison helper ──
+      function parseVersion(v) {
+        const nums = v.replace(/^v/i, "").split(".").map(Number);
+        return nums[0] * 10000 + (nums[1] || 0) * 100 + (nums[2] || 0);
+      }
+
+      // ── Build & show the modal ──
+      function showWhatsNew() {
+        const lastSeen = getVersionCookie();
+        const lastSeenNum = lastSeen ? parseVersion(lastSeen) : 0;
+        const currentNum = parseVersion(CURRENT_VERSION);
+
+        // If cookie exists and matches (or is somehow newer), skip
+        if (lastSeenNum >= currentNum) return;
+
+        // Gather all versions newer than lastSeen
+        const newVersions = WHATSNEW_CHANGELOG.filter(v => parseVersion(v.version) > lastSeenNum);
+        if (newVersions.length === 0) return;
+
+        // Build HTML
+        const scrollEl = document.getElementById("whatsNewScroll");
+        const label = document.getElementById("whatsNewVersionLabel");
+        label.textContent = CURRENT_VERSION_NAME;
+
+        let html = "";
+        newVersions.forEach((v, idx) => {
+          if (idx > 0) html += '<div class="wn-divider"></div>';
+          html += '<div class="wn-version-block">';
+          html += '<div class="wn-version-title">' + v.version + (v.name ? ' "' + v.name + '"' : '') + '</div>';
+          html += '<div class="wn-version-subtitle">' + v.date + '</div>';
+          v.sections.forEach(s => {
+            html += '<div class="wn-section-label ' + s.type + '">' + s.type.charAt(0).toUpperCase() + s.type.slice(1) + '</div>';
+            html += '<ul class="wn-list">';
+            s.items.forEach(item => {
+              html += '<li>' + item + '</li>';
+            });
+            html += '</ul>';
+          });
+          html += '</div>';
+        });
+        scrollEl.innerHTML = html;
+
+        // Show overlay
+        const overlay = document.getElementById("whatsNewOverlay");
+        overlay.style.display = "flex";
+        requestAnimationFrame(() => requestAnimationFrame(() => overlay.classList.add("show")));
+
+        // Scroll detection — enable button once user has scrolled to the bottom
+        const btn = document.getElementById("whatsNewContinueBtn");
+        const hint = document.getElementById("whatsNewScrollHint");
+        btn.disabled = true;
+
+        function checkScroll() {
+          const atBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 20;
+          if (atBottom) {
+            btn.disabled = false;
+            hint.classList.add("hidden");
+            scrollEl.removeEventListener("scroll", checkScroll);
+          }
+        }
+        // If content doesn't overflow, enable immediately
+        requestAnimationFrame(() => {
+          if (scrollEl.scrollHeight <= scrollEl.clientHeight + 5) {
+            btn.disabled = false;
+            hint.classList.add("hidden");
+          } else {
+            scrollEl.addEventListener("scroll", checkScroll);
+          }
+        });
+
+        // Continue button
+        btn.onclick = function() {
+          setVersionCookie(CURRENT_VERSION);
+          overlay.classList.remove("show");
+          overlay.addEventListener("transitionend", () => { overlay.style.display = "none"; }, { once: true });
+        };
+      }
     </script>
 
     <!-- ── PWA Install Prompt ─────────────────────────────────────────── -->

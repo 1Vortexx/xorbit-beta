@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Magma – X-ORBIT</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; background: #0e0e10; color: #e5e5ea; user-select: none; }
+
+/* ── Layout ── */
+.magma-app { display: flex; flex-direction: column; height: 100%; }
+
+/* ── Top Bar ── */
+.magma-topbar {
+  height: 38px; min-height: 38px;
+  background: #1c1c1e;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex; align-items: center;
+  padding: 0 12px; gap: 8px;
+  z-index: 10;
+}
+.magma-topbar .logo {
+  font-size: 0.8rem; font-weight: 700; color: #ff6b35;
+  display: flex; align-items: center; gap: 5px;
+  margin-right: 8px;
+}
+.magma-topbar .logo i { font-size: 0.9rem; }
+
+.tb-divider { width: 1px; height: 20px; background: rgba(255,255,255,0.08); }
+
+.tb-group { display: flex; align-items: center; gap: 2px; }
+.tb-btn {
+  width: 30px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: #8e8e93;
+  border-radius: 6px; cursor: pointer; font-size: 0.75rem;
+  transition: all 0.15s;
+}
+.tb-btn:hover { background: rgba(255,255,255,0.08); color: #f5f5f7; }
+.tb-btn.active { background: rgba(10,132,255,0.2); color: #0a84ff; }
+
+.tb-spacer { flex: 1; }
+
+.tb-filename {
+  font-size: 0.72rem; color: #636366; font-weight: 500;
+  display: flex; align-items: center; gap: 4px;
+}
+
+.tb-zoom {
+  font-size: 0.7rem; color: #636366; font-weight: 500;
+  background: rgba(255,255,255,0.04);
+  padding: 3px 8px; border-radius: 5px;
+}
+
+/* ── Main Area ── */
+.magma-main { display: flex; flex: 1; overflow: hidden; }
+
+/* ── Left Toolbar ── */
+.magma-toolbar {
+  width: 44px; min-width: 44px;
+  background: #1c1c1e;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  display: flex; flex-direction: column;
+  align-items: center;
+  padding: 8px 0; gap: 2px;
+  z-index: 5;
+}
+.tool-btn {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: #8e8e93;
+  border-radius: 8px; cursor: pointer; font-size: 0.8rem;
+  transition: all 0.15s; position: relative;
+}
+.tool-btn:hover { background: rgba(255,255,255,0.08); color: #f5f5f7; }
+.tool-btn.active { background: rgba(10,132,255,0.2); color: #0a84ff; }
+.tool-sep { width: 24px; height: 1px; background: rgba(255,255,255,0.06); margin: 4px 0; }
+.tool-btn .shortcut {
+  position: absolute; bottom: 1px; right: 2px;
+  font-size: 0.45rem; color: #4a4a4e; font-weight: 600;
+}
+
+/* ── Canvas Area ── */
+.magma-canvas-area {
+  flex: 1; position: relative; overflow: hidden;
+  background: #141416;
+  /* checkerboard for transparency */
+  background-image:
+    linear-gradient(45deg, #1a1a1c 25%, transparent 25%),
+    linear-gradient(-45deg, #1a1a1c 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #1a1a1c 75%),
+    linear-gradient(-45deg, transparent 75%, #1a1a1c 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  cursor: crosshair;
+}
+
+#magmaCanvas {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform-origin: center center;
+  image-rendering: auto;
+}
+
+/* Brush cursor preview */
+.brush-cursor {
+  position: fixed; pointer-events: none;
+  border: 1.5px solid rgba(255,255,255,0.5);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  display: none;
+}
+
+/* ── Right Panel ── */
+.magma-panel {
+  width: 240px; min-width: 240px;
+  background: #1c1c1e;
+  border-left: 1px solid rgba(255,255,255,0.06);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  z-index: 5;
+}
+
+.panel-section {
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 10px 12px;
+}
+.panel-section-title {
+  font-size: 0.65rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  color: #636366; margin-bottom: 8px;
+}
+
+/* Color Picker */
+.color-area {
+  display: flex; align-items: center; gap: 8px;
+}
+.color-preview {
+  width: 32px; height: 32px; border-radius: 8px;
+  border: 2px solid rgba(255,255,255,0.1);
+  cursor: pointer; position: relative;
+}
+.color-preview input[type="color"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  width: 100%; height: 100%;
+}
+.color-swatches {
+  display: flex; flex-wrap: wrap; gap: 3px;
+}
+.color-swatch {
+  width: 18px; height: 18px; border-radius: 4px;
+  border: 1.5px solid rgba(255,255,255,0.06);
+  cursor: pointer; transition: transform 0.1s;
+}
+.color-swatch:hover { transform: scale(1.15); }
+.color-swatch.active { border-color: #fff; }
+
+/* Brush Settings */
+.slider-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px;
+}
+.slider-row label {
+  font-size: 0.7rem; color: #8e8e93; min-width: 48px;
+}
+.slider-row input[type="range"] {
+  flex: 1; height: 4px; -webkit-appearance: none; appearance: none;
+  background: rgba(255,255,255,0.1); border-radius: 2px; outline: none;
+}
+.slider-row input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: #0a84ff; cursor: pointer;
+  border: 2px solid #1c1c1e;
+}
+.slider-row .val {
+  font-size: 0.65rem; color: #636366; min-width: 24px; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Layers Panel */
+.layers-list {
+  flex: 1; overflow-y: auto;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;
+}
+.layers-list::-webkit-scrollbar { width: 4px; }
+.layers-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+.layer-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 6px;
+  cursor: pointer; transition: background 0.15s;
+  margin-bottom: 2px;
+}
+.layer-item:hover { background: rgba(255,255,255,0.04); }
+.layer-item.active { background: rgba(10,132,255,0.12); }
+
+.layer-thumb {
+  width: 28px; height: 28px; border-radius: 4px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.layer-thumb canvas { width: 100%; height: 100%; }
+
+.layer-name {
+  font-size: 0.72rem; color: #aeaeb2; flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.layer-item.active .layer-name { color: #f5f5f7; }
+
+.layer-vis {
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: #636366;
+  cursor: pointer; font-size: 0.65rem; border-radius: 4px;
+}
+.layer-vis:hover { color: #aeaeb2; }
+.layer-vis.visible { color: #0a84ff; }
+
+.layer-actions {
+  display: flex; align-items: center; gap: 4px;
+  padding: 6px 12px 2px;
+}
+.layer-action-btn {
+  flex: 1; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: rgba(255,255,255,0.04);
+  color: #8e8e93; border-radius: 5px;
+  cursor: pointer; font-size: 0.7rem;
+  transition: all 0.15s;
+}
+.layer-action-btn:hover { background: rgba(255,255,255,0.08); color: #f5f5f7; }
+
+/* ── Bottom Status ── */
+.magma-status {
+  height: 24px; min-height: 24px;
+  background: #1c1c1e;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex; align-items: center;
+  padding: 0 12px; gap: 12px;
+  font-size: 0.6rem; color: #4a4a4e;
+}
+.status-item { display: flex; align-items: center; gap: 4px; }
+
+/* ── Blend Mode Dropdown ── */
+.blend-select {
+  width: 100%; height: 26px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 5px;
+  color: #aeaeb2; font-size: 0.7rem;
+  font-family: 'Inter', sans-serif;
+  padding: 0 6px; cursor: pointer;
+  outline: none;
+}
+.blend-select:focus { border-color: #0a84ff; }
+.blend-select option { background: #2c2c2e; }
+
+/* ── Shape Overlay (text, shapes) ── */
+.shape-preview {
+  position: absolute; pointer-events: none;
+  border: 1.5px dashed rgba(10,132,255,0.6);
+  z-index: 50;
+}
+</style>
+</head>
+<body>
+
+<div class="magma-app">
+  <!-- Top Bar -->
+  <div class="magma-topbar">
+    <div class="logo"><i class="fas fa-fire"></i> Magma</div>
+    <div class="tb-divider"></div>
+    <div class="tb-group">
+      <button class="tb-btn" id="undoBtn" title="Undo (Ctrl+Z)"><i class="fas fa-undo"></i></button>
+      <button class="tb-btn" id="redoBtn" title="Redo (Ctrl+Y)"><i class="fas fa-redo"></i></button>
+    </div>
+    <div class="tb-divider"></div>
+    <div class="tb-group">
+      <button class="tb-btn" id="flipHBtn" title="Flip Horizontal"><i class="fas fa-arrows-alt-h"></i></button>
+      <button class="tb-btn" id="flipVBtn" title="Flip Vertical"><i class="fas fa-arrows-alt-v"></i></button>
+    </div>
+    <div class="tb-divider"></div>
+    <div class="tb-group">
+      <button class="tb-btn" id="clearBtn" title="Clear Canvas"><i class="fas fa-trash-alt"></i></button>
+    </div>
+    <div class="tb-spacer"></div>
+    <div class="tb-filename"><i class="fas fa-circle" style="color:#30d158;font-size:0.4rem;"></i> Untitled Canvas</div>
+    <div class="tb-spacer"></div>
+    <div class="tb-zoom" id="zoomDisplay">100%</div>
+    <div class="tb-group">
+      <button class="tb-btn" id="zoomInBtn" title="Zoom In"><i class="fas fa-plus"></i></button>
+      <button class="tb-btn" id="zoomOutBtn" title="Zoom Out"><i class="fas fa-minus"></i></button>
+      <button class="tb-btn" id="zoomFitBtn" title="Fit to Screen"><i class="fas fa-expand"></i></button>
+    </div>
+    <div class="tb-divider"></div>
+    <div class="tb-group">
+      <button class="tb-btn" id="exportBtn" title="Export PNG"><i class="fas fa-download"></i></button>
+    </div>
+  </div>
+
+  <div class="magma-main">
+    <!-- Left Toolbar -->
+    <div class="magma-toolbar">
+      <button class="tool-btn active" data-tool="brush" title="Brush (B)">
+        <i class="fas fa-paintbrush"></i><span class="shortcut">B</span>
+      </button>
+      <button class="tool-btn" data-tool="eraser" title="Eraser (E)">
+        <i class="fas fa-eraser"></i><span class="shortcut">E</span>
+      </button>
+      <button class="tool-btn" data-tool="pencil" title="Pencil (P)">
+        <i class="fas fa-pencil-alt"></i><span class="shortcut">P</span>
+      </button>
+      <div class="tool-sep"></div>
+      <button class="tool-btn" data-tool="line" title="Line (L)">
+        <i class="fas fa-slash"></i><span class="shortcut">L</span>
+      </button>
+      <button class="tool-btn" data-tool="rect" title="Rectangle (R)">
+        <i class="far fa-square"></i><span class="shortcut">R</span>
+      </button>
+      <button class="tool-btn" data-tool="circle" title="Ellipse (C)">
+        <i class="far fa-circle"></i><span class="shortcut">C</span>
+      </button>
+      <div class="tool-sep"></div>
+      <button class="tool-btn" data-tool="fill" title="Fill (G)">
+        <i class="fas fa-fill-drip"></i><span class="shortcut">G</span>
+      </button>
+      <button class="tool-btn" data-tool="eyedropper" title="Eyedropper (I)">
+        <i class="fas fa-eye-dropper"></i><span class="shortcut">I</span>
+      </button>
+      <div class="tool-sep"></div>
+      <button class="tool-btn" data-tool="text" title="Text (T)">
+        <i class="fas fa-font"></i><span class="shortcut">T</span>
+      </button>
+      <div class="tool-sep"></div>
+      <button class="tool-btn" data-tool="pan" title="Pan (Space+Drag)">
+        <i class="fas fa-hand-paper"></i>
+      </button>
+    </div>
+
+    <!-- Canvas -->
+    <div class="magma-canvas-area" id="canvasArea">
+      <canvas id="magmaCanvas"></canvas>
+      <div class="brush-cursor" id="brushCursor"></div>
+    </div>
+
+    <!-- Right Panel -->
+    <div class="magma-panel">
+      <!-- Color -->
+      <div class="panel-section">
+        <div class="panel-section-title">Color</div>
+        <div class="color-area">
+          <div class="color-preview" id="colorPreview" style="background:#ffffff;">
+            <input type="color" id="colorPicker" value="#ffffff">
+          </div>
+          <div class="color-swatches" id="colorSwatches"></div>
+        </div>
+      </div>
+
+      <!-- Brush Settings -->
+      <div class="panel-section">
+        <div class="panel-section-title">Brush</div>
+        <div class="slider-row">
+          <label>Size</label>
+          <input type="range" id="brushSize" min="1" max="200" value="8">
+          <span class="val" id="brushSizeVal">8</span>
+        </div>
+        <div class="slider-row">
+          <label>Opacity</label>
+          <input type="range" id="brushOpacity" min="1" max="100" value="100">
+          <span class="val" id="brushOpacityVal">100</span>
+        </div>
+        <div class="slider-row">
+          <label>Hardness</label>
+          <input type="range" id="brushHardness" min="0" max="100" value="80">
+          <span class="val" id="brushHardnessVal">80</span>
+        </div>
+        <div style="margin-top:6px;">
+          <select class="blend-select" id="blendMode">
+            <option value="source-over">Normal</option>
+            <option value="multiply">Multiply</option>
+            <option value="screen">Screen</option>
+            <option value="overlay">Overlay</option>
+            <option value="darken">Darken</option>
+            <option value="lighten">Lighten</option>
+            <option value="color-dodge">Color Dodge</option>
+            <option value="color-burn">Color Burn</option>
+            <option value="hard-light">Hard Light</option>
+            <option value="soft-light">Soft Light</option>
+            <option value="difference">Difference</option>
+            <option value="hue">Hue</option>
+            <option value="saturation">Saturation</option>
+            <option value="color">Color</option>
+            <option value="luminosity">Luminosity</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Layers -->
+      <div class="panel-section" style="flex:1;display:flex;flex-direction:column;overflow:hidden;padding-bottom:6px;">
+        <div class="panel-section-title">Layers</div>
+        <div class="layers-list" id="layersList"></div>
+        <div class="layer-actions">
+          <button class="layer-action-btn" id="addLayerBtn" title="Add Layer"><i class="fas fa-plus"></i></button>
+          <button class="layer-action-btn" id="dupeLayerBtn" title="Duplicate Layer"><i class="fas fa-copy"></i></button>
+          <button class="layer-action-btn" id="mergeLayerBtn" title="Merge Down"><i class="fas fa-compress-arrows-alt"></i></button>
+          <button class="layer-action-btn" id="deleteLayerBtn" title="Delete Layer"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Bar -->
+  <div class="magma-status">
+    <div class="status-item" id="statusCoords">0, 0</div>
+    <div class="status-item" id="statusCanvasSize">1920 x 1080</div>
+    <div class="status-item" id="statusTool">Brush</div>
+  </div>
+</div>
+
+<script>
+// ── Canvas & State ──
+const CANVAS_W = 1920, CANVAS_H = 1080;
+let zoom = 1, panX = 0, panY = 0;
+let currentTool = "brush";
+let brushColor = "#ffffff";
+let brushSize = 8, brushOpacity = 100, brushHardness = 80;
+let blendMode = "source-over";
+let isDrawing = false, lastX = 0, lastY = 0;
+let spaceHeld = false, isPanning = false, panStartX = 0, panStartY = 0, panStartPanX = 0, panStartPanY = 0;
+
+// Undo/Redo
+const undoStack = [], redoStack = [];
+const MAX_UNDO = 40;
+
+// Shape drawing state
+let shapeStartX = 0, shapeStartY = 0;
+let shapePreview = null;
+
+// ── Layers ──
+let layers = [];
+let activeLayerIdx = 0;
+
+function createLayer(name) {
+  const cvs = document.createElement("canvas");
+  cvs.width = CANVAS_W; cvs.height = CANVAS_H;
+  return { name, canvas: cvs, ctx: cvs.getContext("2d"), visible: true, opacity: 1 };
+}
+
+function initLayers() {
+  layers = [createLayer("Background"), createLayer("Layer 1")];
+  activeLayerIdx = 1;
+  // Fill background white
+  layers[0].ctx.fillStyle = "#ffffff";
+  layers[0].ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  renderLayers();
+  renderLayerPanel();
+}
+
+// Composite all visible layers onto the display canvas
+function renderLayers() {
+  const display = document.getElementById("magmaCanvas");
+  const dCtx = display.getContext("2d");
+  dCtx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+  for (const layer of layers) {
+    if (!layer.visible) continue;
+    dCtx.globalAlpha = layer.opacity;
+    dCtx.drawImage(layer.canvas, 0, 0);
+  }
+  dCtx.globalAlpha = 1;
+}
+
+function renderLayerPanel() {
+  const list = document.getElementById("layersList");
+  let html = "";
+  // Render top to bottom (highest layer first)
+  for (let i = layers.length - 1; i >= 0; i--) {
+    const l = layers[i];
+    const active = i === activeLayerIdx ? " active" : "";
+    const visClass = l.visible ? " visible" : "";
+    html += `<div class="layer-item${active}" data-idx="${i}">
+      <div class="layer-thumb"><canvas width="28" height="28"></canvas></div>
+      <div class="layer-name">${l.name}</div>
+      <button class="layer-vis${visClass}" data-idx="${i}"><i class="fas fa-eye"></i></button>
+    </div>`;
+  }
+  list.innerHTML = html;
+
+  // Draw thumbnails
+  list.querySelectorAll(".layer-item").forEach(el => {
+    const idx = parseInt(el.dataset.idx);
+    const thumbCvs = el.querySelector("canvas");
+    const tCtx = thumbCvs.getContext("2d");
+    tCtx.clearRect(0, 0, 28, 28);
+    tCtx.drawImage(layers[idx].canvas, 0, 0, 28, 28);
+  });
+
+  // Click handlers
+  list.querySelectorAll(".layer-item").forEach(el => {
+    el.addEventListener("click", e => {
+      if (e.target.closest(".layer-vis")) return;
+      activeLayerIdx = parseInt(el.dataset.idx);
+      renderLayerPanel();
+    });
+  });
+  list.querySelectorAll(".layer-vis").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx);
+      layers[idx].visible = !layers[idx].visible;
+      renderLayers();
+      renderLayerPanel();
+    });
+  });
+}
+
+// ── Undo / Redo ──
+function saveState() {
+  // Save all layer data
+  const state = layers.map(l => {
+    const cvs = document.createElement("canvas");
+    cvs.width = CANVAS_W; cvs.height = CANVAS_H;
+    cvs.getContext("2d").drawImage(l.canvas, 0, 0);
+    return { name: l.name, canvas: cvs, visible: l.visible, opacity: l.opacity };
+  });
+  undoStack.push({ layers: state, activeLayerIdx });
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+  redoStack.length = 0;
+}
+
+function restoreState(state) {
+  layers = state.layers.map(s => {
+    const cvs = document.createElement("canvas");
+    cvs.width = CANVAS_W; cvs.height = CANVAS_H;
+    cvs.getContext("2d").drawImage(s.canvas, 0, 0);
+    return { name: s.name, canvas: cvs, ctx: cvs.getContext("2d"), visible: s.visible, opacity: s.opacity };
+  });
+  activeLayerIdx = state.activeLayerIdx;
+  renderLayers();
+  renderLayerPanel();
+}
+
+function undo() {
+  if (undoStack.length === 0) return;
+  const current = layers.map(l => {
+    const cvs = document.createElement("canvas");
+    cvs.width = CANVAS_W; cvs.height = CANVAS_H;
+    cvs.getContext("2d").drawImage(l.canvas, 0, 0);
+    return { name: l.name, canvas: cvs, visible: l.visible, opacity: l.opacity };
+  });
+  redoStack.push({ layers: current, activeLayerIdx });
+  restoreState(undoStack.pop());
+}
+
+function redo() {
+  if (redoStack.length === 0) return;
+  const current = layers.map(l => {
+    const cvs = document.createElement("canvas");
+    cvs.width = CANVAS_W; cvs.height = CANVAS_H;
+    cvs.getContext("2d").drawImage(l.canvas, 0, 0);
+    return { name: l.name, canvas: cvs, visible: l.visible, opacity: l.opacity };
+  });
+  undoStack.push({ layers: current, activeLayerIdx });
+  restoreState(redoStack.pop());
+}
+
+// ── Coordinate helpers ──
+const canvasArea = document.getElementById("canvasArea");
+const displayCanvas = document.getElementById("magmaCanvas");
+displayCanvas.width = CANVAS_W;
+displayCanvas.height = CANVAS_H;
+
+function updateCanvasTransform() {
+  displayCanvas.style.transform = `translate(-50%, -50%) translate(${panX}px, ${panY}px) scale(${zoom})`;
+  document.getElementById("zoomDisplay").textContent = Math.round(zoom * 100) + "%";
+}
+
+function screenToCanvas(sx, sy) {
+  const rect = canvasArea.getBoundingClientRect();
+  const cx = rect.width / 2 + panX;
+  const cy = rect.height / 2 + panY;
+  return {
+    x: (sx - rect.left - cx) / zoom + CANVAS_W / 2,
+    y: (sy - rect.top - cy) / zoom + CANVAS_H / 2
+  };
+}
+
+function fitToScreen() {
+  const rect = canvasArea.getBoundingClientRect();
+  const scaleX = (rect.width - 40) / CANVAS_W;
+  const scaleY = (rect.height - 40) / CANVAS_H;
+  zoom = Math.min(scaleX, scaleY, 1);
+  panX = 0; panY = 0;
+  updateCanvasTransform();
+}
+
+// ── Drawing ──
+function getActiveCtx() {
+  return layers[activeLayerIdx].ctx;
+}
+
+function startStroke(x, y) {
+  const ctx = getActiveCtx();
+  ctx.globalCompositeOperation = currentTool === "eraser" ? "destination-out" : blendMode;
+  ctx.globalAlpha = brushOpacity / 100;
+  ctx.lineWidth = brushSize;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = currentTool === "eraser" ? "#000000" : brushColor;
+
+  if (currentTool === "pencil") {
+    ctx.imageSmoothingEnabled = false;
+    ctx.lineWidth = Math.max(1, Math.round(brushSize / 4));
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  // Draw a dot
+  ctx.lineTo(x + 0.1, y + 0.1);
+  ctx.stroke();
+}
+
+function continueStroke(x, y) {
+  const ctx = getActiveCtx();
+  ctx.beginPath();
+  ctx.moveTo(lastX, lastY);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+}
+
+function endStroke() {
+  const ctx = getActiveCtx();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 1;
+  ctx.imageSmoothingEnabled = true;
+  renderLayers();
+  renderLayerPanel();
+}
+
+// ── Flood Fill ──
+function floodFill(startX, startY, fillColor) {
+  const ctx = getActiveCtx();
+  const imgData = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
+  const data = imgData.data;
+  const sx = Math.round(startX), sy = Math.round(startY);
+  if (sx < 0 || sx >= CANVAS_W || sy < 0 || sy >= CANVAS_H) return;
+
+  const startIdx = (sy * CANVAS_W + sx) * 4;
+  const startR = data[startIdx], startG = data[startIdx+1], startB = data[startIdx+2], startA = data[startIdx+3];
+
+  // Parse fill color
+  const tmp = document.createElement("canvas").getContext("2d");
+  tmp.fillStyle = fillColor;
+  tmp.fillRect(0,0,1,1);
+  const fc = tmp.getImageData(0,0,1,1).data;
+  const fR = fc[0], fG = fc[1], fB = fc[2], fA = 255;
+
+  if (startR === fR && startG === fG && startB === fB && startA === fA) return;
+
+  const tolerance = 32;
+  function matches(i) {
+    return Math.abs(data[i] - startR) <= tolerance &&
+           Math.abs(data[i+1] - startG) <= tolerance &&
+           Math.abs(data[i+2] - startB) <= tolerance &&
+           Math.abs(data[i+3] - startA) <= tolerance;
+  }
+
+  const stack = [[sx, sy]];
+  const visited = new Uint8Array(CANVAS_W * CANVAS_H);
+
+  while (stack.length > 0) {
+    const [cx, cy] = stack.pop();
+    const idx = cy * CANVAS_W + cx;
+    if (visited[idx]) continue;
+    visited[idx] = 1;
+    const pi = idx * 4;
+    if (!matches(pi)) continue;
+    data[pi] = fR; data[pi+1] = fG; data[pi+2] = fB; data[pi+3] = fA;
+    if (cx > 0) stack.push([cx-1, cy]);
+    if (cx < CANVAS_W-1) stack.push([cx+1, cy]);
+    if (cy > 0) stack.push([cx, cy-1]);
+    if (cy < CANVAS_H-1) stack.push([cx, cy+1]);
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+// ── Eyedropper ──
+function pickColor(x, y) {
+  // Sample from composite
+  const dCtx = displayCanvas.getContext("2d");
+  const px = dCtx.getImageData(Math.round(x), Math.round(y), 1, 1).data;
+  const hex = "#" + ((1 << 24) + (px[0] << 16) + (px[1] << 8) + px[2]).toString(16).slice(1);
+  setBrushColor(hex);
+}
+
+// ── Shape Drawing ──
+function drawShapePreview(x0, y0, x1, y1) {
+  if (!shapePreview) {
+    shapePreview = document.createElement("div");
+    shapePreview.className = "shape-preview";
+    canvasArea.appendChild(shapePreview);
+  }
+  // Convert canvas coords to screen coords (approximate)
+  const rect = canvasArea.getBoundingClientRect();
+  const cx = rect.width / 2 + panX;
+  const cy = rect.height / 2 + panY;
+  const sx0 = (x0 - CANVAS_W/2) * zoom + cx;
+  const sy0 = (y0 - CANVAS_H/2) * zoom + cy;
+  const sx1 = (x1 - CANVAS_W/2) * zoom + cx;
+  const sy1 = (y1 - CANVAS_H/2) * zoom + cy;
+  const left = Math.min(sx0, sx1), top = Math.min(sy0, sy1);
+  const w = Math.abs(sx1 - sx0), h = Math.abs(sy1 - sy0);
+  shapePreview.style.cssText = `position:absolute;left:${left}px;top:${top}px;width:${w}px;height:${h}px;border:1.5px dashed rgba(10,132,255,0.6);z-index:50;pointer-events:none;border-radius:${currentTool === "circle" ? "50%" : "0"};`;
+}
+
+function commitShape(x0, y0, x1, y1) {
+  const ctx = getActiveCtx();
+  ctx.globalCompositeOperation = blendMode;
+  ctx.globalAlpha = brushOpacity / 100;
+  ctx.strokeStyle = brushColor;
+  ctx.lineWidth = brushSize;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  if (currentTool === "line") {
+    ctx.beginPath();
+    ctx.moveTo(x0, y0);
+    ctx.lineTo(x1, y1);
+    ctx.stroke();
+  } else if (currentTool === "rect") {
+    ctx.strokeRect(Math.min(x0,x1), Math.min(y0,y1), Math.abs(x1-x0), Math.abs(y1-y0));
+  } else if (currentTool === "circle") {
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    const rx = Math.abs(x1 - x0) / 2, ry = Math.abs(y1 - y0) / 2;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 1;
+  if (shapePreview) { shapePreview.remove(); shapePreview = null; }
+}
+
+// ── Text Tool ──
+function handleText(x, y) {
+  const text = prompt("Enter text:");
+  if (!text) return;
+  saveState();
+  const ctx = getActiveCtx();
+  ctx.globalCompositeOperation = blendMode;
+  ctx.globalAlpha = brushOpacity / 100;
+  ctx.fillStyle = brushColor;
+  ctx.font = `${brushSize * 3}px Inter, sans-serif`;
+  ctx.textBaseline = "top";
+  ctx.fillText(text, x, y);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.globalAlpha = 1;
+  renderLayers();
+  renderLayerPanel();
+}
+
+// ── Color Management ──
+const SWATCHES = [
+  "#ffffff","#c8c8c8","#8e8e8e","#4a4a4a","#000000",
+  "#ff3b30","#ff6b35","#ff9f0a","#ffd60a","#30d158",
+  "#34c759","#00c7be","#0a84ff","#5856d6","#af52de",
+  "#ff2d55","#a2845e","#6d4c41","#1a1a2e","#16213e"
+];
+
+function initSwatches() {
+  const container = document.getElementById("colorSwatches");
+  container.innerHTML = SWATCHES.map(c =>
+    `<div class="color-swatch${c === brushColor ? " active" : ""}" style="background:${c};" data-color="${c}"></div>`
+  ).join("");
+  container.addEventListener("click", e => {
+    const sw = e.target.closest(".color-swatch");
+    if (!sw) return;
+    setBrushColor(sw.dataset.color);
+  });
+}
+
+function setBrushColor(hex) {
+  brushColor = hex;
+  document.getElementById("colorPicker").value = hex;
+  document.getElementById("colorPreview").style.background = hex;
+  document.querySelectorAll(".color-swatch").forEach(s => {
+    s.classList.toggle("active", s.dataset.color === hex);
+  });
+}
+
+// ── Event Wiring ──
+function init() {
+  initLayers();
+  initSwatches();
+  updateCanvasTransform();
+  fitToScreen();
+
+  // Tool buttons
+  document.querySelectorAll(".tool-btn[data-tool]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      currentTool = btn.dataset.tool;
+      document.querySelectorAll(".tool-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("statusTool").textContent =
+        currentTool.charAt(0).toUpperCase() + currentTool.slice(1);
+      canvasArea.style.cursor = currentTool === "pan" ? "grab" :
+        currentTool === "eyedropper" ? "crosshair" :
+        currentTool === "text" ? "text" :
+        currentTool === "fill" ? "crosshair" : "crosshair";
+    });
+  });
+
+  // Sliders
+  const sizeSlider = document.getElementById("brushSize");
+  const opacitySlider = document.getElementById("brushOpacity");
+  const hardnessSlider = document.getElementById("brushHardness");
+  sizeSlider.oninput = () => { brushSize = +sizeSlider.value; document.getElementById("brushSizeVal").textContent = brushSize; };
+  opacitySlider.oninput = () => { brushOpacity = +opacitySlider.value; document.getElementById("brushOpacityVal").textContent = brushOpacity; };
+  hardnessSlider.oninput = () => { brushHardness = +hardnessSlider.value; document.getElementById("brushHardnessVal").textContent = brushHardness; };
+
+  // Blend mode
+  document.getElementById("blendMode").onchange = e => { blendMode = e.target.value; };
+
+  // Color picker
+  document.getElementById("colorPicker").oninput = e => { setBrushColor(e.target.value); };
+
+  // Topbar buttons
+  document.getElementById("undoBtn").onclick = undo;
+  document.getElementById("redoBtn").onclick = redo;
+  document.getElementById("clearBtn").onclick = () => {
+    saveState();
+    const ctx = getActiveCtx();
+    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    renderLayers();
+    renderLayerPanel();
+  };
+  document.getElementById("zoomInBtn").onclick = () => { zoom = Math.min(zoom * 1.25, 16); updateCanvasTransform(); };
+  document.getElementById("zoomOutBtn").onclick = () => { zoom = Math.max(zoom / 1.25, 0.1); updateCanvasTransform(); };
+  document.getElementById("zoomFitBtn").onclick = fitToScreen;
+
+  document.getElementById("flipHBtn").onclick = () => {
+    saveState();
+    const l = layers[activeLayerIdx];
+    const tmp = document.createElement("canvas");
+    tmp.width = CANVAS_W; tmp.height = CANVAS_H;
+    const tCtx = tmp.getContext("2d");
+    tCtx.translate(CANVAS_W, 0);
+    tCtx.scale(-1, 1);
+    tCtx.drawImage(l.canvas, 0, 0);
+    l.ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    l.ctx.drawImage(tmp, 0, 0);
+    renderLayers(); renderLayerPanel();
+  };
+  document.getElementById("flipVBtn").onclick = () => {
+    saveState();
+    const l = layers[activeLayerIdx];
+    const tmp = document.createElement("canvas");
+    tmp.width = CANVAS_W; tmp.height = CANVAS_H;
+    const tCtx = tmp.getContext("2d");
+    tCtx.translate(0, CANVAS_H);
+    tCtx.scale(1, -1);
+    tCtx.drawImage(l.canvas, 0, 0);
+    l.ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+    l.ctx.drawImage(tmp, 0, 0);
+    renderLayers(); renderLayerPanel();
+  };
+
+  // Export
+  document.getElementById("exportBtn").onclick = () => {
+    const tmp = document.createElement("canvas");
+    tmp.width = CANVAS_W; tmp.height = CANVAS_H;
+    const tCtx = tmp.getContext("2d");
+    for (const l of layers) {
+      if (!l.visible) continue;
+      tCtx.globalAlpha = l.opacity;
+      tCtx.drawImage(l.canvas, 0, 0);
+    }
+    tCtx.globalAlpha = 1;
+    const link = document.createElement("a");
+    link.download = "magma-canvas.png";
+    link.href = tmp.toDataURL("image/png");
+    link.click();
+  };
+
+  // Layer actions
+  document.getElementById("addLayerBtn").onclick = () => {
+    saveState();
+    const name = "Layer " + (layers.length);
+    layers.splice(activeLayerIdx + 1, 0, createLayer(name));
+    activeLayerIdx++;
+    renderLayers(); renderLayerPanel();
+  };
+  document.getElementById("dupeLayerBtn").onclick = () => {
+    saveState();
+    const src = layers[activeLayerIdx];
+    const dup = createLayer(src.name + " copy");
+    dup.ctx.drawImage(src.canvas, 0, 0);
+    dup.visible = src.visible;
+    dup.opacity = src.opacity;
+    layers.splice(activeLayerIdx + 1, 0, dup);
+    activeLayerIdx++;
+    renderLayers(); renderLayerPanel();
+  };
+  document.getElementById("mergeLayerBtn").onclick = () => {
+    if (activeLayerIdx === 0) return;
+    saveState();
+    const upper = layers[activeLayerIdx];
+    const lower = layers[activeLayerIdx - 1];
+    lower.ctx.globalAlpha = upper.opacity;
+    lower.ctx.drawImage(upper.canvas, 0, 0);
+    lower.ctx.globalAlpha = 1;
+    layers.splice(activeLayerIdx, 1);
+    activeLayerIdx--;
+    renderLayers(); renderLayerPanel();
+  };
+  document.getElementById("deleteLayerBtn").onclick = () => {
+    if (layers.length <= 1) return;
+    saveState();
+    layers.splice(activeLayerIdx, 1);
+    if (activeLayerIdx >= layers.length) activeLayerIdx = layers.length - 1;
+    renderLayers(); renderLayerPanel();
+  };
+
+  // ── Pointer events on canvas ──
+  const brushCursor = document.getElementById("brushCursor");
+
+  canvasArea.addEventListener("pointerdown", e => {
+    if (spaceHeld || currentTool === "pan") {
+      isPanning = true;
+      panStartX = e.clientX; panStartY = e.clientY;
+      panStartPanX = panX; panStartPanY = panY;
+      canvasArea.style.cursor = "grabbing";
+      return;
+    }
+
+    const pos = screenToCanvas(e.clientX, e.clientY);
+
+    if (currentTool === "eyedropper") {
+      pickColor(pos.x, pos.y);
+      return;
+    }
+    if (currentTool === "fill") {
+      saveState();
+      floodFill(pos.x, pos.y, brushColor);
+      renderLayers(); renderLayerPanel();
+      return;
+    }
+    if (currentTool === "text") {
+      handleText(pos.x, pos.y);
+      return;
+    }
+    if (currentTool === "line" || currentTool === "rect" || currentTool === "circle") {
+      saveState();
+      shapeStartX = pos.x; shapeStartY = pos.y;
+      isDrawing = true;
+      return;
+    }
+
+    // Brush / eraser / pencil
+    saveState();
+    isDrawing = true;
+    startStroke(pos.x, pos.y);
+    lastX = pos.x; lastY = pos.y;
+    canvasArea.setPointerCapture(e.pointerId);
+  });
+
+  canvasArea.addEventListener("pointermove", e => {
+    const pos = screenToCanvas(e.clientX, e.clientY);
+    document.getElementById("statusCoords").textContent =
+      Math.round(pos.x) + ", " + Math.round(pos.y);
+
+    // Brush cursor
+    if (["brush","eraser","pencil"].includes(currentTool)) {
+      const sz = (currentTool === "pencil" ? Math.max(1, Math.round(brushSize/4)) : brushSize) * zoom;
+      brushCursor.style.display = "block";
+      brushCursor.style.left = e.clientX + "px";
+      brushCursor.style.top = e.clientY + "px";
+      brushCursor.style.width = sz + "px";
+      brushCursor.style.height = sz + "px";
+    } else {
+      brushCursor.style.display = "none";
+    }
+
+    if (isPanning) {
+      panX = panStartPanX + (e.clientX - panStartX);
+      panY = panStartPanY + (e.clientY - panStartY);
+      updateCanvasTransform();
+      return;
+    }
+
+    if (!isDrawing) return;
+
+    if (currentTool === "line" || currentTool === "rect" || currentTool === "circle") {
+      drawShapePreview(shapeStartX, shapeStartY, pos.x, pos.y);
+      return;
+    }
+
+    continueStroke(pos.x, pos.y);
+    lastX = pos.x; lastY = pos.y;
+    renderLayers();
+  });
+
+  canvasArea.addEventListener("pointerup", e => {
+    if (isPanning) {
+      isPanning = false;
+      canvasArea.style.cursor = spaceHeld ? "grab" : "crosshair";
+      return;
+    }
+    if (!isDrawing) return;
+    isDrawing = false;
+
+    if (currentTool === "line" || currentTool === "rect" || currentTool === "circle") {
+      const pos = screenToCanvas(e.clientX, e.clientY);
+      commitShape(shapeStartX, shapeStartY, pos.x, pos.y);
+      renderLayers(); renderLayerPanel();
+      return;
+    }
+
+    endStroke();
+  });
+
+  canvasArea.addEventListener("pointerleave", () => {
+    brushCursor.style.display = "none";
+  });
+
+  // Zoom with scroll wheel
+  canvasArea.addEventListener("wheel", e => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+    zoom = Math.min(Math.max(zoom * factor, 0.1), 16);
+    updateCanvasTransform();
+  }, { passive: false });
+
+  // Keyboard shortcuts
+  document.addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") return;
+
+    if (e.code === "Space" && !spaceHeld) {
+      spaceHeld = true;
+      canvasArea.style.cursor = "grab";
+      e.preventDefault();
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); undo(); return; }
+    if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.shiftKey && e.key === "z"))) { e.preventDefault(); redo(); return; }
+
+    const toolMap = { b: "brush", e: "eraser", p: "pencil", l: "line", r: "rect", c: "circle", g: "fill", i: "eyedropper", t: "text" };
+    const mapped = toolMap[e.key.toLowerCase()];
+    if (mapped) {
+      const btn = document.querySelector(`.tool-btn[data-tool="${mapped}"]`);
+      if (btn) btn.click();
+    }
+
+    // Bracket keys for brush size
+    if (e.key === "[") { brushSize = Math.max(1, brushSize - 2); sizeSlider.value = brushSize; document.getElementById("brushSizeVal").textContent = brushSize; }
+    if (e.key === "]") { brushSize = Math.min(200, brushSize + 2); sizeSlider.value = brushSize; document.getElementById("brushSizeVal").textContent = brushSize; }
+  });
+
+  document.addEventListener("keyup", e => {
+    if (e.code === "Space") {
+      spaceHeld = false;
+      if (!isPanning) canvasArea.style.cursor = "crosshair";
+    }
+  });
+}
+
+init();
+</script>
+
+</body>
+</html>
