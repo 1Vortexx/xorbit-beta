@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Magma – X-ORBIT</title>
+<title>Ember – X-ORBIT</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -87,7 +87,6 @@ html, body { height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; b
 .magma-canvas-area {
   flex: 1; position: relative; overflow: hidden;
   background: #141416;
-  /* checkerboard for transparency */
   background-image:
     linear-gradient(45deg, #1a1a1c 25%, transparent 25%),
     linear-gradient(-45deg, #1a1a1c 25%, transparent 25%),
@@ -261,11 +260,45 @@ html, body { height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; b
 .blend-select:focus { border-color: #0a84ff; }
 .blend-select option { background: #2c2c2e; }
 
-/* ── Shape Overlay (text, shapes) ── */
+/* ── Shape/Crop Overlay ── */
 .shape-preview {
   position: absolute; pointer-events: none;
   border: 1.5px dashed rgba(10,132,255,0.6);
   z-index: 50;
+}
+
+/* ── Crop overlay ── */
+.crop-overlay {
+  position: absolute; inset: 0; z-index: 60; pointer-events: none;
+}
+.crop-mask { fill: rgba(0,0,0,0.55); }
+.crop-border { fill: none; stroke: #0a84ff; stroke-width: 1.5; stroke-dasharray: 6 3; }
+.crop-handle {
+  width: 10px; height: 10px; background: #0a84ff;
+  border: 1.5px solid #fff; border-radius: 2px;
+  position: absolute; z-index: 61; cursor: nwse-resize; pointer-events: auto;
+}
+
+.crop-bar {
+  position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+  z-index: 62; display: flex; gap: 6px;
+  background: rgba(28,28,30,0.92); backdrop-filter: blur(12px);
+  padding: 6px 10px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  pointer-events: auto;
+}
+.crop-bar button {
+  border: none; border-radius: 6px; padding: 5px 14px;
+  font-size: 0.72rem; font-weight: 600; font-family: 'Inter', sans-serif;
+  cursor: pointer; transition: all 0.15s;
+}
+.crop-bar .crop-cancel { background: rgba(255,255,255,0.06); color: #8e8e93; }
+.crop-bar .crop-cancel:hover { background: rgba(255,255,255,0.1); color: #f5f5f7; }
+.crop-bar .crop-apply { background: #0a84ff; color: #fff; }
+.crop-bar .crop-apply:hover { background: #0970e0; }
+.crop-dims {
+  font-size: 0.6rem; color: #636366; display: flex; align-items: center;
+  padding: 0 6px; font-variant-numeric: tabular-nums;
 }
 </style>
 </head>
@@ -274,7 +307,7 @@ html, body { height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; b
 <div class="magma-app">
   <!-- Top Bar -->
   <div class="magma-topbar">
-    <div class="logo"><i class="fas fa-fire"></i> Magma</div>
+    <div class="logo"><i class="fas fa-fire"></i> Ember</div>
     <div class="tb-divider"></div>
     <div class="tb-group">
       <button class="tb-btn" id="undoBtn" title="Undo (Ctrl+Z)"><i class="fas fa-undo"></i></button>
@@ -287,7 +320,7 @@ html, body { height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; b
     </div>
     <div class="tb-divider"></div>
     <div class="tb-group">
-      <button class="tb-btn" id="clearBtn" title="Clear Canvas"><i class="fas fa-trash-alt"></i></button>
+      <button class="tb-btn" id="clearBtn" title="Clear Layer"><i class="fas fa-trash-alt"></i></button>
     </div>
     <div class="tb-spacer"></div>
     <div class="tb-filename"><i class="fas fa-circle" style="color:#30d158;font-size:0.4rem;"></i> Untitled Canvas</div>
@@ -316,6 +349,9 @@ html, body { height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; b
       <button class="tool-btn" data-tool="pencil" title="Pencil (P)">
         <i class="fas fa-pencil-alt"></i><span class="shortcut">P</span>
       </button>
+      <button class="tool-btn" data-tool="blend" title="Blend / Smudge (S)">
+        <i class="fas fa-droplet"></i><span class="shortcut">S</span>
+      </button>
       <div class="tool-sep"></div>
       <button class="tool-btn" data-tool="line" title="Line (L)">
         <i class="fas fa-slash"></i><span class="shortcut">L</span>
@@ -336,6 +372,9 @@ html, body { height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; b
       <div class="tool-sep"></div>
       <button class="tool-btn" data-tool="text" title="Text (T)">
         <i class="fas fa-font"></i><span class="shortcut">T</span>
+      </button>
+      <button class="tool-btn" data-tool="crop" title="Crop (K)">
+        <i class="fas fa-crop-alt"></i><span class="shortcut">K</span>
       </button>
       <div class="tool-sep"></div>
       <button class="tool-btn" data-tool="pan" title="Pan (Space+Drag)">
@@ -376,9 +415,9 @@ html, body { height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; b
           <span class="val" id="brushOpacityVal">100</span>
         </div>
         <div class="slider-row">
-          <label>Hardness</label>
-          <input type="range" id="brushHardness" min="0" max="100" value="80">
-          <span class="val" id="brushHardnessVal">80</span>
+          <label>Stabilizer</label>
+          <input type="range" id="brushStabilizer" min="0" max="20" value="0">
+          <span class="val" id="brushStabilizerVal">0</span>
         </div>
         <div style="margin-top:6px;">
           <select class="blend-select" id="blendMode">
@@ -420,19 +459,24 @@ html, body { height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; b
     <div class="status-item" id="statusCoords">0, 0</div>
     <div class="status-item" id="statusCanvasSize">1920 x 1080</div>
     <div class="status-item" id="statusTool">Brush</div>
+    <div class="status-item" id="statusStabilizer" style="display:none;"><i class="fas fa-magnet" style="margin-right:2px;"></i> <span id="stabLabel">0</span></div>
   </div>
 </div>
 
 <script>
 // ── Canvas & State ──
-const CANVAS_W = 1920, CANVAS_H = 1080;
+let CANVAS_W = 1920, CANVAS_H = 1080;
 let zoom = 1, panX = 0, panY = 0;
 let currentTool = "brush";
 let brushColor = "#ffffff";
-let brushSize = 8, brushOpacity = 100, brushHardness = 80;
+let brushSize = 8, brushOpacity = 100;
+let stabilizerLevel = 0;
 let blendMode = "source-over";
 let isDrawing = false, lastX = 0, lastY = 0;
 let spaceHeld = false, isPanning = false, panStartX = 0, panStartY = 0, panStartPanX = 0, panStartPanY = 0;
+
+// Stabilizer queue
+let stabQueue = [];
 
 // Undo/Redo
 const undoStack = [], redoStack = [];
@@ -441,6 +485,11 @@ const MAX_UNDO = 40;
 // Shape drawing state
 let shapeStartX = 0, shapeStartY = 0;
 let shapePreview = null;
+
+// Crop state
+let cropActive = false, cropX = 0, cropY = 0, cropW = 0, cropH = 0;
+let cropDragging = false, cropDragType = "", cropDragStartX = 0, cropDragStartY = 0;
+let cropOrigX = 0, cropOrigY = 0, cropOrigW = 0, cropOrigH = 0;
 
 // ── Layers ──
 let layers = [];
@@ -455,14 +504,12 @@ function createLayer(name) {
 function initLayers() {
   layers = [createLayer("Background"), createLayer("Layer 1")];
   activeLayerIdx = 1;
-  // Fill background white
   layers[0].ctx.fillStyle = "#ffffff";
   layers[0].ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
   renderLayers();
   renderLayerPanel();
 }
 
-// Composite all visible layers onto the display canvas
 function renderLayers() {
   const display = document.getElementById("magmaCanvas");
   const dCtx = display.getContext("2d");
@@ -478,7 +525,6 @@ function renderLayers() {
 function renderLayerPanel() {
   const list = document.getElementById("layersList");
   let html = "";
-  // Render top to bottom (highest layer first)
   for (let i = layers.length - 1; i >= 0; i--) {
     const l = layers[i];
     const active = i === activeLayerIdx ? " active" : "";
@@ -490,8 +536,6 @@ function renderLayerPanel() {
     </div>`;
   }
   list.innerHTML = html;
-
-  // Draw thumbnails
   list.querySelectorAll(".layer-item").forEach(el => {
     const idx = parseInt(el.dataset.idx);
     const thumbCvs = el.querySelector("canvas");
@@ -499,8 +543,6 @@ function renderLayerPanel() {
     tCtx.clearRect(0, 0, 28, 28);
     tCtx.drawImage(layers[idx].canvas, 0, 0, 28, 28);
   });
-
-  // Click handlers
   list.querySelectorAll(".layer-item").forEach(el => {
     el.addEventListener("click", e => {
       if (e.target.closest(".layer-vis")) return;
@@ -521,19 +563,23 @@ function renderLayerPanel() {
 
 // ── Undo / Redo ──
 function saveState() {
-  // Save all layer data
   const state = layers.map(l => {
     const cvs = document.createElement("canvas");
     cvs.width = CANVAS_W; cvs.height = CANVAS_H;
     cvs.getContext("2d").drawImage(l.canvas, 0, 0);
     return { name: l.name, canvas: cvs, visible: l.visible, opacity: l.opacity };
   });
-  undoStack.push({ layers: state, activeLayerIdx });
+  undoStack.push({ layers: state, activeLayerIdx, w: CANVAS_W, h: CANVAS_H });
   if (undoStack.length > MAX_UNDO) undoStack.shift();
   redoStack.length = 0;
 }
 
 function restoreState(state) {
+  if (state.w && state.h && (state.w !== CANVAS_W || state.h !== CANVAS_H)) {
+    CANVAS_W = state.w; CANVAS_H = state.h;
+    displayCanvas.width = CANVAS_W; displayCanvas.height = CANVAS_H;
+    document.getElementById("statusCanvasSize").textContent = CANVAS_W + " x " + CANVAS_H;
+  }
   layers = state.layers.map(s => {
     const cvs = document.createElement("canvas");
     cvs.width = CANVAS_W; cvs.height = CANVAS_H;
@@ -553,7 +599,7 @@ function undo() {
     cvs.getContext("2d").drawImage(l.canvas, 0, 0);
     return { name: l.name, canvas: cvs, visible: l.visible, opacity: l.opacity };
   });
-  redoStack.push({ layers: current, activeLayerIdx });
+  redoStack.push({ layers: current, activeLayerIdx, w: CANVAS_W, h: CANVAS_H });
   restoreState(undoStack.pop());
 }
 
@@ -565,7 +611,7 @@ function redo() {
     cvs.getContext("2d").drawImage(l.canvas, 0, 0);
     return { name: l.name, canvas: cvs, visible: l.visible, opacity: l.opacity };
   });
-  undoStack.push({ layers: current, activeLayerIdx });
+  undoStack.push({ layers: current, activeLayerIdx, w: CANVAS_W, h: CANVAS_H });
   restoreState(redoStack.pop());
 }
 
@@ -599,6 +645,29 @@ function fitToScreen() {
   updateCanvasTransform();
 }
 
+// ── Zoom toward mouse ──
+function zoomAtPoint(clientX, clientY, factor) {
+  const rect = canvasArea.getBoundingClientRect();
+  const mouseX = clientX - rect.left;
+  const mouseY = clientY - rect.top;
+  const centerX = rect.width / 2;
+  const centerY = rect.height / 2;
+
+  // Point relative to current pan
+  const dx = mouseX - centerX - panX;
+  const dy = mouseY - centerY - panY;
+
+  const oldZoom = zoom;
+  zoom = Math.min(Math.max(zoom * factor, 0.05), 32);
+  const scale = zoom / oldZoom;
+
+  // Adjust pan so the point under the mouse stays fixed
+  panX = panX - dx * (scale - 1);
+  panY = panY - dy * (scale - 1);
+
+  updateCanvasTransform();
+}
+
 // ── Drawing ──
 function getActiveCtx() {
   return layers[activeLayerIdx].ctx;
@@ -620,7 +689,6 @@ function startStroke(x, y) {
 
   ctx.beginPath();
   ctx.moveTo(x, y);
-  // Draw a dot
   ctx.lineTo(x + 0.1, y + 0.1);
   ctx.stroke();
 }
@@ -642,6 +710,57 @@ function endStroke() {
   renderLayerPanel();
 }
 
+// ── Stabilizer ──
+function stabilizedPoint(rawX, rawY) {
+  if (stabilizerLevel === 0) return { x: rawX, y: rawY };
+  stabQueue.push({ x: rawX, y: rawY });
+  const windowSize = Math.min(stabQueue.length, stabilizerLevel + 1);
+  const recent = stabQueue.slice(-windowSize);
+  let sx = 0, sy = 0, totalW = 0;
+  for (let i = 0; i < recent.length; i++) {
+    const w = i + 1; // heavier weight on newer points
+    sx += recent[i].x * w;
+    sy += recent[i].y * w;
+    totalW += w;
+  }
+  return { x: sx / totalW, y: sy / totalW };
+}
+
+// ── Blend / Smudge Tool ──
+function blendAt(x, y, prevX, prevY) {
+  const ctx = getActiveCtx();
+  const r = Math.ceil(brushSize / 2);
+  const sx = Math.round(prevX - r), sy = Math.round(prevY - r);
+  const sw = r * 2, sh = r * 2;
+
+  if (sx < 0 || sy < 0 || sx + sw > CANVAS_W || sy + sh > CANVAS_H) return;
+  if (Math.round(x - r) < 0 || Math.round(y - r) < 0) return;
+
+  const srcData = ctx.getImageData(sx, sy, sw, sh);
+  const strength = brushOpacity / 100 * 0.45;
+
+  const dx = Math.round(x - r), dy = Math.round(y - r);
+  if (dx + sw > CANVAS_W || dy + sh > CANVAS_H) return;
+
+  const dstData = ctx.getImageData(dx, dy, sw, sh);
+  const src = srcData.data, dst = dstData.data;
+
+  for (let py = 0; py < sh; py++) {
+    for (let px = 0; px < sw; px++) {
+      // Circular mask
+      const cx = px - r, cy = py - r;
+      if (cx * cx + cy * cy > r * r) continue;
+
+      const i = (py * sw + px) * 4;
+      dst[i]     = dst[i]     + (src[i]     - dst[i])     * strength;
+      dst[i + 1] = dst[i + 1] + (src[i + 1] - dst[i + 1]) * strength;
+      dst[i + 2] = dst[i + 2] + (src[i + 2] - dst[i + 2]) * strength;
+      dst[i + 3] = dst[i + 3] + (src[i + 3] - dst[i + 3]) * strength;
+    }
+  }
+  ctx.putImageData(dstData, dx, dy);
+}
+
 // ── Flood Fill ──
 function floodFill(startX, startY, fillColor) {
   const ctx = getActiveCtx();
@@ -653,7 +772,6 @@ function floodFill(startX, startY, fillColor) {
   const startIdx = (sy * CANVAS_W + sx) * 4;
   const startR = data[startIdx], startG = data[startIdx+1], startB = data[startIdx+2], startA = data[startIdx+3];
 
-  // Parse fill color
   const tmp = document.createElement("canvas").getContext("2d");
   tmp.fillStyle = fillColor;
   tmp.fillRect(0,0,1,1);
@@ -691,7 +809,6 @@ function floodFill(startX, startY, fillColor) {
 
 // ── Eyedropper ──
 function pickColor(x, y) {
-  // Sample from composite
   const dCtx = displayCanvas.getContext("2d");
   const px = dCtx.getImageData(Math.round(x), Math.round(y), 1, 1).data;
   const hex = "#" + ((1 << 24) + (px[0] << 16) + (px[1] << 8) + px[2]).toString(16).slice(1);
@@ -705,7 +822,6 @@ function drawShapePreview(x0, y0, x1, y1) {
     shapePreview.className = "shape-preview";
     canvasArea.appendChild(shapePreview);
   }
-  // Convert canvas coords to screen coords (approximate)
   const rect = canvasArea.getBoundingClientRect();
   const cx = rect.width / 2 + panX;
   const cy = rect.height / 2 + panY;
@@ -728,18 +844,13 @@ function commitShape(x0, y0, x1, y1) {
   ctx.lineJoin = "round";
 
   if (currentTool === "line") {
-    ctx.beginPath();
-    ctx.moveTo(x0, y0);
-    ctx.lineTo(x1, y1);
-    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
   } else if (currentTool === "rect") {
     ctx.strokeRect(Math.min(x0,x1), Math.min(y0,y1), Math.abs(x1-x0), Math.abs(y1-y0));
   } else if (currentTool === "circle") {
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     const rx = Math.abs(x1 - x0) / 2, ry = Math.abs(y1 - y0) / 2;
-    ctx.beginPath();
-    ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
-    ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
   }
   ctx.globalCompositeOperation = "source-over";
   ctx.globalAlpha = 1;
@@ -760,8 +871,166 @@ function handleText(x, y) {
   ctx.fillText(text, x, y);
   ctx.globalCompositeOperation = "source-over";
   ctx.globalAlpha = 1;
+  renderLayers(); renderLayerPanel();
+}
+
+// ── Crop Tool ──
+function startCrop() {
+  if (cropActive) return;
+  cropActive = true;
+  // Default crop to full canvas
+  cropX = 0; cropY = 0; cropW = CANVAS_W; cropH = CANVAS_H;
+  renderCropOverlay();
+}
+
+function renderCropOverlay() {
+  removeCropOverlay();
+  const rect = canvasArea.getBoundingClientRect();
+  const cxOff = rect.width / 2 + panX;
+  const cyOff = rect.height / 2 + panY;
+
+  // Convert crop rect (canvas coords) to screen coords
+  const sx = (cropX - CANVAS_W/2) * zoom + cxOff;
+  const sy = (cropY - CANVAS_H/2) * zoom + cyOff;
+  const sw = cropW * zoom;
+  const sh = cropH * zoom;
+
+  const container = document.createElement("div");
+  container.id = "cropContainer";
+  container.style.cssText = "position:absolute;inset:0;z-index:60;";
+
+  // SVG mask for darkening outside crop
+  container.innerHTML = `
+    <svg style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;">
+      <defs><mask id="cropMask">
+        <rect width="100%" height="100%" fill="white"/>
+        <rect x="${sx}" y="${sy}" width="${sw}" height="${sh}" fill="black"/>
+      </mask></defs>
+      <rect width="100%" height="100%" fill="rgba(0,0,0,0.55)" mask="url(#cropMask)"/>
+      <rect x="${sx}" y="${sy}" width="${sw}" height="${sh}" fill="none" stroke="#0a84ff" stroke-width="1.5" stroke-dasharray="6 3"/>
+    </svg>
+    <div class="crop-bar">
+      <div class="crop-dims" id="cropDims">${Math.round(cropW)} x ${Math.round(cropH)}</div>
+      <button class="crop-cancel" id="cropCancelBtn">Cancel</button>
+      <button class="crop-apply" id="cropApplyBtn"><i class="fas fa-check"></i> Apply</button>
+    </div>
+  `;
+
+  // Corner handles
+  const handles = [
+    { cursor: "nwse-resize", type: "tl", left: sx - 5, top: sy - 5 },
+    { cursor: "nesw-resize", type: "tr", left: sx + sw - 5, top: sy - 5 },
+    { cursor: "nesw-resize", type: "bl", left: sx - 5, top: sy + sh - 5 },
+    { cursor: "nwse-resize", type: "br", left: sx + sw - 5, top: sy + sh - 5 },
+  ];
+  handles.forEach(h => {
+    const div = document.createElement("div");
+    div.className = "crop-handle";
+    div.dataset.type = h.type;
+    div.style.cssText = `left:${h.left}px;top:${h.top}px;cursor:${h.cursor};`;
+    container.appendChild(div);
+  });
+
+  // Move handle (center area)
+  const moveArea = document.createElement("div");
+  moveArea.dataset.type = "move";
+  moveArea.style.cssText = `position:absolute;left:${sx}px;top:${sy}px;width:${sw}px;height:${sh}px;cursor:move;z-index:61;`;
+  container.appendChild(moveArea);
+
+  canvasArea.appendChild(container);
+
+  // Wire up events
+  document.getElementById("cropCancelBtn").addEventListener("click", cancelCrop);
+  document.getElementById("cropApplyBtn").addEventListener("click", applyCrop);
+
+  // Handle dragging
+  const allHandles = container.querySelectorAll("[data-type]");
+  allHandles.forEach(handle => {
+    handle.addEventListener("pointerdown", e => {
+      e.stopPropagation();
+      cropDragging = true;
+      cropDragType = handle.dataset.type;
+      cropDragStartX = e.clientX;
+      cropDragStartY = e.clientY;
+      cropOrigX = cropX; cropOrigY = cropY;
+      cropOrigW = cropW; cropOrigH = cropH;
+      handle.setPointerCapture(e.pointerId);
+
+      const onMove = ev => {
+        const dx = (ev.clientX - cropDragStartX) / zoom;
+        const dy = (ev.clientY - cropDragStartY) / zoom;
+        if (cropDragType === "move") {
+          cropX = Math.max(0, Math.min(cropOrigX + dx, CANVAS_W - cropW));
+          cropY = Math.max(0, Math.min(cropOrigY + dy, CANVAS_H - cropH));
+        } else if (cropDragType === "br") {
+          cropW = Math.max(20, Math.min(cropOrigW + dx, CANVAS_W - cropX));
+          cropH = Math.max(20, Math.min(cropOrigH + dy, CANVAS_H - cropY));
+        } else if (cropDragType === "tl") {
+          const newX = Math.max(0, Math.min(cropOrigX + dx, cropOrigX + cropOrigW - 20));
+          const newY = Math.max(0, Math.min(cropOrigY + dy, cropOrigY + cropOrigH - 20));
+          cropW = cropOrigW + (cropOrigX - newX);
+          cropH = cropOrigH + (cropOrigY - newY);
+          cropX = newX; cropY = newY;
+        } else if (cropDragType === "tr") {
+          cropW = Math.max(20, Math.min(cropOrigW + dx, CANVAS_W - cropX));
+          const newY = Math.max(0, Math.min(cropOrigY + dy, cropOrigY + cropOrigH - 20));
+          cropH = cropOrigH + (cropOrigY - newY);
+          cropY = newY;
+        } else if (cropDragType === "bl") {
+          const newX = Math.max(0, Math.min(cropOrigX + dx, cropOrigX + cropOrigW - 20));
+          cropW = cropOrigW + (cropOrigX - newX);
+          cropX = newX;
+          cropH = Math.max(20, Math.min(cropOrigH + dy, CANVAS_H - cropY));
+        }
+        renderCropOverlay();
+      };
+      const onUp = () => {
+        cropDragging = false;
+        handle.removeEventListener("pointermove", onMove);
+        handle.removeEventListener("pointerup", onUp);
+      };
+      handle.addEventListener("pointermove", onMove);
+      handle.addEventListener("pointerup", onUp);
+    });
+  });
+}
+
+function removeCropOverlay() {
+  const existing = document.getElementById("cropContainer");
+  if (existing) existing.remove();
+}
+
+function cancelCrop() {
+  cropActive = false;
+  removeCropOverlay();
+}
+
+function applyCrop() {
+  const cx = Math.round(cropX), cy = Math.round(cropY);
+  const cw = Math.round(cropW), ch = Math.round(cropH);
+  if (cw < 1 || ch < 1) { cancelCrop(); return; }
+
+  saveState();
+
+  // Crop each layer
+  const newLayers = layers.map(l => {
+    const newCvs = document.createElement("canvas");
+    newCvs.width = cw; newCvs.height = ch;
+    const nCtx = newCvs.getContext("2d");
+    nCtx.drawImage(l.canvas, cx, cy, cw, ch, 0, 0, cw, ch);
+    return { name: l.name, canvas: newCvs, ctx: nCtx, visible: l.visible, opacity: l.opacity };
+  });
+
+  CANVAS_W = cw; CANVAS_H = ch;
+  displayCanvas.width = CANVAS_W; displayCanvas.height = CANVAS_H;
+  document.getElementById("statusCanvasSize").textContent = CANVAS_W + " x " + CANVAS_H;
+
+  layers = newLayers;
+  cropActive = false;
+  removeCropOverlay();
   renderLayers();
   renderLayerPanel();
+  fitToScreen();
 }
 
 // ── Color Management ──
@@ -803,25 +1072,38 @@ function init() {
   // Tool buttons
   document.querySelectorAll(".tool-btn[data-tool]").forEach(btn => {
     btn.addEventListener("click", () => {
+      if (cropActive && btn.dataset.tool !== "crop") cancelCrop();
       currentTool = btn.dataset.tool;
       document.querySelectorAll(".tool-btn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       document.getElementById("statusTool").textContent =
         currentTool.charAt(0).toUpperCase() + currentTool.slice(1);
-      canvasArea.style.cursor = currentTool === "pan" ? "grab" :
-        currentTool === "eyedropper" ? "crosshair" :
-        currentTool === "text" ? "text" :
-        currentTool === "fill" ? "crosshair" : "crosshair";
+
+      const cursors = { pan: "grab", eyedropper: "crosshair", text: "text", crop: "crosshair" };
+      canvasArea.style.cursor = cursors[currentTool] || "crosshair";
+
+      if (currentTool === "crop") startCrop();
     });
   });
 
   // Sliders
   const sizeSlider = document.getElementById("brushSize");
   const opacitySlider = document.getElementById("brushOpacity");
-  const hardnessSlider = document.getElementById("brushHardness");
+  const stabSlider = document.getElementById("brushStabilizer");
   sizeSlider.oninput = () => { brushSize = +sizeSlider.value; document.getElementById("brushSizeVal").textContent = brushSize; };
   opacitySlider.oninput = () => { brushOpacity = +opacitySlider.value; document.getElementById("brushOpacityVal").textContent = brushOpacity; };
-  hardnessSlider.oninput = () => { brushHardness = +hardnessSlider.value; document.getElementById("brushHardnessVal").textContent = brushHardness; };
+  stabSlider.oninput = () => {
+    stabilizerLevel = +stabSlider.value;
+    document.getElementById("brushStabilizerVal").textContent = stabilizerLevel;
+    const stabStatus = document.getElementById("statusStabilizer");
+    const stabLabel = document.getElementById("stabLabel");
+    if (stabilizerLevel > 0) {
+      stabStatus.style.display = "flex";
+      stabLabel.textContent = stabilizerLevel;
+    } else {
+      stabStatus.style.display = "none";
+    }
+  };
 
   // Blend mode
   document.getElementById("blendMode").onchange = e => { blendMode = e.target.value; };
@@ -834,13 +1116,17 @@ function init() {
   document.getElementById("redoBtn").onclick = redo;
   document.getElementById("clearBtn").onclick = () => {
     saveState();
-    const ctx = getActiveCtx();
-    ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-    renderLayers();
-    renderLayerPanel();
+    getActiveCtx().clearRect(0, 0, CANVAS_W, CANVAS_H);
+    renderLayers(); renderLayerPanel();
   };
-  document.getElementById("zoomInBtn").onclick = () => { zoom = Math.min(zoom * 1.25, 16); updateCanvasTransform(); };
-  document.getElementById("zoomOutBtn").onclick = () => { zoom = Math.max(zoom / 1.25, 0.1); updateCanvasTransform(); };
+  document.getElementById("zoomInBtn").onclick = () => {
+    const rect = canvasArea.getBoundingClientRect();
+    zoomAtPoint(rect.left + rect.width/2, rect.top + rect.height/2, 1.25);
+  };
+  document.getElementById("zoomOutBtn").onclick = () => {
+    const rect = canvasArea.getBoundingClientRect();
+    zoomAtPoint(rect.left + rect.width/2, rect.top + rect.height/2, 1/1.25);
+  };
   document.getElementById("zoomFitBtn").onclick = fitToScreen;
 
   document.getElementById("flipHBtn").onclick = () => {
@@ -849,8 +1135,7 @@ function init() {
     const tmp = document.createElement("canvas");
     tmp.width = CANVAS_W; tmp.height = CANVAS_H;
     const tCtx = tmp.getContext("2d");
-    tCtx.translate(CANVAS_W, 0);
-    tCtx.scale(-1, 1);
+    tCtx.translate(CANVAS_W, 0); tCtx.scale(-1, 1);
     tCtx.drawImage(l.canvas, 0, 0);
     l.ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     l.ctx.drawImage(tmp, 0, 0);
@@ -862,8 +1147,7 @@ function init() {
     const tmp = document.createElement("canvas");
     tmp.width = CANVAS_W; tmp.height = CANVAS_H;
     const tCtx = tmp.getContext("2d");
-    tCtx.translate(0, CANVAS_H);
-    tCtx.scale(1, -1);
+    tCtx.translate(0, CANVAS_H); tCtx.scale(1, -1);
     tCtx.drawImage(l.canvas, 0, 0);
     l.ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
     l.ctx.drawImage(tmp, 0, 0);
@@ -882,7 +1166,7 @@ function init() {
     }
     tCtx.globalAlpha = 1;
     const link = document.createElement("a");
-    link.download = "magma-canvas.png";
+    link.download = "ember-canvas.png";
     link.href = tmp.toDataURL("image/png");
     link.click();
   };
@@ -890,8 +1174,7 @@ function init() {
   // Layer actions
   document.getElementById("addLayerBtn").onclick = () => {
     saveState();
-    const name = "Layer " + (layers.length);
-    layers.splice(activeLayerIdx + 1, 0, createLayer(name));
+    layers.splice(activeLayerIdx + 1, 0, createLayer("Layer " + layers.length));
     activeLayerIdx++;
     renderLayers(); renderLayerPanel();
   };
@@ -900,8 +1183,7 @@ function init() {
     const src = layers[activeLayerIdx];
     const dup = createLayer(src.name + " copy");
     dup.ctx.drawImage(src.canvas, 0, 0);
-    dup.visible = src.visible;
-    dup.opacity = src.opacity;
+    dup.visible = src.visible; dup.opacity = src.opacity;
     layers.splice(activeLayerIdx + 1, 0, dup);
     activeLayerIdx++;
     renderLayers(); renderLayerPanel();
@@ -909,8 +1191,7 @@ function init() {
   document.getElementById("mergeLayerBtn").onclick = () => {
     if (activeLayerIdx === 0) return;
     saveState();
-    const upper = layers[activeLayerIdx];
-    const lower = layers[activeLayerIdx - 1];
+    const upper = layers[activeLayerIdx], lower = layers[activeLayerIdx - 1];
     lower.ctx.globalAlpha = upper.opacity;
     lower.ctx.drawImage(upper.canvas, 0, 0);
     lower.ctx.globalAlpha = 1;
@@ -930,6 +1211,7 @@ function init() {
   const brushCursor = document.getElementById("brushCursor");
 
   canvasArea.addEventListener("pointerdown", e => {
+    if (cropActive) return; // crop handles its own events
     if (spaceHeld || currentTool === "pan") {
       isPanning = true;
       panStartX = e.clientX; panStartY = e.clientY;
@@ -940,31 +1222,25 @@ function init() {
 
     const pos = screenToCanvas(e.clientX, e.clientY);
 
-    if (currentTool === "eyedropper") {
-      pickColor(pos.x, pos.y);
-      return;
-    }
+    if (currentTool === "eyedropper") { pickColor(pos.x, pos.y); return; }
     if (currentTool === "fill") {
-      saveState();
-      floodFill(pos.x, pos.y, brushColor);
-      renderLayers(); renderLayerPanel();
-      return;
+      saveState(); floodFill(pos.x, pos.y, brushColor);
+      renderLayers(); renderLayerPanel(); return;
     }
-    if (currentTool === "text") {
-      handleText(pos.x, pos.y);
-      return;
-    }
+    if (currentTool === "text") { handleText(pos.x, pos.y); return; }
+    if (currentTool === "crop") return; // handled by crop overlay
+
     if (currentTool === "line" || currentTool === "rect" || currentTool === "circle") {
-      saveState();
-      shapeStartX = pos.x; shapeStartY = pos.y;
-      isDrawing = true;
-      return;
+      saveState(); shapeStartX = pos.x; shapeStartY = pos.y; isDrawing = true; return;
     }
 
-    // Brush / eraser / pencil
+    // Brush / eraser / pencil / blend
     saveState();
     isDrawing = true;
-    startStroke(pos.x, pos.y);
+    stabQueue = [];
+    if (currentTool !== "blend") {
+      startStroke(pos.x, pos.y);
+    }
     lastX = pos.x; lastY = pos.y;
     canvasArea.setPointerCapture(e.pointerId);
   });
@@ -975,7 +1251,7 @@ function init() {
       Math.round(pos.x) + ", " + Math.round(pos.y);
 
     // Brush cursor
-    if (["brush","eraser","pencil"].includes(currentTool)) {
+    if (["brush","eraser","pencil","blend"].includes(currentTool)) {
       const sz = (currentTool === "pencil" ? Math.max(1, Math.round(brushSize/4)) : brushSize) * zoom;
       brushCursor.style.display = "block";
       brushCursor.style.left = e.clientX + "px";
@@ -1000,8 +1276,17 @@ function init() {
       return;
     }
 
-    continueStroke(pos.x, pos.y);
-    lastX = pos.x; lastY = pos.y;
+    if (currentTool === "blend") {
+      blendAt(pos.x, pos.y, lastX, lastY);
+      lastX = pos.x; lastY = pos.y;
+      renderLayers();
+      return;
+    }
+
+    // Apply stabilizer
+    const smoothed = stabilizedPoint(pos.x, pos.y);
+    continueStroke(smoothed.x, smoothed.y);
+    lastX = smoothed.x; lastY = smoothed.y;
     renderLayers();
   });
 
@@ -1013,6 +1298,7 @@ function init() {
     }
     if (!isDrawing) return;
     isDrawing = false;
+    stabQueue = [];
 
     if (currentTool === "line" || currentTool === "rect" || currentTool === "circle") {
       const pos = screenToCanvas(e.clientX, e.clientY);
@@ -1028,12 +1314,11 @@ function init() {
     brushCursor.style.display = "none";
   });
 
-  // Zoom with scroll wheel
+  // Zoom with scroll wheel — zooms toward mouse position
   canvasArea.addEventListener("wheel", e => {
     e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
-    zoom = Math.min(Math.max(zoom * factor, 0.1), 16);
-    updateCanvasTransform();
+    const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+    zoomAtPoint(e.clientX, e.clientY, factor);
   }, { passive: false });
 
   // Keyboard shortcuts
@@ -1050,14 +1335,16 @@ function init() {
     if ((e.ctrlKey || e.metaKey) && e.key === "z") { e.preventDefault(); undo(); return; }
     if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.shiftKey && e.key === "z"))) { e.preventDefault(); redo(); return; }
 
-    const toolMap = { b: "brush", e: "eraser", p: "pencil", l: "line", r: "rect", c: "circle", g: "fill", i: "eyedropper", t: "text" };
+    if (e.key === "Escape" && cropActive) { cancelCrop(); return; }
+    if (e.key === "Enter" && cropActive) { applyCrop(); return; }
+
+    const toolMap = { b: "brush", e: "eraser", p: "pencil", s: "blend", l: "line", r: "rect", c: "circle", g: "fill", i: "eyedropper", t: "text", k: "crop" };
     const mapped = toolMap[e.key.toLowerCase()];
     if (mapped) {
       const btn = document.querySelector(`.tool-btn[data-tool="${mapped}"]`);
       if (btn) btn.click();
     }
 
-    // Bracket keys for brush size
     if (e.key === "[") { brushSize = Math.max(1, brushSize - 2); sizeSlider.value = brushSize; document.getElementById("brushSizeVal").textContent = brushSize; }
     if (e.key === "]") { brushSize = Math.min(200, brushSize + 2); sizeSlider.value = brushSize; document.getElementById("brushSizeVal").textContent = brushSize; }
   });
