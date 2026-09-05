@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cadence</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --bg: #111117;
+    --surface: #1a1a22;
+    --surface2: #22222e;
+    --border: #2a2a3a;
+    --text: #e8e8f0;
+    --text2: #8888a0;
+    --accent: #6c5ce7;
+    --accent2: #a29bfe;
+    --green: #00cec9;
+    --red: #ff6b6b;
+    --orange: #fdcb6e;
+    --cyan: #81ecec;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px;
+    height: 44px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .header-brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--accent2);
+    letter-spacing: 0.5px;
+  }
+  .header-brand i { font-size: 1rem; color: var(--accent); }
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+  .hdr-btn {
+    border: none;
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.15s, color 0.15s;
+    font-family: inherit;
+  }
+  .hdr-btn:hover { background: var(--border); }
+  .hdr-btn.run { background: var(--accent); color: #fff; }
+  .hdr-btn.run:hover { background: #7c6cf7; }
+  .hdr-btn.run.playing { background: var(--green); }
+  .hdr-btn.stop { background: var(--surface2); }
+  .hdr-btn.stop:hover { background: var(--red); color: #fff; }
+  .hdr-select {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+  }
+  .hdr-select:hover { border-color: var(--accent); }
+
+  /* ── Main layout ── */
+  .main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── Editor panel ── */
+  .editor-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    min-width: 0;
+  }
+  .editor-wrap {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    position: relative;
+  }
+  .line-numbers {
+    width: 44px;
+    background: var(--surface);
+    color: var(--text2);
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    padding: 12px 8px 12px 0;
+    text-align: right;
+    overflow: hidden;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+  }
+  .code-editor {
+    flex: 1;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.78rem;
+    line-height: 1.6;
+    padding: 12px;
+    border: none;
+    outline: none;
+    resize: none;
+    white-space: pre;
+    overflow: auto;
+    tab-size: 2;
+  }
+  .code-editor::selection { background: rgba(108, 92, 231, 0.3); }
+
+  /* ── Right panel ── */
+  .right-panel {
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    background: var(--surface);
+  }
+  .viz-section {
+    padding: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .viz-label {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
+  }
+  .viz-canvas {
+    width: 100%;
+    height: 80px;
+    background: var(--bg);
+    border-radius: 6px;
+    display: block;
+  }
+
+  /* ── Console ── */
+  .console-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: 10px;
+  }
+  .console-output {
+    flex: 1;
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    overflow-y: auto;
+    color: var(--text2);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .console-output .log-info { color: var(--text); }
+  .console-output .log-success { color: var(--green); }
+  .console-output .log-warn { color: var(--orange); }
+  .console-output .log-error { color: var(--red); }
+  .console-output .log-accent { color: var(--accent2); }
+
+  /* ── API reference panel (toggleable) ── */
+  .api-panel {
+    display: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 320px;
+    height: 100%;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    z-index: 10;
+    overflow-y: auto;
+    padding: 16px;
+    font-size: 0.78rem;
+    line-height: 1.6;
+  }
+  .api-panel.open { display: block; }
+  .api-panel h3 {
+    font-size: 0.82rem;
+    color: var(--accent2);
+    margin: 12px 0 4px;
+  }
+  .api-panel h3:first-child { margin-top: 0; }
+  .api-panel code {
+    background: var(--bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 0.72rem;
+    color: var(--green);
+  }
+  .api-panel p { color: var(--text2); margin: 2px 0 8px; }
+
+  /* ── Status bar ── */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 16px;
+    height: 30px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    font-size: 0.7rem;
+    color: var(--text2);
+    flex-shrink: 0;
+  }
+  .status-bar .status-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .status-bar .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--text2);
+  }
+  .status-bar .dot.active { background: var(--green); }
+  .status-bar input[type="number"] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 48px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-family: inherit;
+    outline: none;
+    text-align: center;
+  }
+  .status-bar input[type="range"] {
+    width: 70px;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+  }
+  .status-bar input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+  .sep { width: 1px; height: 14px; background: var(--border); }
+
+  /* ── Keyboard shortcuts hint ── */
+  .shortcut-hint {
+    position: absolute;
+    bottom: 36px;
+    right: 8px;
+    font-size: 0.65rem;
+    color: var(--text2);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-brand">
+    <i class="fas fa-music"></i>
+    <span>Cadence</span>
+  </div>
+  <div class="header-actions">
+    <select class="hdr-select" id="presetSelect">
+      <option value="">Examples</option>
+      <option value="hello">Hello World</option>
+      <option value="drums">Drum Beat</option>
+      <option value="melody">Synth Melody</option>
+      <option value="ambient">Ambient Pad</option>
+      <option value="techno">Techno</option>
+      <option value="fm">FM Bells</option>
+    </select>
+    <button class="hdr-btn" id="apiBtn" title="API Reference"><i class="fas fa-book"></i></button>
+    <button class="hdr-btn run" id="runBtn"><i class="fas fa-play"></i> Run</button>
+    <button class="hdr-btn stop" id="stopBtn"><i class="fas fa-stop"></i> Stop</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <!-- Editor -->
+  <div class="editor-panel">
+    <div class="editor-wrap">
+      <div class="line-numbers" id="lineNums"></div>
+      <textarea class="code-editor" id="editor" spellcheck="false" autocomplete="off" autocapitalize="off">// Welcome to Cadence!
+// A live music coding environment.
+// Press Run (Ctrl+Enter) to hear your code.
+
+bpm(120)
+
+// Drum pattern
+kick("x . . . x . . . x . . . x . . .")
+snare(". . . . x . . . . . . . x . . .")
+hihat("x . x . x . x . x . x . x . x .")
+
+// Bass line
+bass("saw", "C2 . C2 . . . C2 . E2 . E2 . . . G2 .")
+
+// Melody
+melody("triangle", "C4 E4 G4 C5 G4 E4 C4 .", "8n")
+
+// Effects
+delay(0.3, 0.25)
+</textarea>
+      <div class="shortcut-hint">Ctrl+Enter: Run &nbsp; Ctrl+.: Stop</div>
+    </div>
+  </div>
+
+  <!-- Right panel -->
+  <div class="right-panel">
+    <div class="viz-section">
+      <div class="viz-label">Oscilloscope</div>
+      <canvas class="viz-canvas" id="scopeCanvas"></canvas>
+    </div>
+    <div class="viz-section">
+      <div class="viz-label">Spectrum</div>
+      <canvas class="viz-canvas" id="specCanvas"></canvas>
+    </div>
+    <div class="console-section">
+      <div class="viz-label">Console</div>
+      <div class="console-output" id="consoleOut">
+        <span class="log-accent">Cadence v1.0</span>
+        <br><span class="log-info">Ready. Press Run or Ctrl+Enter to start.</span>
+      </div>
+    </div>
+
+    <!-- API reference overlay -->
+    <div class="api-panel" id="apiPanel">
+      <h3>Tempo</h3>
+      <code>bpm(120)</code>
+      <p>Set tempo in beats per minute (40-300).</p>
+
+      <h3>Drums</h3>
+      <code>kick("x . . x . . x .")</code>
+      <p>Kick drum pattern. <code>x</code> = hit, <code>.</code> = rest. Use <code>o</code> for soft hits.</p>
+      <code>snare("...")</code>
+      <p>Snare drum pattern.</p>
+      <code>hihat("...")</code>
+      <p>Hi-hat pattern.</p>
+      <code>clap("...")</code>
+      <p>Clap pattern.</p>
+      <code>tom("...")</code>
+      <p>Tom drum pattern.</p>
+
+      <h3>Melodic</h3>
+      <code>bass(type, "C2 . E2 .")</code>
+      <p>Bass sequence. Types: sine, saw, square, triangle.</p>
+      <code>melody(type, "C4 E4 G4", "8n")</code>
+      <p>Melody sequence. Divisions: 4n, 8n, 16n.</p>
+      <code>pad(type, ["C3","E3","G3"], dur)</code>
+      <p>Sustained chord pad.</p>
+
+      <h3>FM Synthesis</h3>
+      <code>fm("C4 E4 G4", ratio, index)</code>
+      <p>FM synth sequence. ratio = mod/carrier, index = brightness.</p>
+
+      <h3>Notes</h3>
+      <p>Format: <code>C4</code>, <code>D#3</code>, <code>Bb5</code>. Range: C0-B8.</p>
+      <p>Use <code>.</code> for rests in patterns.</p>
+
+      <h3>Effects</h3>
+      <code>delay(time, feedback)</code>
+      <p>Echo effect. time: 0-1s, feedback: 0-0.9.</p>
+      <code>reverb(amount)</code>
+      <p>Reverb wetness. amount: 0-1.</p>
+      <code>filter(type, freq)</code>
+      <p>Filter. Types: lowpass, highpass, bandpass.</p>
+      <code>distort(amount)</code>
+      <p>Distortion. amount: 0-1.</p>
+      <code>volume(level)</code>
+      <p>Master volume. level: 0-1.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Status bar -->
+<div class="status-bar">
+  <div class="status-item">
+    <div class="dot" id="statusDot"></div>
+    <span id="statusText">Stopped</span>
+  </div>
+  <div class="sep"></div>
+  <div class="status-item">
+    <span>BPM</span>
+    <input type="number" id="bpmInput" value="120" min="40" max="300">
+  </div>
+  <div class="sep"></div>
+  <div class="status-item">
+    <i class="fas fa-volume-up" style="font-size:0.65rem"></i>
+    <input type="range" id="volSlider" min="0" max="100" value="70">
+  </div>
+  <div class="sep"></div>
+  <div class="status-item">
+    <span>Step: <span id="stepDisplay">0</span></span>
+  </div>
+  <div class="status-item" style="margin-left:auto">
+    <span id="timeDisplay">0:00</span>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  CADENCE — Audio Engine & Runtime
+// ═══════════════════════════════════════════
+
+// ── Audio context & nodes ──
+let ctx = null;
+let masterGain = null;
+let analyser = null;
+let delayNode = null, delayFeedback = null, delayWet = null;
+let reverbNode = null, reverbWet = null;
+let filterNode = null;
+let distortNode = null;
+
+// ── State ──
+let isPlaying = false;
+let currentBPM = 120;
+let activePatterns = [];
+let currentStep = 0;
+let nextStepTime = 0;
+let clockTimer = null;
+let startTime = 0;
+let animFrame = null;
+
+const SCHEDULE_AHEAD = 0.1;
+
+// ── DOM refs ──
+const editor = document.getElementById('editor');
+const lineNums = document.getElementById('lineNums');
+const consoleOut = document.getElementById('consoleOut');
+const scopeCanvas = document.getElementById('scopeCanvas');
+const specCanvas = document.getElementById('specCanvas');
+const runBtn = document.getElementById('runBtn');
+const stopBtn = document.getElementById('stopBtn');
+const presetSelect = document.getElementById('presetSelect');
+const apiBtn = document.getElementById('apiBtn');
+const apiPanel = document.getElementById('apiPanel');
+const bpmInput = document.getElementById('bpmInput');
+const volSlider = document.getElementById('volSlider');
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const stepDisplay = document.getElementById('stepDisplay');
+const timeDisplay = document.getElementById('timeDisplay');
+
+// ── Console logging ──
+function clog(msg, type = 'info') {
+  const span = document.createElement('span');
+  span.className = 'log-' + type;
+  span.textContent = msg;
+  consoleOut.appendChild(document.createElement('br'));
+  consoleOut.appendChild(span);
+  consoleOut.scrollTop = consoleOut.scrollHeight;
+}
+
+// ── Init audio ──
+function initAudio() {
+  if (ctx) return;
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = ctx.createGain();
+  masterGain.gain.value = 0.7;
+
+  analyser = ctx.createAnalyser();
+  analyser.fftSize = 2048;
+
+  // Delay effect
+  delayNode = ctx.createDelay(2);
+  delayNode.delayTime.value = 0;
+  delayFeedback = ctx.createGain();
+  delayFeedback.gain.value = 0;
+  delayWet = ctx.createGain();
+  delayWet.gain.value = 0;
+  delayNode.connect(delayFeedback);
+  delayFeedback.connect(delayNode);
+  delayNode.connect(delayWet);
+
+  // Filter
+  filterNode = ctx.createBiquadFilter();
+  filterNode.type = 'lowpass';
+  filterNode.frequency.value = 20000;
+  filterNode.Q.value = 1;
+
+  // Distortion
+  distortNode = ctx.createWaveShaper();
+  distortNode.curve = makeDistortionCurve(0);
+  distortNode.oversample = '4x';
+
+  // Chain: masterGain -> filter -> distort -> analyser -> destination
+  //                   -> delay -> delayWet -> analyser
+  masterGain.connect(filterNode);
+  filterNode.connect(distortNode);
+  distortNode.connect(analyser);
+  masterGain.connect(delayNode);
+  delayWet.connect(analyser);
+  analyser.connect(ctx.destination);
+}
+
+function makeDistortionCurve(amount) {
+  const samples = 44100;
+  const curve = new Float32Array(samples);
+  const k = amount * 100;
+  for (let i = 0; i < samples; i++) {
+    const x = (i * 2) / samples - 1;
+    curve[i] = k === 0 ? x : ((3 + k) * x * 20 * (Math.PI / 180)) / (Math.PI + k * Math.abs(x));
+  }
+  return curve;
+}
+
+// ── Note utilities ──
+const NOTE_MAP = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+
+function noteToFreq(note) {
+  if (!note || note === '.') return 0;
+  const m = note.match(/^([A-G])(#|b)?(\d)$/);
+  if (!m) return 0;
+  let semi = NOTE_MAP[m[1]];
+  if (m[2] === '#') semi++;
+  if (m[2] === 'b') semi--;
+  const oct = parseInt(m[3]);
+  return 440 * Math.pow(2, (semi - 9 + (oct - 4) * 12) / 12);
+}
+
+// ── Synth voices ──
+function playSynth(type, freq, duration, time, vel = 0.4) {
+  if (freq <= 0) return;
+  const osc = ctx.createOscillator();
+  const env = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+
+  const a = 0.005, d = duration * 0.3, s = vel * 0.6, r = duration * 0.2;
+  env.gain.setValueAtTime(0, time);
+  env.gain.linearRampToValueAtTime(vel, time + a);
+  env.gain.linearRampToValueAtTime(s, time + a + d);
+  env.gain.setValueAtTime(s, time + duration - r);
+  env.gain.linearRampToValueAtTime(0, time + duration);
+
+  osc.connect(env);
+  env.connect(masterGain);
+  osc.start(time);
+  osc.stop(time + duration + 0.01);
+}
+
+function playFM(freq, duration, time, ratio = 2, index = 5, vel = 0.35) {
+  if (freq <= 0) return;
+  const carrier = ctx.createOscillator();
+  const modulator = ctx.createOscillator();
+  const modGain = ctx.createGain();
+  const env = ctx.createGain();
+
+  modulator.frequency.value = freq * ratio;
+  modGain.gain.value = freq * index;
+  carrier.frequency.value = freq;
+
+  modulator.connect(modGain);
+  modGain.connect(carrier.frequency);
+
+  const a = 0.005;
+  env.gain.setValueAtTime(0, time);
+  env.gain.linearRampToValueAtTime(vel, time + a);
+  env.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+  carrier.connect(env);
+  env.connect(masterGain);
+  carrier.start(time);
+  modulator.start(time);
+  carrier.stop(time + duration + 0.01);
+  modulator.stop(time + duration + 0.01);
+}
+
+function playPad(type, freqs, duration, time, vel = 0.15) {
+  freqs.forEach(f => {
+    if (f <= 0) return;
+    const osc = ctx.createOscillator();
+    const env = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = f;
+
+    env.gain.setValueAtTime(0, time);
+    env.gain.linearRampToValueAtTime(vel, time + 0.3);
+    env.gain.setValueAtTime(vel, time + duration - 0.5);
+    env.gain.linearRampToValueAtTime(0, time + duration);
+
+    osc.connect(env);
+    env.connect(masterGain);
+    osc.start(time);
+    osc.stop(time + duration + 0.05);
+  });
+}
+
+// ── Drum synthesis ──
+function playKick(time, vel = 0.8) {
+  const osc = ctx.createOscillator();
+  const env = ctx.createGain();
+  osc.frequency.setValueAtTime(150, time);
+  osc.frequency.exponentialRampToValueAtTime(30, time + 0.12);
+  env.gain.setValueAtTime(vel, time);
+  env.gain.exponentialRampToValueAtTime(0.001, time + 0.4);
+  osc.connect(env); env.connect(masterGain);
+  osc.start(time); osc.stop(time + 0.41);
+}
+
+function playSnare(time, vel = 0.5) {
+  // noise
+  const len = ctx.sampleRate * 0.12;
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  const noise = ctx.createBufferSource();
+  noise.buffer = buf;
+  const nf = ctx.createBiquadFilter();
+  nf.type = 'highpass'; nf.frequency.value = 1200;
+  const ne = ctx.createGain();
+  ne.gain.setValueAtTime(vel, time);
+  ne.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+  noise.connect(nf); nf.connect(ne); ne.connect(masterGain);
+  noise.start(time); noise.stop(time + 0.13);
+  // tone
+  const osc = ctx.createOscillator();
+  const oe = ctx.createGain();
+  osc.frequency.value = 180;
+  oe.gain.setValueAtTime(vel * 0.6, time);
+  oe.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+  osc.connect(oe); oe.connect(masterGain);
+  osc.start(time); osc.stop(time + 0.07);
+}
+
+function playHihat(time, vel = 0.25) {
+  const len = ctx.sampleRate * 0.04;
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  const noise = ctx.createBufferSource();
+  noise.buffer = buf;
+  const f = ctx.createBiquadFilter();
+  f.type = 'highpass'; f.frequency.value = 7000;
+  const e = ctx.createGain();
+  e.gain.setValueAtTime(vel, time);
+  e.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
+  noise.connect(f); f.connect(e); e.connect(masterGain);
+  noise.start(time); noise.stop(time + 0.05);
+}
+
+function playClap(time, vel = 0.45) {
+  for (let n = 0; n < 3; n++) {
+    const t = time + n * 0.01;
+    const len = ctx.sampleRate * 0.02;
+    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.frequency.value = 2500; f.Q.value = 3;
+    const e = ctx.createGain();
+    e.gain.setValueAtTime(vel * 0.6, t);
+    e.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    noise.connect(f); f.connect(e); e.connect(masterGain);
+    noise.start(t); noise.stop(t + 0.09);
+  }
+}
+
+function playTom(time, vel = 0.6) {
+  const osc = ctx.createOscillator();
+  const env = ctx.createGain();
+  osc.frequency.setValueAtTime(200, time);
+  osc.frequency.exponentialRampToValueAtTime(80, time + 0.15);
+  env.gain.setValueAtTime(vel, time);
+  env.gain.exponentialRampToValueAtTime(0.001, time + 0.3);
+  osc.connect(env); env.connect(masterGain);
+  osc.start(time); osc.stop(time + 0.31);
+}
+
+// ── Pattern scheduler ──
+function parsePattern(str) {
+  return str.trim().split(/\s+/);
+}
+
+function startClock() {
+  currentStep = 0;
+  nextStepTime = ctx.currentTime + 0.05;
+  startTime = ctx.currentTime;
+
+  function tick() {
+    while (nextStepTime < ctx.currentTime + SCHEDULE_AHEAD) {
+      const stepDur = (60 / currentBPM) / 4; // 16th note
+
+      activePatterns.forEach(p => {
+        const idx = currentStep % p.steps.length;
+        const s = p.steps[idx];
+        if (s && s !== '.') {
+          p.callback(nextStepTime, s, idx, stepDur);
+        }
+      });
+
+      nextStepTime += stepDur;
+      currentStep++;
+      stepDisplay.textContent = currentStep;
+    }
+
+    // Update elapsed time
+    const elapsed = ctx.currentTime - startTime;
+    const m = Math.floor(elapsed / 60);
+    const s = Math.floor(elapsed % 60);
+    timeDisplay.textContent = m + ':' + String(s).padStart(2, '0');
+
+    if (isPlaying) {
+      clockTimer = setTimeout(tick, 20);
+    }
+  }
+
+  tick();
+}
+
+function stopAll() {
+  isPlaying = false;
+  if (clockTimer) clearTimeout(clockTimer);
+  activePatterns = [];
+  currentStep = 0;
+  stepDisplay.textContent = '0';
+  statusDot.classList.remove('active');
+  statusText.textContent = 'Stopped';
+  runBtn.classList.remove('playing');
+  runBtn.innerHTML = '<i class="fas fa-play"></i> Run';
+}
+
+// ═══════════════════════════════════════════
+//  USER API — these functions are available
+//  inside the code editor
+// ═══════════════════════════════════════════
+
+const userAPI = {};
+
+userAPI.bpm = function(val) {
+  currentBPM = Math.max(40, Math.min(300, val));
+  bpmInput.value = currentBPM;
+};
+
+userAPI.kick = function(pat) {
+  const steps = parsePattern(pat);
+  activePatterns.push({
+    name: 'kick', steps,
+    callback: (t, s) => playKick(t, s === 'o' ? 0.4 : 0.8)
+  });
+};
+
+userAPI.snare = function(pat) {
+  const steps = parsePattern(pat);
+  activePatterns.push({
+    name: 'snare', steps,
+    callback: (t, s) => playSnare(t, s === 'o' ? 0.25 : 0.5)
+  });
+};
+
+userAPI.hihat = function(pat) {
+  const steps = parsePattern(pat);
+  activePatterns.push({
+    name: 'hihat', steps,
+    callback: (t, s) => playHihat(t, s === 'o' ? 0.12 : 0.25)
+  });
+};
+
+userAPI.clap = function(pat) {
+  const steps = parsePattern(pat);
+  activePatterns.push({
+    name: 'clap', steps,
+    callback: (t, s) => playClap(t, s === 'o' ? 0.2 : 0.45)
+  });
+};
+
+userAPI.tom = function(pat) {
+  const steps = parsePattern(pat);
+  activePatterns.push({
+    name: 'tom', steps,
+    callback: (t, s) => playTom(t, s === 'o' ? 0.3 : 0.6)
+  });
+};
+
+userAPI.bass = function(type, pat) {
+  const steps = parsePattern(pat);
+  activePatterns.push({
+    name: 'bass', steps,
+    callback: (t, s, idx, dur) => {
+      const freq = noteToFreq(s);
+      if (freq > 0) playSynth(type, freq, dur * 1.5, t, 0.45);
+    }
+  });
+};
+
+userAPI.melody = function(type, pat, div = '8n') {
+  const steps = parsePattern(pat);
+  const mult = div === '4n' ? 4 : div === '16n' ? 1 : 2;
+  activePatterns.push({
+    name: 'melody', steps,
+    callback: (t, s, idx, dur) => {
+      const freq = noteToFreq(s);
+      if (freq > 0) playSynth(type, freq, dur * mult * 0.9, t, 0.35);
+    }
+  });
+};
+
+userAPI.pad = function(type, notes, dur = 4) {
+  const freqs = notes.map(n => noteToFreq(n));
+  // play once at start then every dur beats
+  const stepsPerBeat = 4;
+  const totalSteps = Math.round(dur * stepsPerBeat);
+  const steps = Array(totalSteps).fill('.');
+  steps[0] = 'x';
+  activePatterns.push({
+    name: 'pad', steps,
+    callback: (t) => {
+      const beatDur = (60 / currentBPM) * dur;
+      playPad(type, freqs, beatDur, t);
+    }
+  });
+};
+
+userAPI.fm = function(pat, ratio = 2, index = 5) {
+  const steps = parsePattern(pat);
+  activePatterns.push({
+    name: 'fm', steps,
+    callback: (t, s, idx, dur) => {
+      const freq = noteToFreq(s);
+      if (freq > 0) playFM(freq, dur * 2, t, ratio, index, 0.3);
+    }
+  });
+};
+
+userAPI.delay = function(time = 0.3, feedback = 0.3) {
+  delayNode.delayTime.value = Math.max(0, Math.min(2, time));
+  delayFeedback.gain.value = Math.max(0, Math.min(0.9, feedback));
+  delayWet.gain.value = 0.5;
+};
+
+userAPI.reverb = function(amount = 0.3) {
+  // Simple reverb via multiple delays
+  if (!reverbWet) {
+    reverbWet = ctx.createGain();
+    reverbWet.connect(analyser);
+    const delays = [0.03, 0.07, 0.11, 0.17, 0.23, 0.31];
+    delays.forEach((d, i) => {
+      const dl = ctx.createDelay(1);
+      dl.delayTime.value = d;
+      const g = ctx.createGain();
+      g.gain.value = 0.15 / (i + 1);
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = 3000 - i * 300;
+      masterGain.connect(dl);
+      dl.connect(f);
+      f.connect(g);
+      g.connect(reverbWet);
+    });
+  }
+  reverbWet.gain.value = Math.max(0, Math.min(1, amount));
+};
+
+userAPI.filter = function(type = 'lowpass', freq = 1000) {
+  filterNode.type = type;
+  filterNode.frequency.value = Math.max(20, Math.min(20000, freq));
+};
+
+userAPI.distort = function(amount = 0.5) {
+  distortNode.curve = makeDistortionCurve(Math.max(0, Math.min(1, amount)));
+};
+
+userAPI.volume = function(level = 0.7) {
+  const v = Math.max(0, Math.min(1, level));
+  masterGain.gain.value = v;
+  volSlider.value = v * 100;
+};
+
+userAPI.log = function(...args) {
+  clog(args.join(' '), 'info');
+};
+
+// ── Execute user code ──
+function executeCode(code) {
+  stopAll();
+  initAudio();
+  if (ctx.state === 'suspended') ctx.resume();
+
+  // Reset effects
+  delayNode.delayTime.value = 0;
+  delayFeedback.gain.value = 0;
+  delayWet.gain.value = 0;
+  if (reverbWet) reverbWet.gain.value = 0;
+  filterNode.type = 'lowpass';
+  filterNode.frequency.value = 20000;
+  distortNode.curve = makeDistortionCurve(0);
+
+  activePatterns = [];
+
+  // Build function wrapper with API bindings
+  const apiNames = Object.keys(userAPI);
+  const apiVals = apiNames.map(k => userAPI[k]);
+
+  try {
+    const fn = new Function(...apiNames, code);
+    fn(...apiVals);
+
+    isPlaying = true;
+    statusDot.classList.add('active');
+    statusText.textContent = 'Playing';
+    runBtn.classList.add('playing');
+    runBtn.innerHTML = '<i class="fas fa-play"></i> Playing';
+
+    if (activePatterns.length > 0) {
+      startClock();
+      clog('Playing ' + activePatterns.length + ' pattern(s) at ' + currentBPM + ' BPM', 'success');
+    } else {
+      clog('Code executed (no patterns scheduled)', 'warn');
+    }
+  } catch (err) {
+    clog('Error: ' + err.message, 'error');
+    stopAll();
+  }
+}
+
+// ═══════════════════════════════════════════
+//  VISUALIZATION
+// ═══════════════════════════════════════════
+
+function initCanvases() {
+  [scopeCanvas, specCanvas].forEach(c => {
+    c.width = c.offsetWidth * 2;
+    c.height = c.offsetHeight * 2;
+  });
+}
+
+function drawVisuals() {
+  if (!analyser) { animFrame = requestAnimationFrame(drawVisuals); return; }
+
+  const bufLen = analyser.frequencyBinCount;
+  const timeBuf = new Uint8Array(bufLen);
+  const freqBuf = new Uint8Array(bufLen);
+  analyser.getByteTimeDomainData(timeBuf);
+  analyser.getByteFrequencyData(freqBuf);
+
+  // Oscilloscope
+  const sCtx = scopeCanvas.getContext('2d');
+  const sw = scopeCanvas.width, sh = scopeCanvas.height;
+  sCtx.fillStyle = '#111117';
+  sCtx.fillRect(0, 0, sw, sh);
+
+  // Grid line
+  sCtx.strokeStyle = '#2a2a3a';
+  sCtx.lineWidth = 1;
+  sCtx.beginPath();
+  sCtx.moveTo(0, sh / 2);
+  sCtx.lineTo(sw, sh / 2);
+  sCtx.stroke();
+
+  // Waveform
+  sCtx.strokeStyle = '#6c5ce7';
+  sCtx.lineWidth = 2;
+  sCtx.beginPath();
+  const sliceW = sw / bufLen;
+  for (let i = 0; i < bufLen; i++) {
+    const v = timeBuf[i] / 128.0;
+    const y = (v * sh) / 2;
+    if (i === 0) sCtx.moveTo(0, y);
+    else sCtx.lineTo(i * sliceW, y);
+  }
+  sCtx.stroke();
+
+  // Spectrum
+  const fCtx = specCanvas.getContext('2d');
+  const fw = specCanvas.width, fh = specCanvas.height;
+  fCtx.fillStyle = '#111117';
+  fCtx.fillRect(0, 0, fw, fh);
+
+  const barCount = 64;
+  const barW = fw / barCount;
+  const step = Math.floor(bufLen / barCount);
+  for (let i = 0; i < barCount; i++) {
+    const val = freqBuf[i * step] / 255;
+    const h = val * fh * 0.9;
+    const hue = 260 - val * 40;
+    fCtx.fillStyle = `hsl(${hue}, 70%, ${40 + val * 30}%)`;
+    fCtx.fillRect(i * barW + 1, fh - h, barW - 2, h);
+  }
+
+  animFrame = requestAnimationFrame(drawVisuals);
+}
+
+// ═══════════════════════════════════════════
+//  PRESETS
+// ═══════════════════════════════════════════
+
+const PRESETS = {
+  hello: `// Hello World — a simple tone
+bpm(120)
+melody("sine", "C4 E4 G4 C5 G4 E4 C4 .", "8n")
+`,
+  drums: `// Drum Beat — classic four-on-the-floor
+bpm(128)
+
+kick("x . . . x . . . x . . . x . . .")
+snare(". . . . x . . . . . . . x . . .")
+hihat("x . x . x . x . x . x . x . x .")
+clap(". . . . . . . . . . . . x . . .")
+`,
+  melody: `// Synth Melody — arpeggiated sequence
+bpm(135)
+
+kick("x . . x x . . x x . . x x . . .")
+hihat("x x x x x x x x x x x x x x x x")
+
+melody("saw", "C4 E4 G4 B4 C5 B4 G4 E4", "16n")
+bass("square", "C2 . . . C2 . . . E2 . . . G2 . . .")
+
+delay(0.18, 0.3)
+filter("lowpass", 3000)
+`,
+  ambient: `// Ambient Pad — slow evolving chords
+bpm(70)
+
+pad("sine", ["C3", "E3", "G3", "B3"], 8)
+pad("triangle", ["D3", "F3", "A3"], 8)
+
+melody("sine", "G5 . . . E5 . . . C5 . . . D5 . . .", "4n")
+
+reverb(0.8)
+delay(0.4, 0.5)
+filter("lowpass", 2000)
+volume(0.5)
+`,
+  techno: `// Techno — driving beat with acid bass
+bpm(138)
+
+kick("x . . . x . . . x . . . x . . .")
+hihat(". . x . . . x . . . x . . . x .")
+clap(". . . . x . . . . . . . x . . .")
+snare(". . . . . . . . . . . . . . . x")
+
+bass("saw", "C2 C2 . C2 . . C2 . C2 C2 . . C2 . C2 .")
+melody("square", "C3 . Eb3 . C3 . G3 . C3 . Eb3 . G3 . C4 .", "16n")
+
+filter("lowpass", 1800)
+delay(0.12, 0.2)
+distort(0.15)
+`,
+  fm: `// FM Bells — metallic shimmer
+bpm(90)
+
+fm("C5 E5 G5 C6 . G5 E5 .", 3, 4)
+fm("C4 . . . G4 . . .", 5, 2)
+
+kick("x . . . . . x . . . . . x . . .")
+hihat(". . x . . . . . x . . . . . x .")
+
+reverb(0.6)
+delay(0.3, 0.4)
+volume(0.5)
+`
+};
+
+// ═══════════════════════════════════════════
+//  LINE NUMBERS
+// ═══════════════════════════════════════════
+
+function updateLineNumbers() {
+  const lines = editor.value.split('\n').length;
+  let html = '';
+  for (let i = 1; i <= lines; i++) html += i + '\n';
+  lineNums.textContent = html;
+}
+
+// ═══════════════════════════════════════════
+//  EVENT HANDLERS
+// ═══════════════════════════════════════════
+
+runBtn.addEventListener('click', () => {
+  executeCode(editor.value);
+});
+
+stopBtn.addEventListener('click', () => {
+  stopAll();
+  clog('Stopped.', 'warn');
+});
+
+presetSelect.addEventListener('change', () => {
+  const key = presetSelect.value;
+  if (key && PRESETS[key]) {
+    editor.value = PRESETS[key];
+    updateLineNumbers();
+    presetSelect.value = '';
+  }
+});
+
+apiBtn.addEventListener('click', () => {
+  apiPanel.classList.toggle('open');
+});
+
+bpmInput.addEventListener('change', () => {
+  currentBPM = Math.max(40, Math.min(300, parseInt(bpmInput.value) || 120));
+  bpmInput.value = currentBPM;
+});
+
+volSlider.addEventListener('input', () => {
+  if (masterGain) masterGain.gain.value = volSlider.value / 100;
+});
+
+editor.addEventListener('input', updateLineNumbers);
+editor.addEventListener('scroll', () => {
+  lineNums.style.transform = `translateY(${-editor.scrollTop}px)`;
+});
+
+// Tab key inserts spaces
+editor.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    editor.value = editor.value.substring(0, start) + '  ' + editor.value.substring(end);
+    editor.selectionStart = editor.selectionEnd = start + 2;
+    updateLineNumbers();
+  }
+  // Ctrl+Enter to run
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    executeCode(editor.value);
+  }
+  // Ctrl+. to stop
+  if (e.key === '.' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    stopAll();
+    clog('Stopped.', 'warn');
+  }
+});
+
+// ── Init ──
+updateLineNumbers();
+initCanvases();
+drawVisuals();
+
+window.addEventListener('resize', initCanvases);
+</script>
+</body>
+</html>
