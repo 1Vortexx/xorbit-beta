@@ -4247,7 +4247,7 @@
 
         setOnlineStatus(true);
         setInterval(() => { if (currentUser) setOnlineStatus(true); }, 30000);
-        await Promise.all([loadBlockedUsers(), loadBlockedByUsers(), loadFriendships()]);
+        await Promise.all([loadBlockedUsers(), loadBlockedByUsers(), loadFriendships(), loadTagDefinitions()]);
         showFriendReqNotif();
         await loadConversations();
         subscribeToConversations();
@@ -4494,8 +4494,11 @@
                    </div>`
                 : '';
 
+            // Prefer cached display name over stored sender_name (which may be a real name from older messages)
+            const senderDisplay = displayNameCache[msg.sender_email] || usernameCache[msg.sender_email] || msg.sender_name;
+
             const safeReplyPreview = (msg.message || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").substring(0, 80);
-            const replyBtn = `<button class="msg-reply-btn" onclick="startReply('${escAttr(msg.id)}','${escAttr(msg.sender_name)}','${safeReplyPreview}')" title="Reply"><i class="fas fa-reply"></i></button>`;
+            const replyBtn = `<button class="msg-reply-btn" onclick="startReply('${escAttr(msg.id)}','${escAttr(senderDisplay)}','${safeReplyPreview}')" title="Reply"><i class="fas fa-reply"></i></button>`;
 
             const bubbleHtml = isImage
                 ? `<div class="msg-image-wrap" data-img-url="${safeUrlAttr}" data-created-at="${msg.created_at}">
@@ -4518,9 +4521,9 @@
                 : `<div class="message-bubble">${replyQuote}${escHtml(msg.message)}</div>`;
             html += `
                 <div class="message ${isMine ? 'mine' : 'theirs'}" data-created-at="${msg.created_at}">
-                    <div class="msg-avatar" onclick="openProfile('${escAttr(msg.sender_email)}')">${avatarHTML(msg.sender_name, msg.sender_email)}</div>
+                    <div class="msg-avatar" onclick="openProfile('${escAttr(msg.sender_email)}')">${avatarHTML(senderDisplay, msg.sender_email)}</div>
                     <div class="msg-content">
-                        <div class="message-header">${escHtml(msg.sender_name)}</div>
+                        <div class="message-header">${escHtml(senderDisplay)}</div>
                         ${bubbleHtml}
                         <div class="msg-meta">${replyBtn}<div class="message-time">${fmtTime(msg.created_at)}</div></div>
                     </div>
@@ -4570,7 +4573,7 @@
             const { error: msgError } = await sb.from('dm_messages').insert([{
                 conversation_id:      activeConvId,
                 sender_email:         currentUser.email,
-                sender_name:          currentUser.name,
+                sender_name:          currentUser.display_name || currentUser.username || currentUser.name,
                 message:              message,
                 reply_to_id:          replyingTo ? replyingTo.id : null,
                 reply_to_sender_name: replyingTo ? replyingTo.senderName : null,
@@ -4665,7 +4668,7 @@
         document.getElementById('groupInfoMemberCount').textContent = `${participants.length} / 5`;
 
         try {
-            const { data } = await sb.from('clients').select('email, name, avatar_url').in('email', participants);
+            const { data } = await sb.from('clients').select('email, name, username, display_name, avatar_url').in('email', participants);
             const memberMap = {};
             (data || []).forEach(m => { memberMap[m.email] = m; });
             _groupModalPendingMembers = participants.map(e => memberMap[e] || { email: e, name: e, avatar_url: null });
@@ -4682,17 +4685,18 @@
         document.getElementById('groupInfoMemberList').innerHTML = _groupModalPendingMembers.map(member => {
             const isSelf      = member.email === currentUser.email;
             const isCreator   = member.email === creatorEmail;
+            const memberDN    = member.display_name || member.username || member.name;
             const avatarContent = member.avatar_url
-                ? `<img src="${member.avatar_url.replace(/"/g,'&quot;')}" alt="${escHtml(member.name)}" onerror="this.style.display='none'">`
-                : getInitials(member.name);
+                ? `<img src="${member.avatar_url.replace(/"/g,'&quot;')}" alt="${escHtml(memberDN)}" onerror="this.style.display='none'">`
+                : getInitials(memberDN);
             const tag       = isCreator ? 'Creator' : (isSelf ? 'You' : '');
             const canRemove = _groupModalIsCreator && !isSelf && !isCreator;
             return `
                 <div class="group-info-member">
                     <div class="group-info-member-avatar">${avatarContent}</div>
                     <div class="group-info-member-details">
-                        <div class="group-info-member-name">${escHtml(member.name)}</div>
-                        <div class="group-info-member-email">${escHtml(member.email)}</div>
+                        <div class="group-info-member-name">${escHtml(memberDN)}</div>
+                        <div class="group-info-member-email">${member.username ? '@' + escHtml(member.username) : escHtml(member.email)}</div>
                     </div>
                     ${tag ? `<div class="group-info-member-tag">${tag}</div>` : ''}
                     ${canRemove ? `<button class="group-info-remove-btn" onclick="removeGroupInfoMember('${escAttr(member.email)}')" title="Remove"><i class="fas fa-times"></i></button>` : ''}
@@ -4725,8 +4729,8 @@
         resultsEl.innerHTML = `<div class="search-hint"><i class="fas fa-spinner fa-spin"></i><p>Searching…</p></div>`;
         try {
             const { data, error } = await sb.from('clients')
-                .select('id, name, email, avatar_url')
-                .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
+                .select('id, name, email, username, display_name, avatar_url')
+                .or(`name.ilike.%${query}%,email.ilike.%${query}%,username.ilike.%${query}%,display_name.ilike.%${query}%`)
                 .neq('email', currentUser.email)
                 .limit(20);
             if (error) throw error;
@@ -4734,10 +4738,16 @@
                 resultsEl.innerHTML = `<div class="search-hint"><i class="fas fa-user-slash"></i><p>No members found</p></div>`;
                 return;
             }
-            data.forEach(u => { avatarCache[u.email] = u.avatar_url || null; });
+            data.forEach(u => {
+                avatarCache[u.email]      = u.avatar_url    || null;
+                displayNameCache[u.email] = u.display_name  || null;
+                usernameCache[u.email]    = u.username       || null;
+            });
             const selectedEmails = new Set(_groupModalPendingMembers.map(m => m.email));
             const atMax = _groupModalPendingMembers.length >= 5;
             resultsEl.innerHTML = data.map(user => {
+                const dn = user.display_name || user.username || user.name;
+                const sub = user.username ? `@${escHtml(user.username)}` : escHtml(user.email);
                 const isAdded  = selectedEmails.has(user.email);
                 const disabled = isAdded || atMax;
                 const action   = isAdded ? 'Added ✓' : (atMax ? 'Max 5' : 'Add +');
@@ -4745,11 +4755,11 @@
                 return `
                     <div class="search-result-item"
                          style="${disabled ? 'opacity:0.55;pointer-events:none' : 'cursor:pointer'}"
-                         onclick="${disabled ? '' : `addGroupInfoMember('${escAttr(user.id)}','${escAttr(user.name)}','${escAttr(user.email)}','${safeAvatar}')`}">
-                        <div class="result-avatar">${avatarHTML(user.name, user.email)}</div>
+                         onclick="${disabled ? '' : `addGroupInfoMember('${escAttr(user.id)}','${escAttr(dn)}','${escAttr(user.email)}','${safeAvatar}')`}">
+                        <div class="result-avatar">${avatarHTML(dn, user.email)}</div>
                         <div class="result-info">
-                            <div class="result-name">${escHtml(user.name)}</div>
-                            <div class="result-email">${escHtml(user.email)}</div>
+                            <div class="result-name">${escHtml(dn)}</div>
+                            <div class="result-email">${sub}</div>
                         </div>
                         <div class="result-action${isAdded ? ' added' : ''}">${action}</div>
                     </div>`;
@@ -5275,7 +5285,7 @@
             const { error: msgError } = await sb.from('dm_messages').insert([{
                 conversation_id:      activeConvId,
                 sender_email:         currentUser.email,
-                sender_name:          currentUser.name,
+                sender_name:          currentUser.display_name || currentUser.username || currentUser.name,
                 message:              `[IMG]:${publicUrl}`,
                 reply_to_id:          replyingTo ? replyingTo.id : null,
                 reply_to_sender_name: replyingTo ? replyingTo.senderName : null,
@@ -5375,8 +5385,8 @@
             }
             const { data, error } = await sb
                 .from('clients')
-                .select('id, name, email, username, avatar_url')
-                .or(`name.ilike.%${query}%,email.ilike.%${query}%,username.ilike.%${query}%`)
+                .select('id, name, email, username, display_name, avatar_url')
+                .or(`name.ilike.%${query}%,email.ilike.%${query}%,username.ilike.%${query}%,display_name.ilike.%${query}%`)
                 .in('email', friendEmails)
                 .neq('email', currentUser.email)
                 .limit(20);
@@ -5385,9 +5395,15 @@
                 resultsEl.innerHTML = `<div class="search-hint"><i class="fas fa-user-slash"></i><p>No members found</p></div>`;
                 return;
             }
-            data.forEach(u => { avatarCache[u.email] = u.avatar_url || null; });
+            data.forEach(u => {
+                avatarCache[u.email]      = u.avatar_url    || null;
+                displayNameCache[u.email] = u.display_name  || null;
+                usernameCache[u.email]    = u.username       || null;
+            });
             const selectedEmails = new Set(groupSelectedMembers.map(m => m.email));
             resultsEl.innerHTML = data.map(user => {
+                const displayName = user.display_name || user.username || user.name;
+                const sub = user.username ? `@${escHtml(user.username)}` : escHtml(user.email);
                 const isAdded   = selectedEmails.has(user.email);
                 const atMax     = groupSelectedMembers.length >= 4;
                 const disabled  = isAdded || atMax;
@@ -5396,11 +5412,11 @@
                 return `
                     <div class="search-result-item${disabled ? '' : ''}"
                          style="${disabled ? 'opacity:0.55;pointer-events:none' : 'cursor:pointer'}"
-                         onclick="${disabled ? '' : `selectGroupMember('${escAttr(user.id)}','${escAttr(user.name)}','${escAttr(user.email)}')`}">
-                        <div class="result-avatar">${avatarHTML(user.name, user.email)}</div>
+                         onclick="${disabled ? '' : `selectGroupMember('${escAttr(user.id)}','${escAttr(displayName)}','${escAttr(user.email)}')`}">
+                        <div class="result-avatar">${avatarHTML(displayName, user.email)}</div>
                         <div class="result-info">
-                            <div class="result-name">${escHtml(user.name)}</div>
-                            <div class="result-email">${escHtml(user.email)}</div>
+                            <div class="result-name">${escHtml(displayName)}</div>
+                            <div class="result-email">${sub}</div>
                         </div>
                         <div class="${actionCls}">${action}</div>
                     </div>`;
@@ -5464,7 +5480,7 @@
             const allParticipants = [currentUser.email, ...groupSelectedMembers.map(m => m.email)];
             const { data: newConv, error } = await sb.from('dm_conversations').insert([{
                 participant_1_email:  currentUser.email,
-                participant_1_name:   currentUser.name,
+                participant_1_name:   currentUser.display_name || currentUser.username || currentUser.name,
                 is_group:             true,
                 group_name:           groupName,
                 participants:         allParticipants,
@@ -5587,7 +5603,7 @@
                 } else if (status === 'pending_received') {
                     actionHtml = `<div class="result-action accept" onclick="acceptFriendFromSearch('${escAttr(user.email)}')">Accept ✓</div>`;
                 } else {
-                    actionHtml = `<div class="result-action add" onclick="sendFriendRequestFromSearch('${escAttr(user.id)}','${escAttr(user.name)}','${escAttr(user.email)}',this)">Add Friend +</div>`;
+                    actionHtml = `<div class="result-action add" onclick="sendFriendRequestFromSearch('${escAttr(user.id)}','${escAttr(name)}','${escAttr(user.email)}',this)">Add Friend +</div>`;
                 }
                 return `
                     <div class="search-result-item">
@@ -5651,7 +5667,7 @@
                     .insert([{
                         participant_1_email: currentUser.email,
                         participant_2_email: userEmail,
-                        participant_1_name:  currentUser.name,
+                        participant_1_name:  currentUser.display_name || currentUser.username || currentUser.name,
                         participant_2_name:  userName,
                         last_message_preview: '',
                         last_message_at: new Date().toISOString()
@@ -5680,10 +5696,7 @@
         const otherEmail = conv.participant_1_email === currentUser.email
             ? conv.participant_2_email
             : conv.participant_1_email;
-        const fallback = conv.participant_1_email === currentUser.email
-            ? conv.participant_2_name
-            : conv.participant_1_name;
-        return displayNameCache[otherEmail] || usernameCache[otherEmail] || fallback;
+        return displayNameCache[otherEmail] || usernameCache[otherEmail] || otherEmail;
     }
 
     function getOtherEmail(conv) {
@@ -6010,9 +6023,10 @@
 
         // Avatar
         const avatarEl = document.getElementById('profileModalAvatar');
+        const profileDisplayName = profile.display_name || profile.username || profile.name;
         const avatarContent = profile.avatar_url
-            ? `<img src="${profile.avatar_url.replace(/"/g,'&quot;')}" alt="${escHtml(profile.name)}">`
-            : getInitials(profile.name);
+            ? `<img src="${profile.avatar_url.replace(/"/g,'&quot;')}" alt="${escHtml(profileDisplayName)}">`
+            : getInitials(profileDisplayName);
         const uploadOverlay = isOwn
             ? `<div class="profile-avatar-upload-overlay" onclick="document.getElementById('avatarFileInput').click()"><i class="fas fa-camera"></i></div>`
             : '';
@@ -6110,7 +6124,7 @@
                 msgBtn.style.display = 'flex';
                 msgBtn.onclick = () => {
                     closeProfileModal();
-                    startDMWith(profile.id, profile.name, profile.email);
+                    startDMWith(profile.id, profile.display_name || profile.username || profile.name, profile.email);
                 };
             } else {
                 msgBtn.style.display = 'none';
@@ -6141,7 +6155,7 @@
             btn.className += ' add';
             btn.innerHTML  = '<i class="fas fa-user-plus"></i> Add Friend';
             btn.disabled   = false;
-            btn.onclick    = () => sendFriendRequest(profile.email, profile.name, btn, profile);
+            btn.onclick    = () => sendFriendRequest(profile.email, profile.display_name || profile.username || profile.name, btn, profile);
         }
     }
 
@@ -6261,13 +6275,35 @@
         return `Last seen ${day}d ago`;
     }
 
-    const TAG_LABELS = { founder: 'Founder', staff: 'Staff', beta_tester: 'Beta Tester', early_supporter: 'Early Supporter', premium: 'Premium' };
+    // Default fallback tags — overwritten by dynamic fetch from tag_definitions table
+    let TAG_DEFS = {
+        founder:         { label: 'Founder',         color: '#fbbf24' },
+        staff:           { label: 'Staff',           color: '#f87171' },
+        beta_tester:     { label: 'Beta Tester',     color: '#a78bfa' },
+        early_supporter: { label: 'Early Supporter', color: '#67e8f9' },
+        premium:         { label: 'Premium',         color: '#34d399' }
+    };
+
+    async function loadTagDefinitions() {
+        try {
+            const { data, error } = await sb.from('tag_definitions').select('*');
+            if (error) throw error;
+            if (data && data.length > 0) {
+                TAG_DEFS = {};
+                data.forEach(t => { TAG_DEFS[t.key] = { label: t.label, color: t.color }; });
+            }
+        } catch { /* table may not exist — use defaults */ }
+    }
 
     function tagsHTML(tags) {
         if (!Array.isArray(tags) || tags.length === 0) return '';
         return tags
-            .filter(t => TAG_LABELS[t])
-            .map(t => `<span class="profile-tag ${t}">${TAG_LABELS[t]}</span>`)
+            .filter(t => TAG_DEFS[t])
+            .map(t => {
+                const def = TAG_DEFS[t];
+                const c = def.color;
+                return `<span class="profile-tag" style="color:${c};border-color:${c}40;background:${c}14">${def.label}</span>`;
+            })
             .join('');
     }
 
@@ -6469,16 +6505,18 @@
             if (incomingEmails.length > 0) {
                 const { data: profiles } = await sb
                     .from('clients')
-                    .select('email, name, username, avatar_url')
+                    .select('email, name, username, display_name, avatar_url')
                     .in('email', incomingEmails);
                 if (profiles) {
                     profiles.forEach(p => {
-                        avatarCache[p.email]   = p.avatar_url || null;
-                        usernameCache[p.email] = p.username   || null;
+                        avatarCache[p.email]       = p.avatar_url    || null;
+                        usernameCache[p.email]     = p.username      || null;
+                        displayNameCache[p.email]  = p.display_name  || null;
                         const req = pendingIncoming.find(r => r.requester_email === p.email);
                         if (req) {
-                            req.requester_name     = p.name;
-                            req.requester_username = p.username;
+                            req.requester_display_name = p.display_name;
+                            req.requester_name         = p.name;
+                            req.requester_username     = p.username;
                         }
                     });
                 }
@@ -6634,11 +6672,11 @@
             return;
         }
         el.innerHTML = pendingIncoming.map(req => {
-            const name = escHtml(req.requester_name || req.requester_email);
+            const name = escHtml(req.requester_display_name || req.requester_username || req.requester_email);
             const uname = req.requester_username ? `<div class="friend-req-username">@${escHtml(req.requester_username)}</div>` : '';
             const avatarContent = avatarCache[req.requester_email]
                 ? `<img src="${avatarCache[req.requester_email].replace(/"/g,'&quot;')}" alt="${name}">`
-                : getInitials(req.requester_name || req.requester_email);
+                : getInitials(req.requester_display_name || req.requester_username || req.requester_email);
             return `
                 <div class="friend-req-item">
                     <div class="result-avatar">${avatarContent}</div>
@@ -6783,7 +6821,7 @@
             }
             const { data } = await sb
                 .from('clients')
-                .select('name, email, avatar_url')
+                .select('name, email, username, display_name, avatar_url')
                 .in('email', emails);
 
             if (!data || data.length === 0) {
@@ -6792,17 +6830,18 @@
             }
 
             listEl.innerHTML = data.map(user => {
+                const dn = user.display_name || user.username || user.name;
                 const av = user.avatar_url
                     ? `<img src="${user.avatar_url.replace(/"/g,'&quot;')}" style="width:100%;height:100%;object-fit:cover;display:block;">`
-                    : getInitials(user.name);
+                    : getInitials(dn);
                 return `
                     <div class="blocked-user-item">
                         <div class="result-avatar">${av}</div>
                         <div class="blocked-user-info">
-                            <div class="blocked-user-name">${escHtml(user.name)}</div>
-                            <div class="blocked-user-email">${escHtml(user.email)}</div>
+                            <div class="blocked-user-name">${escHtml(dn)}</div>
+                            <div class="blocked-user-email">${user.username ? '@' + escHtml(user.username) : escHtml(user.email)}</div>
                         </div>
-                        <button class="unblock-btn" onclick="unblockUser('${escAttr(user.email)}','${escAttr(user.name)}')">
+                        <button class="unblock-btn" onclick="unblockUser('${escAttr(user.email)}','${escAttr(dn)}')">
                             Unblock
                         </button>
                     </div>
@@ -6950,7 +6989,7 @@
             // Reset avatar in profile modal
             const avatarEl = document.getElementById('profileModalAvatar');
             if (avatarEl) {
-                avatarEl.innerHTML = getInitials(currentUser.name)
+                avatarEl.innerHTML = getInitials(currentUser.display_name || currentUser.username || currentUser.name)
                     + `<div class="profile-avatar-upload-overlay" onclick="document.getElementById('avatarFileInput').click()"><i class="fas fa-camera"></i></div>`;
                 avatarEl.classList.remove('avatar-online');
             }
