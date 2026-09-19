@@ -1,0 +1,24 @@
+/* Dark Mode for X-ORBIT Desktop
+   The shell's default tokens (in app.html) already describe the dark look,
+   so this sheet only declares the colour scheme and a few dark-only touches. */
+:root {
+  color-scheme: dark;
+}
+
+/* Native controls inside the shell follow the dark scheme */
+body[data-theme="dark"] select,
+body[data-theme="dark"] input,
+body[data-theme="dark"] textarea {
+  color-scheme: dark;
+}
+
+/* Scrollbars */
+body[data-theme="dark"] ::-webkit-scrollbar { width: 8px; height: 8px; }
+body[data-theme="dark"] ::-webkit-scrollbar-track { background: transparent; }
+body[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+body[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background-color: rgba(255, 255, 255, 0.24); }

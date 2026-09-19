@@ -597,7 +597,8 @@
         .dm-sidebar.collapsed .conv-details,
         .dm-sidebar.collapsed .conv-meta,
         .dm-sidebar.collapsed .user-panel-info,
-        .dm-sidebar.collapsed .user-panel-actions {
+        .dm-sidebar.collapsed .user-panel-actions,
+        .dm-sidebar.collapsed .create-server-btn {
             display: none;
         }
 
@@ -643,6 +644,450 @@
             background: var(--accent);
             border: 2px solid var(--surface);
             pointer-events: none;
+        }
+
+        /* ─── SIDEBAR TABS (Friends / Servers) ────────── */
+        .sidebar-tabs {
+            display: flex;
+            flex-shrink: 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-tab {
+            flex: 1;
+            padding: 10px 0;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-muted);
+            font-family: 'Orbitron', monospace;
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: color 0.15s, border-color 0.15s, background 0.15s;
+        }
+
+        .sidebar-tab:hover { color: var(--text-dim); background: var(--surface-2); }
+        .sidebar-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+        .sidebar-tab i { font-size: 0.68rem; }
+
+        .dm-sidebar.collapsed .sidebar-tabs { flex-direction: column; border-bottom: none; }
+        .dm-sidebar.collapsed .sidebar-tab {
+            padding: 10px 0;
+            border-bottom: none;
+            border-left: 2px solid transparent;
+            font-size: 0;
+            letter-spacing: 0;
+        }
+        .dm-sidebar.collapsed .sidebar-tab.active { border-left-color: var(--accent); }
+        .dm-sidebar.collapsed .sidebar-tab i { font-size: 0.82rem; }
+
+        /* ─── SERVER LIST (sidebar) ──────────────────── */
+        .server-list-section { display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+        .server-list-section.active { display: flex; }
+
+        .friends-section { display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+        .friends-section.active { display: flex; }
+
+        .server-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .server-item {
+            padding: 10px 12px;
+            border-radius: var(--r);
+            cursor: pointer;
+            transition: background 0.12s;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .server-item:hover { background: var(--surface-2); }
+        .server-item.active { background: var(--accent-dim); border: 1px solid rgba(124,106,247,0.2); }
+
+        .server-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--r);
+            background: var(--surface-3);
+            border: 2px solid var(--border-hi);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--accent);
+            flex-shrink: 0;
+            text-transform: uppercase;
+            overflow: hidden;
+        }
+
+        .server-icon img { width: 100%; height: 100%; object-fit: cover; }
+
+        .server-details { flex: 1; min-width: 0; }
+
+        .server-name {
+            font-size: 0.85rem;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+        }
+
+        .server-member-count {
+            font-size: 0.65rem;
+            color: var(--text-ghost);
+        }
+
+        .dm-sidebar.collapsed .server-details { display: none; }
+        .dm-sidebar.collapsed .server-item { justify-content: center; padding: 6px 0; }
+        .dm-sidebar.collapsed .server-icon { width: 36px; height: 36px; }
+
+        .create-server-btn {
+            margin: 8px;
+            padding: 10px;
+            background: var(--accent-dim);
+            border: 1px dashed rgba(124,106,247,0.3);
+            border-radius: var(--r);
+            color: var(--accent);
+            font-family: 'Orbitron', monospace;
+            font-size: 0.58rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        .create-server-btn:hover { background: rgba(79,138,255,0.18); border-color: var(--accent); }
+
+        .dm-sidebar.collapsed .create-server-btn { font-size: 0; letter-spacing: 0; padding: 8px; margin: 4px 8px; }
+        .dm-sidebar.collapsed .create-server-btn i { font-size: 0.82rem; }
+
+        /* ─── CHANNEL LIST (inside server view) ──────── */
+        .channel-list-wrap {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .channel-list-wrap.active { display: flex; }
+
+        .channel-server-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .channel-server-back {
+            width: 28px; height: 28px;
+            background: none;
+            border: 1px solid var(--border-hi);
+            border-radius: var(--r-sm);
+            color: var(--text-muted);
+            font-size: 0.68rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .channel-server-back:hover { background: var(--surface-3); color: var(--text); }
+
+        .channel-server-name {
+            flex: 1;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .channel-server-settings {
+            width: 28px; height: 28px;
+            background: none;
+            border: none;
+            border-radius: var(--r-sm);
+            color: var(--text-faint);
+            font-size: 0.72rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .channel-server-settings:hover { background: var(--surface-3); color: var(--text-muted); }
+
+        .channel-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .channel-category-label {
+            font-size: 0.55rem;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-ghost);
+            padding: 12px 12px 4px;
+        }
+
+        .channel-item {
+            padding: 7px 12px;
+            border-radius: var(--r-sm);
+            cursor: pointer;
+            transition: background 0.12s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .channel-item:hover { background: var(--surface-2); color: var(--text-dim); }
+        .channel-item.active { background: var(--accent-dim); color: var(--text); border: 1px solid rgba(124,106,247,0.15); }
+
+        .channel-item i { font-size: 0.72rem; color: var(--text-ghost); }
+        .channel-item.active i { color: var(--accent); }
+
+        .channel-item-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        .add-channel-btn {
+            margin: 4px 8px 8px;
+            padding: 6px 10px;
+            background: none;
+            border: 1px dashed var(--border-hi);
+            border-radius: var(--r-sm);
+            color: var(--text-ghost);
+            font-size: 0.72rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 0.15s, border-color 0.15s;
+        }
+
+        .add-channel-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+        .dm-sidebar.collapsed .channel-list-wrap { display: none !important; }
+
+        /* ─── SERVER MODALS ──────────────────────────── */
+        .server-modal-section {
+            padding: 0 20px 12px;
+        }
+
+        .server-modal-label {
+            font-size: 0.58rem;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .role-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.12s;
+        }
+
+        .role-item:hover { background: var(--surface-2); }
+
+        .role-color-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .role-name {
+            flex: 1;
+            font-size: 0.82rem;
+            color: var(--text-dim);
+        }
+
+        .role-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .role-action-btn {
+            width: 26px; height: 26px;
+            background: none;
+            border: none;
+            border-radius: var(--r-sm);
+            color: var(--text-ghost);
+            font-size: 0.68rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.15s, background 0.15s;
+        }
+
+        .role-action-btn:hover { color: var(--text-muted); background: var(--surface-3); }
+        .role-action-btn.danger:hover { color: var(--error); background: rgba(248,113,113,0.1); }
+
+        .member-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .member-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--surface-3);
+            border: 2px solid var(--border-hi);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Orbitron', monospace;
+            font-size: 0.58rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .member-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+        .member-info { flex: 1; min-width: 0; }
+
+        .member-name {
+            font-size: 0.82rem;
+            color: var(--text-dim);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .member-role-tag {
+            display: inline-block;
+            font-size: 0.52rem;
+            font-family: 'Orbitron', monospace;
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            padding: 1px 6px;
+            border-radius: 3px;
+            border: 1px solid;
+            margin-top: 2px;
+        }
+
+        .member-actions { display: flex; gap: 4px; flex-shrink: 0; }
+
+        .invite-code-display {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 14px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--r);
+            margin: 0 20px 12px;
+        }
+
+        .invite-code-text {
+            flex: 1;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.88rem;
+            color: var(--accent);
+            letter-spacing: 2px;
+        }
+
+        .invite-copy-btn {
+            padding: 5px 12px;
+            background: var(--accent-dim);
+            border: 1px solid rgba(79,138,255,0.3);
+            border-radius: var(--r-sm);
+            color: var(--accent);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.62rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .invite-copy-btn:hover { background: rgba(79,138,255,0.25); }
+
+        /* ─── SERVER CHAT HEADER ─────────────────────── */
+        .server-chat-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            min-height: 58px;
+        }
+
+        .server-chat-header-icon { font-size: 1rem; color: var(--text-ghost); }
+        .server-chat-header-name { font-size: 0.92rem; font-weight: 600; color: var(--text); }
+        .server-chat-header-topic { font-size: 0.72rem; color: var(--text-muted); margin-left: 8px; }
+
+        /* ─── JOIN SERVER MODAL ──────────────────────── */
+        .join-divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 16px 0;
+            color: var(--text-ghost);
+            font-size: 0.62rem;
+            font-family: 'Orbitron', monospace;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .join-divider::before,
+        .join-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
         }
 
         .sidebar-top {
@@ -1267,6 +1712,125 @@
             opacity: 0.75;
             flex-shrink: 0;
         }
+
+        /* ── Replied from X-ORBIT Desktop ── */
+        .desktop-reply-banner {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0 0 5px;
+            padding: 3px 9px 3px 7px;
+            border-radius: 999px;
+            border: 1px solid rgba(79,138,255,0.28);
+            background: rgba(79,138,255,0.10);
+            color: var(--accent-hi);
+            font-size: 0.56rem;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            white-space: nowrap;
+            animation: seenFade 0.5s ease both;
+        }
+        .desktop-reply-banner i { font-size: 0.6rem; }
+        .message.mine .desktop-reply-banner { align-self: flex-end; }
+        .message.desktop-reply .message-bubble { border-top-left-radius: var(--r-sm); }
+        .message.mine.desktop-reply .message-bubble { border-top-left-radius: var(--r-lg); border-top-right-radius: var(--r-sm); }
+
+        /* The replied message itself is tinted with the "away" colour: the sender
+           answered from the desktop notification without ever opening the chat. */
+        .message.theirs.desktop-reply .message-bubble {
+            background: rgba(249,115,22,0.14);
+            border-color: rgba(249,115,22,0.55);
+            box-shadow: 0 0 0 1px rgba(249,115,22,0.12), 0 0 22px rgba(249,115,22,0.14);
+        }
+        .message.mine.desktop-reply .message-bubble {
+            background: var(--away);
+            color: #fff;
+            box-shadow: 0 0 22px rgba(249,115,22,0.22);
+        }
+        .message.mine.desktop-reply .msg-reply-quote {
+            border-left-color: rgba(255,255,255,0.55);
+            background: rgba(255,255,255,0.14);
+        }
+        .message.theirs.desktop-reply .msg-reply-quote {
+            border-left-color: var(--away);
+            background: rgba(249,115,22,0.10);
+        }
+
+        /* White indicator so it stands out against the orange bubble */
+        .message.desktop-reply .desktop-reply-banner {
+            color: #fff;
+            border-color: rgba(255,255,255,0.35);
+            background: rgba(255,255,255,0.12);
+        }
+        .seen-receipt.desktop .seen-receipt-line {
+            background: linear-gradient(to right, transparent, rgba(255,255,255,0.6));
+        }
+        .seen-receipt.desktop .seen-receipt-name {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #fff;
+            opacity: 1;
+        }
+        .seen-receipt.desktop .seen-receipt-name i { font-size: 0.5rem; }
+
+        /* Info icon beside the reply button, with a hover explanation */
+        .msg-info-btn {
+            position: relative;
+            background: none;
+            border: none;
+            color: var(--away);
+            font-size: 0.68rem;
+            cursor: help;
+            padding: 2px 4px;
+            flex-shrink: 0;
+            opacity: 0.85;
+            transition: opacity 0.12s;
+        }
+        .msg-info-btn:hover { opacity: 1; }
+        .msg-info-btn::after {
+            content: attr(data-tip);
+            position: absolute;
+            bottom: calc(100% + 8px);
+            left: 50%;
+            transform: translateX(-50%) translateY(4px);
+            width: 230px;
+            padding: 8px 10px;
+            border-radius: var(--r-sm);
+            background: var(--surface-3);
+            border: 1px solid rgba(249,115,22,0.45);
+            color: var(--text);
+            font-size: 0.68rem;
+            font-weight: 400;
+            line-height: 1.5;
+            letter-spacing: 0;
+            text-transform: none;
+            text-align: left;
+            white-space: normal;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.14s ease, transform 0.14s ease;
+            z-index: 50;
+        }
+        .msg-info-btn::before {
+            content: "";
+            position: absolute;
+            bottom: calc(100% + 3px);
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: rgba(249,115,22,0.45);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.14s ease;
+        }
+        .msg-info-btn:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .msg-info-btn:hover::before { opacity: 1; }
+        .message.mine .msg-info-btn::after { left: auto; right: 0; transform: translateX(0) translateY(4px); }
+        .message.mine .msg-info-btn:hover::after { transform: translateX(0) translateY(0); }
+        .message.mine .msg-info-btn::before { left: auto; right: 8px; transform: none; }
 
         .msg-meta {
             display: flex;
@@ -3282,25 +3846,70 @@
                 </div>
             </div>
 
-            <!-- Search -->
-            <div class="sidebar-top">
-                <div class="sidebar-search-wrap">
-                    <i class="fas fa-search sidebar-search-icon"></i>
-                    <input
-                        type="text"
-                        class="sidebar-search"
-                        id="sidebarSearch"
-                        placeholder="Search conversations..."
-                        oninput="filterConversations(this.value)"
-                    >
+            <!-- Sidebar Tabs -->
+            <div class="sidebar-tabs">
+                <button class="sidebar-tab active" id="tabFriends" onclick="switchSidebarTab('friends')">
+                    <i class="fas fa-comment-dots"></i> Friends
+                </button>
+                <button class="sidebar-tab" id="tabServers" onclick="switchSidebarTab('servers')">
+                    <i class="fas fa-server"></i> Servers
+                </button>
+            </div>
+
+            <!-- ═══ FRIENDS SECTION ═══ -->
+            <div class="friends-section active" id="friendsSection">
+                <!-- Search -->
+                <div class="sidebar-top">
+                    <div class="sidebar-search-wrap">
+                        <i class="fas fa-search sidebar-search-icon"></i>
+                        <input
+                            type="text"
+                            class="sidebar-search"
+                            id="sidebarSearch"
+                            placeholder="Search conversations..."
+                            oninput="filterConversations(this.value)"
+                        >
+                    </div>
+                </div>
+
+                <!-- Conversation list -->
+                <div class="conv-list" id="convList">
+                    <div class="sidebar-empty">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading...</p>
+                    </div>
                 </div>
             </div>
 
-            <!-- Conversation list -->
-            <div class="conv-list" id="convList">
-                <div class="sidebar-empty">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <p>Loading...</p>
+            <!-- ═══ SERVERS SECTION ═══ -->
+            <div class="server-list-section" id="serversSection">
+                <!-- Server list (top-level) -->
+                <div class="server-list" id="serverList">
+                    <div class="sidebar-empty">
+                        <i class="fas fa-server"></i>
+                        <p>No servers yet</p>
+                    </div>
+                </div>
+                <button class="create-server-btn" onclick="openCreateServerModal()">
+                    <i class="fas fa-plus"></i> Create / Join Server
+                </button>
+
+                <!-- Channel list (inside a server) -->
+                <div class="channel-list-wrap" id="channelListWrap">
+                    <div class="channel-server-header">
+                        <button class="channel-server-back" onclick="backToServerList()" title="Back to servers">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <div class="channel-server-name" id="channelServerName"></div>
+                        <button class="channel-server-settings" id="channelServerSettingsBtn" onclick="openServerSettingsModal()" title="Server settings">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                    </div>
+                    <div class="channel-category-label">Text Channels</div>
+                    <div class="channel-list" id="channelList"></div>
+                    <button class="add-channel-btn" id="addChannelBtn" onclick="openCreateChannelModal()" style="display:none">
+                        <i class="fas fa-plus"></i> Add Channel
+                    </button>
                 </div>
             </div>
 
@@ -3840,6 +4449,198 @@
     <button class="freq-notif-dismiss" onclick="hideFriendReqNotif()" title="Dismiss"><i class="fas fa-times"></i></button>
 </div>
 
+<!-- ══ CREATE / JOIN SERVER MODAL ══════════════════════ -->
+<div id="createServerModal" class="modal" onclick="if(event.target===this)closeCreateServerModal()">
+    <div class="modal-content" style="width:440px;max-width:94vw">
+        <div class="modal-header">
+            <div class="modal-title">Create or Join a Server</div>
+            <button class="close-modal" onclick="closeCreateServerModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="padding:20px">
+            <div class="server-modal-label">Create a new server</div>
+            <input type="text" id="newServerNameInput" class="modal-search"
+                placeholder="Server name..." maxlength="50" autocomplete="off"
+                style="margin-bottom:12px">
+            <button id="createServerBtn" class="login-btn" style="margin:0 0 20px;width:100%" onclick="createServer()">
+                <i class="fas fa-plus"></i> Create Server
+            </button>
+            <div class="join-divider">or</div>
+            <div class="server-modal-label">Join with invite code</div>
+            <input type="text" id="joinServerCodeInput" class="modal-search"
+                placeholder="Paste invite code..." maxlength="20" autocomplete="off"
+                style="margin-bottom:12px">
+            <button id="joinServerBtn" class="login-btn" style="margin:0;width:100%;background:var(--surface-3);border:1px solid var(--border-hi)" onclick="joinServer()">
+                <i class="fas fa-sign-in-alt"></i> Join Server
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ SERVER SETTINGS MODAL ══════════════════════════ -->
+<div id="serverSettingsModal" class="modal" onclick="if(event.target===this)closeServerSettingsModal()">
+    <div class="modal-content" style="width:520px;max-width:94vw;max-height:86vh;overflow:hidden;display:flex;flex-direction:column">
+        <div class="modal-header">
+            <div class="modal-title" id="serverSettingsTitle">Server Settings</div>
+            <button class="close-modal" onclick="closeServerSettingsModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="flex:1;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.08) transparent">
+            <!-- Server name edit -->
+            <div class="server-modal-section" style="padding-top:16px">
+                <div class="server-modal-label">Server Name</div>
+                <input type="text" id="serverNameEditInput" class="modal-search"
+                    placeholder="Server name..." maxlength="50" autocomplete="off">
+            </div>
+
+            <!-- Invite code -->
+            <div class="server-modal-section">
+                <div class="server-modal-label">Invite Code</div>
+            </div>
+            <div class="invite-code-display">
+                <span class="invite-code-text" id="serverInviteCode"></span>
+                <button class="invite-copy-btn" onclick="copyInviteCode()"><i class="fas fa-copy"></i> Copy</button>
+            </div>
+
+            <!-- Roles -->
+            <div class="server-modal-section">
+                <div class="server-modal-label" style="display:flex;align-items:center;justify-content:space-between">
+                    Roles
+                    <button class="role-action-btn" onclick="openCreateRoleUI()" title="Add role" style="width:auto;padding:2px 8px;font-size:0.6rem;gap:4px;display:flex;align-items:center">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="serverRolesList"></div>
+            <div id="createRoleForm" style="display:none;padding:0 20px 12px">
+                <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+                    <input type="text" id="newRoleNameInput" class="modal-search" placeholder="Role name..." maxlength="30" style="flex:1">
+                    <input type="color" id="newRoleColorInput" value="#4f8aff" style="width:36px;height:32px;border:1px solid var(--border-hi);border-radius:var(--r-sm);background:var(--surface-2);cursor:pointer">
+                </div>
+                <div style="display:flex;gap:6px">
+                    <button class="invite-copy-btn" onclick="saveNewRole()" style="flex:1"><i class="fas fa-check"></i> Save</button>
+                    <button class="invite-copy-btn" onclick="cancelCreateRole()" style="background:var(--surface-3);border-color:var(--border-hi);color:var(--text-muted)">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Members -->
+            <div class="server-modal-section">
+                <div class="server-modal-label">Members</div>
+            </div>
+            <div id="serverMembersList"></div>
+        </div>
+
+        <!-- Footer actions (owner only) -->
+        <div id="serverSettingsFooter" style="display:none;padding:12px 20px;border-top:1px solid var(--border);flex-shrink:0;gap:8px">
+            <button id="serverDeleteBtn" class="unsave-confirm-btn" onclick="confirmDeleteServer()" style="flex-shrink:0;padding:9px 14px">
+                <i class="fas fa-trash-alt"></i>
+            </button>
+            <button class="login-btn" style="margin:0;flex:1" onclick="saveServerSettings()">
+                <i class="fas fa-save"></i> Save Changes
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ DELETE SERVER CONFIRM MODAL ════════════════════ -->
+<div id="deleteServerModal" class="modal" onclick="if(event.target===this)closeDeleteServerModal()" style="z-index:2200">
+    <div class="modal-content" style="width:420px;max-width:94vw">
+        <div class="modal-header">
+            <div class="modal-title">Delete Server</div>
+            <button class="close-modal" onclick="closeDeleteServerModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="save-explain-body">
+            <div class="save-explain-icon" style="color:var(--error);border-color:rgba(248,113,113,0.3)">
+                <i class="fas fa-trash-alt"></i>
+            </div>
+            <div class="save-explain-title">This Cannot Be Undone</div>
+            <p class="save-explain-text" id="deleteServerBodyText">All channels, messages, roles, and members will be permanently deleted.</p>
+            <div class="save-explain-actions">
+                <button class="unsave-cancel-btn" onclick="closeDeleteServerModal()">Cancel</button>
+                <button class="unsave-confirm-btn" onclick="doDeleteServer()">
+                    <i class="fas fa-trash-alt"></i> Delete Server
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ CREATE CHANNEL MODAL ══════════════════════════ -->
+<div id="createChannelModal" class="modal" onclick="if(event.target===this)closeCreateChannelModal()" style="z-index:2200">
+    <div class="modal-content" style="width:400px;max-width:94vw">
+        <div class="modal-header">
+            <div class="modal-title">Create Channel</div>
+            <button class="close-modal" onclick="closeCreateChannelModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="padding:20px">
+            <div class="server-modal-label">Channel Name</div>
+            <input type="text" id="newChannelNameInput" class="modal-search"
+                placeholder="general" maxlength="40" autocomplete="off"
+                style="margin-bottom:12px"
+                oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'-')">
+            <div class="server-modal-label">Topic (optional)</div>
+            <input type="text" id="newChannelTopicInput" class="modal-search"
+                placeholder="What's this channel about?" maxlength="120" autocomplete="off"
+                style="margin-bottom:16px">
+            <button class="login-btn" style="margin:0;width:100%" onclick="createChannel()">
+                <i class="fas fa-plus"></i> Create Channel
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ EDIT ROLE MODAL ═══════════════════════════════ -->
+<div id="editRoleModal" class="modal" onclick="if(event.target===this)closeEditRoleModal()" style="z-index:2200">
+    <div class="modal-content" style="width:420px;max-width:94vw">
+        <div class="modal-header">
+            <div class="modal-title">Edit Role</div>
+            <button class="close-modal" onclick="closeEditRoleModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="padding:20px">
+            <div class="server-modal-label">Role Name</div>
+            <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+                <input type="text" id="editRoleNameInput" class="modal-search" placeholder="Role name..." maxlength="30" style="flex:1">
+                <input type="color" id="editRoleColorInput" value="#4f8aff" style="width:36px;height:32px;border:1px solid var(--border-hi);border-radius:var(--r-sm);background:var(--surface-2);cursor:pointer">
+            </div>
+            <div class="server-modal-label">Permissions</div>
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+                <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;color:var(--text-dim);cursor:pointer">
+                    <input type="checkbox" id="editRolePermAdmin"> Admin (full access)
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;color:var(--text-dim);cursor:pointer">
+                    <input type="checkbox" id="editRolePermChannels"> Manage channels
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;color:var(--text-dim);cursor:pointer">
+                    <input type="checkbox" id="editRolePermRoles"> Manage roles
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;color:var(--text-dim);cursor:pointer">
+                    <input type="checkbox" id="editRolePermKick"> Kick members
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;color:var(--text-dim);cursor:pointer">
+                    <input type="checkbox" id="editRolePermBan"> Ban members
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;color:var(--text-dim);cursor:pointer">
+                    <input type="checkbox" id="editRolePermManageServer"> Manage server (rename, settings)
+                </label>
+            </div>
+            <div style="display:flex;gap:8px">
+                <button class="login-btn" style="margin:0;flex:1" onclick="saveEditedRole()">
+                    <i class="fas fa-save"></i> Save Role
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══ ASSIGN ROLE MODAL ═════════════════════════════ -->
+<div id="assignRoleModal" class="modal" onclick="if(event.target===this)closeAssignRoleModal()" style="z-index:2200">
+    <div class="modal-content" style="width:380px;max-width:94vw">
+        <div class="modal-header">
+            <div class="modal-title" id="assignRoleTitle">Assign Role</div>
+            <button class="close-modal" onclick="closeAssignRoleModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="assignRoleList" style="overflow-y:auto;max-height:300px"></div>
+    </div>
+</div>
+
 <!-- ══ TOAST ═══════════════════════════════════════════ -->
 <div id="toast"></div>
 
@@ -3888,6 +4689,19 @@
     let replyingTo                = null; // { id, senderName, preview }
     let groupSelectedMembers      = [];
     let groupSearchDebounceTimer  = null;
+
+    // ─── SERVER STATE ────────────────────────────────
+    let userServers              = [];     // [{id, name, icon_url, owner_email, invite_code}]
+    let activeServerId           = null;
+    let activeChannelId          = null;
+    let serverChannels           = [];     // channels for active server
+    let serverRoles              = [];     // roles for active server
+    let serverMembers            = [];     // members for active server
+    let serverMsgSubscription    = null;
+    let currentSidebarTab        = 'friends'; // 'friends' | 'servers'
+    let editingRoleId            = null;
+    let assigningMemberEmail     = null;
+    let serverViewMode           = 'list'; // 'list' | 'channels'
 
     /* ──────────────────────────────────────────────────
        IFRAME AUTH (mirrors logs.html pattern)
@@ -4256,6 +5070,9 @@
         requestNotificationPermission();
         subscribeToAllMessages();
 
+        // Pre-load servers list (but don't switch tab)
+        loadUserServers();
+
         // Presence poll: re-fetch last_seen + current_page from DB every 20s so
         // dots stay accurate even when Realtime drops events, then re-render.
         setInterval(async () => {
@@ -4387,6 +5204,11 @@
        OPEN CONVERSATION
     ────────────────────────────────────────────────── */
     async function openConversation(convId) {
+        // Clear server state when opening a DM
+        activeServerId = null;
+        activeChannelId = null;
+        if (serverMsgSubscription) { sb.removeChannel(serverMsgSubscription); serverMsgSubscription = null; }
+
         activeConvId = convId;
         const conv = conversations.find(c => c.id === convId);
         if (!conv) return;
@@ -4519,13 +5341,24 @@
                     </div>
                    </div>`
                 : `<div class="message-bubble">${replyQuote}${escHtml(msg.message)}</div>`;
+            const viaDesktop = msg.sent_via === 'desktop';
+            const desktopBanner = viaDesktop
+                ? `<div class="desktop-reply-banner"><i class="fas fa-desktop"></i> Replied from Desktop</div>`
+                : '';
+            const desktopTip = isMine
+                ? 'Orange means you sent this from the X-ORBIT Desktop notification without opening Jitter, like an away reply.'
+                : `Orange means ${escAttr(senderDisplay)} replied from the X-ORBIT Desktop notification without opening Jitter, like an away reply.`;
+            const infoBtn = viaDesktop
+                ? `<button class="msg-info-btn" type="button" data-tip="${desktopTip.replace(/"/g, '&quot;')}" aria-label="Why is this message orange?"><i class="fas fa-circle-info"></i></button>`
+                : '';
+
             html += `
-                <div class="message ${isMine ? 'mine' : 'theirs'}" data-created-at="${msg.created_at}">
+                <div class="message ${isMine ? 'mine' : 'theirs'}${viaDesktop ? ' desktop-reply' : ''}" data-created-at="${msg.created_at}" data-via="${viaDesktop ? 'desktop' : ''}">
                     <div class="msg-avatar" onclick="openProfile('${escAttr(msg.sender_email)}')">${avatarHTML(senderDisplay, msg.sender_email)}</div>
                     <div class="msg-content">
                         <div class="message-header">${escHtml(senderDisplay)}</div>
-                        ${bubbleHtml}
-                        <div class="msg-meta">${replyBtn}<div class="message-time">${fmtTime(msg.created_at)}</div></div>
+                        ${desktopBanner}${bubbleHtml}
+                        <div class="msg-meta">${replyBtn}${infoBtn}<div class="message-time">${fmtTime(msg.created_at)}</div></div>
                     </div>
                 </div>
             `;
@@ -4535,6 +5368,13 @@
         container.scrollTop = container.scrollHeight;
         updateSeenTick();
     }
+
+    // The desktop shell posts this after sending a reply from a notification
+    window.addEventListener('message', (e) => {
+        const d = e.data;
+        if (!d || d.type !== 'desktop-reply-sent') return;
+        if (activeConvId && d.convId === activeConvId) loadMessages(activeConvId);
+    });
 
     function subscribeToMessages(convId) {
         if (messagesSubscription) { messagesSubscription.unsubscribe(); messagesSubscription = null; }
@@ -5784,7 +6624,22 @@
         const content   = lastMine.querySelector('.msg-content');
         if (!content) return;
 
-        if (isSeen) {
+        // If the other person's next message after mine came from the desktop
+        // notification, they never opened the chat — show that instead of "Seen".
+        let nextTheirs = lastMine.nextElementSibling;
+        while (nextTheirs && !nextTheirs.classList.contains('message')) nextTheirs = nextTheirs.nextElementSibling;
+        const repliedFromDesktop = nextTheirs && nextTheirs.classList.contains('theirs') && nextTheirs.dataset.via === 'desktop';
+
+        if (repliedFromDesktop) {
+            lastMine.classList.add('is-seen');
+            const receipt = document.createElement('div');
+            receipt.className = 'seen-receipt desktop';
+            receipt.innerHTML = `
+                <div class="seen-receipt-line"></div>
+                <span class="seen-receipt-name"><i class="fas fa-desktop"></i> Replied from Desktop</span>
+            `;
+            content.appendChild(receipt);
+        } else if (isSeen) {
             lastMine.classList.add('is-seen');
             const otherName = displayNameCache[otherEmail] || usernameCache[otherEmail] || '';
             const label     = otherName ? `@${otherName}` : 'seen';
@@ -7019,6 +7874,1098 @@
             showToast('Failed to remove banner.');
         }
     }
+
+    /* ══════════════════════════════════════════════════════
+       SERVERS — FULL FEATURE SET
+    ══════════════════════════════════════════════════════ */
+
+    // ─── SIDEBAR TAB SWITCHING ───────────────────────
+    function switchSidebarTab(tab) {
+        currentSidebarTab = tab;
+        document.getElementById('tabFriends').classList.toggle('active', tab === 'friends');
+        document.getElementById('tabServers').classList.toggle('active', tab === 'servers');
+        document.getElementById('friendsSection').classList.toggle('active', tab === 'friends');
+        document.getElementById('serversSection').classList.toggle('active', tab === 'servers');
+
+        if (tab === 'servers') {
+            loadUserServers();
+        }
+
+        // When switching tabs, clear any active server channel view
+        if (tab === 'friends') {
+            activeServerId = null;
+            activeChannelId = null;
+            serverViewMode = 'list';
+            document.getElementById('channelListWrap').classList.remove('active');
+        }
+    }
+
+    // ─── LOAD USER'S SERVERS ─────────────────────────
+    async function loadUserServers() {
+        try {
+            const { data, error } = await sb
+                .from('server_members')
+                .select('server_id')
+                .eq('user_email', currentUser.email);
+
+            if (error) throw error;
+
+            if (!data || data.length === 0) {
+                userServers = [];
+                renderServerList();
+                return;
+            }
+
+            const serverIds = data.map(m => m.server_id);
+            const { data: servers, error: err2 } = await sb
+                .from('servers')
+                .select('*')
+                .in('id', serverIds)
+                .order('created_at', { ascending: true });
+
+            if (err2) throw err2;
+            userServers = servers || [];
+            renderServerList();
+        } catch (err) {
+            console.error('Load servers error:', err);
+        }
+    }
+
+    function renderServerList() {
+        const container = document.getElementById('serverList');
+        const channelWrap = document.getElementById('channelListWrap');
+
+        if (serverViewMode === 'channels') {
+            container.style.display = 'none';
+            channelWrap.classList.add('active');
+            return;
+        }
+
+        container.style.display = '';
+        channelWrap.classList.remove('active');
+
+        if (userServers.length === 0) {
+            container.innerHTML = `
+                <div class="sidebar-empty">
+                    <i class="fas fa-server"></i>
+                    <p>No servers yet<br>Create or join one below</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = userServers.map(s => {
+            const initials = s.name.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+            const iconHTML = s.icon_url
+                ? `<img src="${s.icon_url}" alt="">`
+                : initials;
+            return `
+                <div class="server-item ${activeServerId === s.id ? 'active' : ''}"
+                     onclick="selectServer('${s.id}')">
+                    <div class="server-icon">${iconHTML}</div>
+                    <div class="server-details">
+                        <div class="server-name">${escapeHtml(s.name)}</div>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    // ─── SELECT A SERVER ─────────────────────────────
+    async function selectServer(serverId) {
+        activeServerId = serverId;
+        activeChannelId = null;
+        serverViewMode = 'channels';
+
+        // Unsubscribe from any previous server messages
+        if (serverMsgSubscription) {
+            sb.removeChannel(serverMsgSubscription);
+            serverMsgSubscription = null;
+        }
+
+        const server = userServers.find(s => s.id === serverId);
+        document.getElementById('channelServerName').textContent = server ? server.name : 'Server';
+
+        // Show settings gear if user has any management perms
+        const canManage = await userCanManageServer(serverId);
+        document.getElementById('channelServerSettingsBtn').style.display = canManage ? '' : 'none';
+        document.getElementById('addChannelBtn').style.display = activeServerPerms.manage_channels ? '' : 'none';
+
+        await loadServerChannels(serverId);
+        renderServerList();
+    }
+
+    // Returns { isOwner, isAdmin, manage_channels, manage_roles, kick_members, ban_members, manage_server }
+    async function getUserServerPerms(serverId) {
+        const none = { isOwner: false, isAdmin: false, manage_channels: false, manage_roles: false, kick_members: false, ban_members: false, manage_server: false };
+        const server = userServers.find(s => s.id === serverId);
+        if (server && server.owner_email === currentUser.email) {
+            return { isOwner: true, isAdmin: true, manage_channels: true, manage_roles: true, kick_members: true, ban_members: true, manage_server: true };
+        }
+
+        try {
+            const { data: membership } = await sb
+                .from('server_members')
+                .select('role_id')
+                .eq('server_id', serverId)
+                .eq('user_email', currentUser.email)
+                .single();
+
+            if (membership && membership.role_id) {
+                const { data: role } = await sb
+                    .from('server_roles')
+                    .select('permissions')
+                    .eq('id', membership.role_id)
+                    .single();
+
+                if (role && role.permissions) {
+                    const p = role.permissions;
+                    const admin = !!p.admin;
+                    return {
+                        isOwner: false,
+                        isAdmin: admin,
+                        manage_channels: admin || !!p.manage_channels,
+                        manage_roles: admin || !!p.manage_roles,
+                        kick_members: admin || !!p.kick_members,
+                        ban_members: admin || !!p.ban_members,
+                        manage_server: admin || !!p.manage_server
+                    };
+                }
+            }
+        } catch {}
+        return none;
+    }
+
+    // Cached perms for the currently viewed server
+    let activeServerPerms = { isOwner: false, isAdmin: false, manage_channels: false, manage_roles: false, kick_members: false, ban_members: false, manage_server: false };
+
+    async function userCanManageServer(serverId) {
+        activeServerPerms = await getUserServerPerms(serverId);
+        return activeServerPerms.isOwner || activeServerPerms.isAdmin || activeServerPerms.manage_channels || activeServerPerms.manage_server;
+    }
+
+    function backToServerList() {
+        serverViewMode = 'list';
+        activeChannelId = null;
+
+        if (serverMsgSubscription) {
+            sb.removeChannel(serverMsgSubscription);
+            serverMsgSubscription = null;
+        }
+
+        // Hide server chat, show empty state
+        document.getElementById('chatArea').style.display = 'none';
+        document.getElementById('emptyState').style.display = 'flex';
+
+        renderServerList();
+    }
+
+    // ─── LOAD CHANNELS ──────────────────────────────
+    async function loadServerChannels(serverId) {
+        try {
+            const { data, error } = await sb
+                .from('server_channels')
+                .select('*')
+                .eq('server_id', serverId)
+                .order('position', { ascending: true });
+
+            if (error) throw error;
+            serverChannels = data || [];
+            renderChannelList();
+
+            // Auto-select first channel
+            if (serverChannels.length > 0 && !activeChannelId) {
+                selectChannel(serverChannels[0].id);
+            }
+        } catch (err) {
+            console.error('Load channels error:', err);
+        }
+    }
+
+    function renderChannelList() {
+        const container = document.getElementById('channelList');
+        const canManageChannels = activeServerPerms.manage_channels;
+
+        if (serverChannels.length === 0) {
+            container.innerHTML = `
+                <div class="sidebar-empty" style="padding:16px">
+                    <i class="fas fa-hashtag" style="font-size:16px"></i>
+                    <p>No channels yet</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = serverChannels.map(ch => `
+            <div class="channel-item ${activeChannelId === ch.id ? 'active' : ''}"
+                 onclick="selectChannel('${ch.id}')">
+                <i class="fas fa-hashtag"></i>
+                <span class="channel-item-name">${escapeHtml(ch.name)}</span>
+                ${canManageChannels && serverChannels.length > 1 ? `
+                    <button class="role-action-btn danger" onclick="event.stopPropagation();deleteChannel('${ch.id}','${escapeHtml(ch.name)}')" title="Delete channel" style="width:20px;height:20px;font-size:0.55rem">
+                        <i class="fas fa-times"></i>
+                    </button>
+                ` : ''}
+            </div>
+        `).join('');
+    }
+
+    // ─── SELECT A CHANNEL ────────────────────────────
+    async function selectChannel(channelId) {
+        // Clear DM state when opening a server channel
+        activeConvId = null;
+        if (messagesSubscription) { sb.removeChannel(messagesSubscription); messagesSubscription = null; }
+
+        activeChannelId = channelId;
+        renderChannelList();
+
+        const channel = serverChannels.find(c => c.id === channelId);
+
+        // Update chat header for server channel view
+        const chatArea = document.getElementById('chatArea');
+        const emptyState = document.getElementById('emptyState');
+        emptyState.style.display = 'none';
+        chatArea.style.display = 'flex';
+
+        // Update chat header
+        const avatarEl = document.getElementById('chatAvatar');
+        avatarEl.innerHTML = '<i class="fas fa-hashtag" style="font-size:1rem;color:var(--text-ghost)"></i>';
+        avatarEl.className = 'chat-header-avatar';
+
+        document.getElementById('chatRecipientName').textContent = channel ? channel.name : 'channel';
+        document.getElementById('chatRecipientEmail').textContent = channel && channel.topic ? channel.topic : '';
+        document.getElementById('chatRecipientTags').innerHTML = '';
+        document.getElementById('chatHeaderStatus').innerHTML = '';
+
+        // Hide the group info button if it exists
+        const groupBtn = document.querySelector('.chat-header-group-btn');
+        if (groupBtn) groupBtn.style.display = 'none';
+
+        // Load messages
+        await loadChannelMessages(channelId);
+        subscribeToChannelMessages(channelId);
+    }
+
+    // ─── CHANNEL MESSAGES ────────────────────────────
+    async function loadChannelMessages(channelId) {
+        const container = document.getElementById('messagesContainer');
+        container.innerHTML = '<div class="sidebar-empty"><i class="fas fa-spinner fa-spin"></i><p>Loading...</p></div>';
+
+        try {
+            const { data, error } = await sb
+                .from('server_messages')
+                .select('*')
+                .eq('channel_id', channelId)
+                .order('created_at', { ascending: true })
+                .limit(100);
+
+            if (error) throw error;
+
+            if (!data || data.length === 0) {
+                container.innerHTML = `
+                    <div class="sidebar-empty" style="flex:1;display:flex;align-items:center;justify-content:center">
+                        <i class="fas fa-hashtag" style="font-size:28px"></i>
+                        <p>This is the beginning of <strong>#${escapeHtml(serverChannels.find(c => c.id === channelId)?.name || 'channel')}</strong></p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            for (const msg of data) {
+                appendServerMessage(msg);
+            }
+            container.scrollTop = container.scrollHeight;
+        } catch (err) {
+            console.error('Load channel messages error:', err);
+            container.innerHTML = '<div class="sidebar-empty"><p>Failed to load messages.</p></div>';
+        }
+    }
+
+    function appendServerMessage(msg) {
+        const container = document.getElementById('messagesContainer');
+        const isMine = msg.sender_email === currentUser.email;
+        const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        // Get avatar
+        const avatarUrl = avatarCache[msg.sender_email];
+        const initials = getInitials(msg.sender_name);
+        const avatarInner = avatarUrl
+            ? `<img src="${avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+            : initials;
+
+        // Get display name
+        const displayName = displayNameCache[msg.sender_email] || msg.sender_name;
+
+        let replyHTML = '';
+        if (msg.reply_to_id && msg.reply_to_sender_name) {
+            replyHTML = `
+                <div class="reply-ref">
+                    <i class="fas fa-reply"></i>
+                    <span class="reply-ref-name">${escapeHtml(msg.reply_to_sender_name)}</span>
+                    <span class="reply-ref-preview">${escapeHtml(msg.reply_to_preview || '')}</span>
+                </div>`;
+        }
+
+        const isImage = msg.message.startsWith('[IMG]:');
+        let contentHTML;
+        if (isImage) {
+            const url = msg.message.slice(6);
+            contentHTML = `<div class="msg-image-wrap"><img class="msg-image" src="${escapeHtml(url)}" alt="Image" onclick="openLightbox('${escapeHtml(url)}')" onerror="this.style.opacity='0.3'"></div>`;
+        } else {
+            contentHTML = `<div class="msg-text">${escapeHtml(msg.message)}</div>`;
+        }
+
+        const div = document.createElement('div');
+        div.className = `msg ${isMine ? 'msg-mine' : 'msg-other'}`;
+        div.setAttribute('data-msg-id', msg.id);
+        div.innerHTML = `
+            <div class="msg-avatar" onclick="openProfile('${escapeHtml(msg.sender_email)}')" style="cursor:pointer">
+                ${avatarInner}
+            </div>
+            <div class="msg-body">
+                ${replyHTML}
+                <div class="msg-sender">
+                    <span class="msg-name">${escapeHtml(displayName)}</span>
+                    <span class="msg-time">${time}</span>
+                </div>
+                ${contentHTML}
+            </div>
+            <div class="msg-actions">
+                <button class="msg-action-btn" onclick="setServerReply('${msg.id}','${escapeHtml(msg.sender_name)}','${escapeHtml((msg.message || '').slice(0, 60))}')" title="Reply">
+                    <i class="fas fa-reply"></i>
+                </button>
+            </div>`;
+
+        container.appendChild(div);
+    }
+
+    function setServerReply(msgId, senderName, preview) {
+        replyingTo = { id: msgId, senderName, preview };
+        document.getElementById('replyBar').style.display = 'flex';
+        document.getElementById('replyBarName').textContent = senderName;
+        document.getElementById('replyBarPreview').textContent = preview;
+        document.getElementById('messageInput').focus();
+    }
+
+    function subscribeToChannelMessages(channelId) {
+        if (serverMsgSubscription) {
+            sb.removeChannel(serverMsgSubscription);
+        }
+
+        serverMsgSubscription = sb
+            .channel('server-msg-' + channelId)
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'server_messages',
+                filter: `channel_id=eq.${channelId}`
+            }, payload => {
+                if (activeChannelId === channelId) {
+                    appendServerMessage(payload.new);
+                    const container = document.getElementById('messagesContainer');
+                    container.scrollTop = container.scrollHeight;
+                }
+            })
+            .subscribe();
+    }
+
+    // ─── SEND MESSAGE IN SERVER CHANNEL ──────────────
+    // Override the existing sendMessage to handle server context
+    const _originalSendMessage = sendMessage;
+
+    sendMessage = async function() {
+        // If we're in a server channel, use server send
+        if (activeServerId && activeChannelId) {
+            await sendServerMessage();
+            return;
+        }
+        // Otherwise use original DM send
+        await _originalSendMessage();
+    };
+
+    async function sendServerMessage() {
+        const input = document.getElementById('messageInput');
+        const text = input.value.trim();
+        if (!text) return;
+
+        try {
+            const msgData = {
+                channel_id: activeChannelId,
+                server_id: activeServerId,
+                sender_email: currentUser.email,
+                sender_name: currentUser.display_name || currentUser.username || currentUser.name,
+                message: text
+            };
+
+            if (replyingTo) {
+                msgData.reply_to_id = replyingTo.id;
+                msgData.reply_to_sender_name = replyingTo.senderName;
+                msgData.reply_to_preview = replyingTo.preview;
+            }
+
+            const { error } = await sb.from('server_messages').insert(msgData);
+            if (error) throw error;
+
+            input.value = '';
+            input.style.height = 'auto';
+            cancelReply();
+        } catch (err) {
+            console.error('Send server message error:', err);
+            showToast('Failed to send message.');
+        }
+    }
+
+    // ─── CREATE SERVER ───────────────────────────────
+    function openCreateServerModal() {
+        document.getElementById('createServerModal').style.display = 'flex';
+        document.getElementById('newServerNameInput').value = '';
+        document.getElementById('joinServerCodeInput').value = '';
+        document.getElementById('newServerNameInput').focus();
+    }
+
+    function closeCreateServerModal() {
+        document.getElementById('createServerModal').style.display = 'none';
+    }
+
+    async function createServer() {
+        const name = document.getElementById('newServerNameInput').value.trim();
+        if (!name) { showToast('Enter a server name.'); return; }
+
+        try {
+            // Create server
+            const { data: server, error } = await sb
+                .from('servers')
+                .insert({ name, owner_email: currentUser.email })
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            // Create default "Member" role
+            const { data: defaultRole } = await sb
+                .from('server_roles')
+                .insert({
+                    server_id: server.id,
+                    name: 'Member',
+                    color: '#4f8aff',
+                    is_default: true,
+                    position: 0,
+                    permissions: { manage_channels: false, manage_roles: false, kick_members: false, ban_members: false, manage_server: false, send_messages: true, admin: false }
+                })
+                .select()
+                .single();
+
+            // Add owner as member
+            await sb.from('server_members').insert({
+                server_id: server.id,
+                user_email: currentUser.email,
+                role_id: defaultRole?.id || null
+            });
+
+            // Create default #general channel
+            await sb.from('server_channels').insert({
+                server_id: server.id,
+                name: 'general',
+                topic: 'General discussion',
+                position: 0
+            });
+
+            closeCreateServerModal();
+            showToast(`Server "${name}" created!`);
+            await loadUserServers();
+            selectServer(server.id);
+        } catch (err) {
+            console.error('Create server error:', err);
+            showToast('Failed to create server.');
+        }
+    }
+
+    // ─── JOIN SERVER ─────────────────────────────────
+    async function joinServer() {
+        const code = document.getElementById('joinServerCodeInput').value.trim();
+        if (!code) { showToast('Enter an invite code.'); return; }
+
+        try {
+            const { data: server, error } = await sb
+                .from('servers')
+                .select('*')
+                .eq('invite_code', code)
+                .single();
+
+            if (error || !server) {
+                showToast('Invalid invite code.');
+                return;
+            }
+
+            // Check if banned
+            const { data: ban } = await sb
+                .from('server_bans')
+                .select('id')
+                .eq('server_id', server.id)
+                .eq('user_email', currentUser.email)
+                .single();
+
+            if (ban) {
+                showToast('You are banned from this server.');
+                return;
+            }
+
+            // Check if already a member
+            const { data: existing } = await sb
+                .from('server_members')
+                .select('id')
+                .eq('server_id', server.id)
+                .eq('user_email', currentUser.email)
+                .single();
+
+            if (existing) {
+                showToast('You\'re already in this server.');
+                closeCreateServerModal();
+                await loadUserServers();
+                selectServer(server.id);
+                return;
+            }
+
+            // Get default role
+            const { data: defaultRole } = await sb
+                .from('server_roles')
+                .select('id')
+                .eq('server_id', server.id)
+                .eq('is_default', true)
+                .single();
+
+            await sb.from('server_members').insert({
+                server_id: server.id,
+                user_email: currentUser.email,
+                role_id: defaultRole?.id || null
+            });
+
+            closeCreateServerModal();
+            showToast(`Joined "${server.name}"!`);
+            await loadUserServers();
+            selectServer(server.id);
+        } catch (err) {
+            console.error('Join server error:', err);
+            showToast('Failed to join server.');
+        }
+    }
+
+    // ─── SERVER SETTINGS ─────────────────────────────
+    async function openServerSettingsModal() {
+        if (!activeServerId) return;
+
+        const server = userServers.find(s => s.id === activeServerId);
+        if (!server) return;
+
+        document.getElementById('serverSettingsTitle').textContent = server.name + ' — Settings';
+        document.getElementById('serverNameEditInput').value = server.name;
+        document.getElementById('serverInviteCode').textContent = server.invite_code;
+
+        // Re-fetch perms for the modal
+        await userCanManageServer(activeServerId);
+        const p = activeServerPerms;
+
+        // Show save/delete footer for owner or manage_server perm
+        document.getElementById('serverSettingsFooter').style.display = (p.isOwner || p.manage_server) ? 'flex' : 'none';
+        // Only owner can delete server
+        document.getElementById('serverDeleteBtn').style.display = p.isOwner ? '' : 'none';
+        // Name edit only for owner or manage_server
+        document.getElementById('serverNameEditInput').disabled = !(p.isOwner || p.manage_server);
+
+        // Load roles
+        await loadServerRoles();
+        renderServerRolesList();
+
+        // Load members
+        await loadServerMembers();
+        renderServerMembersList();
+
+        document.getElementById('serverSettingsModal').style.display = 'flex';
+    }
+
+    function closeServerSettingsModal() {
+        document.getElementById('serverSettingsModal').style.display = 'none';
+        document.getElementById('createRoleForm').style.display = 'none';
+    }
+
+    async function loadServerRoles() {
+        try {
+            const { data, error } = await sb
+                .from('server_roles')
+                .select('*')
+                .eq('server_id', activeServerId)
+                .order('position', { ascending: false });
+
+            if (error) throw error;
+            serverRoles = data || [];
+        } catch (err) {
+            console.error('Load roles error:', err);
+        }
+    }
+
+    function renderServerRolesList() {
+        const container = document.getElementById('serverRolesList');
+        const p = activeServerPerms;
+        const canEditRoles = p.isOwner || p.manage_roles;
+
+        if (serverRoles.length === 0) {
+            container.innerHTML = '<div class="sidebar-empty" style="padding:10px"><p>No roles</p></div>';
+            return;
+        }
+
+        container.innerHTML = serverRoles.map(r => {
+            const permBadges = [];
+            if (r.permissions?.admin) permBadges.push('Admin');
+            if (r.is_default) permBadges.push('Default');
+
+            return `
+                <div class="role-item">
+                    <div class="role-color-dot" style="background:${escapeHtml(r.color)}"></div>
+                    <div class="role-name">${escapeHtml(r.name)}${permBadges.length ? ' <span style="font-size:0.55rem;color:var(--text-ghost)">(' + permBadges.join(', ') + ')</span>' : ''}</div>
+                    ${canEditRoles ? `
+                        <div class="role-actions">
+                            <button class="role-action-btn" onclick="openEditRoleModal('${r.id}')" title="Edit"><i class="fas fa-pen"></i></button>
+                            ${!r.is_default ? `<button class="role-action-btn danger" onclick="deleteRole('${r.id}')" title="Delete"><i class="fas fa-trash-alt"></i></button>` : ''}
+                        </div>
+                    ` : ''}
+                </div>`;
+        }).join('');
+    }
+
+    async function loadServerMembers() {
+        try {
+            const { data, error } = await sb
+                .from('server_members')
+                .select('*')
+                .eq('server_id', activeServerId)
+                .order('joined_at', { ascending: true });
+
+            if (error) throw error;
+            serverMembers = data || [];
+
+            // Preload avatar cache for members
+            for (const m of serverMembers) {
+                if (!avatarCache[m.user_email]) {
+                    const { data: client } = await sb
+                        .from('clients')
+                        .select('avatar_url, display_name, username, name')
+                        .eq('email', m.user_email)
+                        .single();
+                    if (client) {
+                        avatarCache[m.user_email] = client.avatar_url;
+                        displayNameCache[m.user_email] = client.display_name;
+                        usernameCache[m.user_email] = client.username;
+                    }
+                }
+            }
+        } catch (err) {
+            console.error('Load members error:', err);
+        }
+    }
+
+    function renderServerMembersList() {
+        const container = document.getElementById('serverMembersList');
+        const server = userServers.find(s => s.id === activeServerId);
+        const p = activeServerPerms;
+        const canKick = p.isOwner || p.kick_members;
+        const canBan = p.isOwner || p.ban_members;
+        const canAssignRoles = p.isOwner || p.manage_roles;
+
+        if (serverMembers.length === 0) {
+            container.innerHTML = '<div class="sidebar-empty" style="padding:10px"><p>No members</p></div>';
+            return;
+        }
+
+        container.innerHTML = serverMembers.map(m => {
+            const role = serverRoles.find(r => r.id === m.role_id);
+            const avatarUrl = avatarCache[m.user_email];
+            const displayName = displayNameCache[m.user_email] || usernameCache[m.user_email] || m.user_email;
+            const initials = getInitials(displayName);
+            const avatarInner = avatarUrl
+                ? `<img src="${avatarUrl}" alt="">`
+                : initials;
+
+            const isThisOwner = server && m.user_email === server.owner_email;
+            const isSelf = m.user_email === currentUser.email;
+            const roleName = isThisOwner ? 'Owner' : (role ? role.name : 'Member');
+            const roleColor = isThisOwner ? '#fbbf24' : (role ? role.color : '#4f8aff');
+
+            // Don't show actions on owner or self
+            const showActions = !isThisOwner && !isSelf && (canKick || canBan || canAssignRoles);
+
+            return `
+                <div class="member-item">
+                    <div class="member-avatar">${avatarInner}</div>
+                    <div class="member-info">
+                        <div class="member-name">${escapeHtml(displayName)}</div>
+                        <div class="member-role-tag" style="color:${roleColor};border-color:${roleColor}40;background:${roleColor}12">${escapeHtml(roleName)}</div>
+                    </div>
+                    ${showActions ? `
+                        <div class="member-actions">
+                            ${canAssignRoles ? `<button class="role-action-btn" onclick="openAssignRoleModal('${escapeHtml(m.user_email)}')" title="Change role"><i class="fas fa-user-tag"></i></button>` : ''}
+                            ${canKick ? `<button class="role-action-btn danger" onclick="kickMember('${escapeHtml(m.user_email)}')" title="Kick"><i class="fas fa-user-minus"></i></button>` : ''}
+                            ${canBan ? `<button class="role-action-btn danger" onclick="banMember('${escapeHtml(m.user_email)}')" title="Ban"><i class="fas fa-gavel"></i></button>` : ''}
+                        </div>
+                    ` : ''}
+                </div>`;
+        }).join('');
+    }
+
+    function copyInviteCode() {
+        const code = document.getElementById('serverInviteCode').textContent;
+        navigator.clipboard.writeText(code).then(() => showToast('Invite code copied!'));
+    }
+
+    async function saveServerSettings() {
+        if (!activeServerId) return;
+        const newName = document.getElementById('serverNameEditInput').value.trim();
+        if (!newName) { showToast('Server name cannot be empty.'); return; }
+
+        try {
+            const { error } = await sb
+                .from('servers')
+                .update({ name: newName })
+                .eq('id', activeServerId);
+
+            if (error) throw error;
+
+            showToast('Server updated!');
+            closeServerSettingsModal();
+            await loadUserServers();
+
+            // Update channel header
+            document.getElementById('channelServerName').textContent = newName;
+        } catch (err) {
+            console.error('Save server settings error:', err);
+            showToast('Failed to update server.');
+        }
+    }
+
+    // ─── DELETE SERVER ───────────────────────────────
+    function confirmDeleteServer() {
+        const server = userServers.find(s => s.id === activeServerId);
+        document.getElementById('deleteServerBodyText').textContent =
+            `Are you sure you want to delete "${server ? server.name : 'this server'}"? All channels, messages, roles, and members will be permanently deleted.`;
+        document.getElementById('deleteServerModal').style.display = 'flex';
+    }
+
+    function closeDeleteServerModal() {
+        document.getElementById('deleteServerModal').style.display = 'none';
+    }
+
+    async function doDeleteServer() {
+        if (!activeServerId) return;
+
+        try {
+            const { error } = await sb.from('servers').delete().eq('id', activeServerId);
+            if (error) throw error;
+
+            closeDeleteServerModal();
+            closeServerSettingsModal();
+            activeServerId = null;
+            activeChannelId = null;
+            serverViewMode = 'list';
+
+            document.getElementById('chatArea').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'flex';
+
+            showToast('Server deleted.');
+            await loadUserServers();
+        } catch (err) {
+            console.error('Delete server error:', err);
+            showToast('Failed to delete server.');
+        }
+    }
+
+    // ─── CREATE CHANNEL ──────────────────────────────
+    function openCreateChannelModal() {
+        document.getElementById('createChannelModal').style.display = 'flex';
+        document.getElementById('newChannelNameInput').value = '';
+        document.getElementById('newChannelTopicInput').value = '';
+        document.getElementById('newChannelNameInput').focus();
+    }
+
+    function closeCreateChannelModal() {
+        document.getElementById('createChannelModal').style.display = 'none';
+    }
+
+    async function createChannel() {
+        const name = document.getElementById('newChannelNameInput').value.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        const topic = document.getElementById('newChannelTopicInput').value.trim();
+
+        if (!name) { showToast('Enter a channel name.'); return; }
+        if (!activeServerId) return;
+
+        try {
+            const position = serverChannels.length;
+            const { error } = await sb.from('server_channels').insert({
+                server_id: activeServerId,
+                name,
+                topic,
+                position
+            });
+
+            if (error) throw error;
+
+            closeCreateChannelModal();
+            showToast(`#${name} created!`);
+            await loadServerChannels(activeServerId);
+        } catch (err) {
+            console.error('Create channel error:', err);
+            showToast('Failed to create channel.');
+        }
+    }
+
+    async function deleteChannel(channelId, channelName) {
+        if (!activeServerId) return;
+        if (serverChannels.length <= 1) {
+            showToast('Cannot delete the last channel.');
+            return;
+        }
+
+        try {
+            const { error } = await sb.from('server_channels').delete().eq('id', channelId);
+            if (error) throw error;
+
+            showToast(`#${channelName} deleted.`);
+
+            // If we were viewing this channel, switch to another
+            if (activeChannelId === channelId) {
+                activeChannelId = null;
+            }
+
+            await loadServerChannels(activeServerId);
+        } catch (err) {
+            console.error('Delete channel error:', err);
+            showToast('Failed to delete channel.');
+        }
+    }
+
+    // ─── ROLES CRUD ──────────────────────────────────
+    function openCreateRoleUI() {
+        document.getElementById('createRoleForm').style.display = 'block';
+        document.getElementById('newRoleNameInput').value = '';
+        document.getElementById('newRoleColorInput').value = '#4f8aff';
+        document.getElementById('newRoleNameInput').focus();
+    }
+
+    function cancelCreateRole() {
+        document.getElementById('createRoleForm').style.display = 'none';
+    }
+
+    async function saveNewRole() {
+        const name = document.getElementById('newRoleNameInput').value.trim();
+        const color = document.getElementById('newRoleColorInput').value;
+
+        if (!name) { showToast('Enter a role name.'); return; }
+        if (!activeServerId) return;
+
+        try {
+            const position = serverRoles.length;
+            const { error } = await sb.from('server_roles').insert({
+                server_id: activeServerId,
+                name,
+                color,
+                position,
+                permissions: { manage_channels: false, manage_roles: false, kick_members: false, ban_members: false, manage_server: false, send_messages: true, admin: false }
+            });
+
+            if (error) throw error;
+
+            cancelCreateRole();
+            showToast(`Role "${name}" created!`);
+            await loadServerRoles();
+            renderServerRolesList();
+        } catch (err) {
+            console.error('Create role error:', err);
+            showToast('Failed to create role.');
+        }
+    }
+
+    function openEditRoleModal(roleId) {
+        const role = serverRoles.find(r => r.id === roleId);
+        if (!role) return;
+
+        editingRoleId = roleId;
+        document.getElementById('editRoleNameInput').value = role.name;
+        document.getElementById('editRoleColorInput').value = role.color;
+
+        const p = role.permissions || {};
+        document.getElementById('editRolePermAdmin').checked = !!p.admin;
+        document.getElementById('editRolePermChannels').checked = !!p.manage_channels;
+        document.getElementById('editRolePermRoles').checked = !!p.manage_roles;
+        document.getElementById('editRolePermKick').checked = !!p.kick_members;
+        document.getElementById('editRolePermBan').checked = !!p.ban_members;
+        document.getElementById('editRolePermManageServer').checked = !!p.manage_server;
+
+        document.getElementById('editRoleModal').style.display = 'flex';
+    }
+
+    function closeEditRoleModal() {
+        document.getElementById('editRoleModal').style.display = 'none';
+        editingRoleId = null;
+    }
+
+    async function saveEditedRole() {
+        if (!editingRoleId) return;
+
+        const name = document.getElementById('editRoleNameInput').value.trim();
+        const color = document.getElementById('editRoleColorInput').value;
+        if (!name) { showToast('Role name required.'); return; }
+
+        const isAdmin = document.getElementById('editRolePermAdmin').checked;
+        const permissions = {
+            admin: isAdmin,
+            manage_channels: isAdmin || document.getElementById('editRolePermChannels').checked,
+            manage_roles: isAdmin || document.getElementById('editRolePermRoles').checked,
+            kick_members: isAdmin || document.getElementById('editRolePermKick').checked,
+            ban_members: isAdmin || document.getElementById('editRolePermBan').checked,
+            manage_server: isAdmin || document.getElementById('editRolePermManageServer').checked,
+            send_messages: true
+        };
+
+        try {
+            const { error } = await sb
+                .from('server_roles')
+                .update({ name, color, permissions })
+                .eq('id', editingRoleId);
+
+            if (error) throw error;
+
+            closeEditRoleModal();
+            showToast('Role updated!');
+            await loadServerRoles();
+            renderServerRolesList();
+        } catch (err) {
+            console.error('Save role error:', err);
+            showToast('Failed to update role.');
+        }
+    }
+
+    async function deleteRole(roleId) {
+        try {
+            // Unassign members with this role (set to null)
+            await sb.from('server_members')
+                .update({ role_id: null })
+                .eq('server_id', activeServerId)
+                .eq('role_id', roleId);
+
+            const { error } = await sb.from('server_roles').delete().eq('id', roleId);
+            if (error) throw error;
+
+            showToast('Role deleted.');
+            await loadServerRoles();
+            renderServerRolesList();
+        } catch (err) {
+            console.error('Delete role error:', err);
+            showToast('Failed to delete role.');
+        }
+    }
+
+    // ─── ASSIGN ROLE TO MEMBER ───────────────────────
+    function openAssignRoleModal(email) {
+        assigningMemberEmail = email;
+        const displayName = displayNameCache[email] || usernameCache[email] || email;
+        document.getElementById('assignRoleTitle').textContent = `Role — ${displayName}`;
+
+        const member = serverMembers.find(m => m.user_email === email);
+        const currentRoleId = member ? member.role_id : null;
+
+        const container = document.getElementById('assignRoleList');
+        container.innerHTML = serverRoles.map(r => `
+            <div class="role-item" style="cursor:pointer" onclick="assignRole('${r.id}')">
+                <div class="role-color-dot" style="background:${escapeHtml(r.color)}"></div>
+                <div class="role-name">${escapeHtml(r.name)}</div>
+                ${currentRoleId === r.id ? '<i class="fas fa-check" style="color:var(--accent);font-size:0.72rem"></i>' : ''}
+            </div>
+        `).join('');
+
+        document.getElementById('assignRoleModal').style.display = 'flex';
+    }
+
+    function closeAssignRoleModal() {
+        document.getElementById('assignRoleModal').style.display = 'none';
+        assigningMemberEmail = null;
+    }
+
+    async function assignRole(roleId) {
+        if (!assigningMemberEmail || !activeServerId) return;
+
+        try {
+            const { error } = await sb
+                .from('server_members')
+                .update({ role_id: roleId })
+                .eq('server_id', activeServerId)
+                .eq('user_email', assigningMemberEmail);
+
+            if (error) throw error;
+
+            closeAssignRoleModal();
+            showToast('Role assigned!');
+            await loadServerMembers();
+            renderServerMembersList();
+        } catch (err) {
+            console.error('Assign role error:', err);
+            showToast('Failed to assign role.');
+        }
+    }
+
+    // ─── KICK MEMBER ─────────────────────────────────
+    async function kickMember(email) {
+        if (!activeServerId) return;
+
+        try {
+            const { error } = await sb
+                .from('server_members')
+                .delete()
+                .eq('server_id', activeServerId)
+                .eq('user_email', email);
+
+            if (error) throw error;
+
+            showToast('Member kicked.');
+            await loadServerMembers();
+            renderServerMembersList();
+        } catch (err) {
+            console.error('Kick member error:', err);
+            showToast('Failed to kick member.');
+        }
+    }
+
+    async function banMember(email) {
+        if (!activeServerId) return;
+
+        try {
+            // Add to bans table
+            const { error: banErr } = await sb
+                .from('server_bans')
+                .insert({
+                    server_id: activeServerId,
+                    user_email: email,
+                    banned_by: currentUser.email
+                });
+
+            if (banErr) throw banErr;
+
+            // Remove from members
+            await sb
+                .from('server_members')
+                .delete()
+                .eq('server_id', activeServerId)
+                .eq('user_email', email);
+
+            showToast('Member banned.');
+            await loadServerMembers();
+            renderServerMembersList();
+        } catch (err) {
+            console.error('Ban member error:', err);
+            if (err.code === '23505') {
+                showToast('User is already banned.');
+            } else {
+                showToast('Failed to ban member.');
+            }
+        }
+    }
+
+    // ─── ESCAPE HTML HELPER (alias for existing escHtml) ─
+    const escapeHtml = escHtml;
 </script>
 </body>
 </html>

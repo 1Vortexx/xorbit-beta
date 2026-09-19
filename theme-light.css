@@ -1,0 +1,161 @@
+/* Light Mode for X-ORBIT Desktop
+   ─────────────────────────────────────────────────────────────
+   The shell reads every colour from the tokens declared in app.html.
+   This sheet re-declares those tokens with light values on :root so the
+   whole desktop flips as soon as the file loads, then adds the light-only
+   polish the token swap can't express. loadTheme() also sets
+   body.light-mode + body[data-theme="light"] for component overrides. */
+
+:root {
+  color-scheme: light;
+
+  --bg: #e6e7ec;
+  --bg-glow-1: rgba(255, 255, 255, 0.95);
+  --bg-glow-2: rgba(170, 182, 214, 0.5);
+
+  --glass-rgb: 249, 249, 251;
+  --mb-rgb: 246, 246, 248;
+  --surface-window: rgba(var(--glass-rgb), 0.86);
+  --surface-titlebar: rgba(0, 0, 0, 0.025);
+  --surface-menu: rgba(251, 251, 253, 0.95);
+  --surface-panel: rgba(251, 251, 253, 0.97);
+  --surface-solid: #f6f6f8;
+  --surface-raised: rgba(0, 0, 0, 0.035);
+  --surface-raised-2: rgba(0, 0, 0, 0.06);
+  --surface-hover: rgba(0, 0, 0, 0.06);
+  --surface-active: rgba(0, 0, 0, 0.10);
+
+  --hairline: rgba(0, 0, 0, 0.08);
+  --hairline-2: rgba(0, 0, 0, 0.13);
+  --hairline-3: rgba(0, 0, 0, 0.22);
+  --edge-light: rgba(255, 255, 255, 0.75);
+
+  --text: #101014;
+  --text-2: rgba(0, 0, 0, 0.64);
+  --text-3: rgba(0, 0, 0, 0.44);
+  --text-4: rgba(0, 0, 0, 0.28);
+  --on-invert: #ffffff;
+  --invert: #101014;
+
+  --accent: #2b74f0;
+  --accent-strong: #1f63d6;
+  --accent-soft: rgba(43, 116, 240, 0.12);
+  --accent-line: rgba(43, 116, 240, 0.35);
+  --danger: #dc4348;
+  --danger-soft: rgba(220, 67, 72, 0.10);
+  --danger-line: rgba(220, 67, 72, 0.30);
+  --success: #1c9457;
+  --success-soft: rgba(28, 148, 87, 0.12);
+  --warn: #e0900f;
+
+  --shadow-menu: 0 18px 50px rgba(22, 26, 48, 0.18), 0 2px 8px rgba(22, 26, 48, 0.10);
+  --shadow-window: 0 24px 70px rgba(22, 26, 48, 0.20), 0 2px 10px rgba(22, 26, 48, 0.10);
+  --shadow-window-active: 0 32px 90px rgba(22, 26, 48, 0.26), 0 4px 14px rgba(22, 26, 48, 0.12);
+  --shadow-toast: 0 20px 60px rgba(22, 26, 48, 0.22);
+  --label-shadow: 0 1px 2px rgba(255, 255, 255, 0.9), 0 0 10px rgba(255, 255, 255, 0.6);
+}
+
+/* ── Ground ─────────────────────────────────────────────────── */
+body[data-theme="light"] {
+  background-color: var(--bg);
+}
+body[data-theme="light"]::before {
+  background: radial-gradient(ellipse at 50% 50%, transparent 60%, rgba(0, 0, 0, 0.08) 100%);
+}
+body[data-theme="light"]::after {
+  background: radial-gradient(closest-side, transparent 78.5%, rgba(0, 0, 0, 0.07) 79%, transparent 80.5%);
+}
+
+/* ── Menu bar ───────────────────────────────────────────────── */
+body[data-theme="light"] .menu-bar {
+  color: var(--text);
+  border-bottom-color: rgba(0, 0, 0, 0.10);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 1px 12px rgba(22, 26, 48, 0.06);
+}
+body[data-theme="light"] .menu-item { color: var(--text-2); }
+body[data-theme="light"] .menu-item:hover,
+body[data-theme="light"] .menu-item.open { color: var(--text); }
+body[data-theme="light"] .menu-item.xorbit-title,
+body[data-theme="light"] .menu-item.time-item,
+body[data-theme="light"] #userNameplate { color: var(--text); }
+body[data-theme="light"] .menu-notif-count { box-shadow: 0 0 0 2px rgba(var(--mb-rgb), 0.95); }
+
+/* ── Desktop icons: bright tiles, dark labels with a white halo ── */
+body[data-theme="light"] .desktop-icon i,
+body[data-theme="light"] .folder-icon-grid {
+  color: #17171b;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.74));
+  border-color: rgba(0, 0, 0, 0.10);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 1) inset, 0 6px 16px rgba(22, 26, 48, 0.16);
+}
+body[data-theme="light"] .desktop-icon:hover i { color: #000; border-color: rgba(0, 0, 0, 0.16); }
+body[data-theme="light"] .desktop-icon span,
+body[data-theme="light"] .desktop-folder-icon span {
+  color: #101014;
+  text-shadow: var(--label-shadow);
+}
+body[data-theme="light"] .desktop-icon:hover,
+body[data-theme="light"] .desktop-folder-icon:hover {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+body[data-theme="light"] .folder-mini-app { filter: invert(1) hue-rotate(180deg); }
+
+/* ── Windows ────────────────────────────────────────────────── */
+body[data-theme="light"] .window { box-shadow: var(--shadow-window), 0 0 0 1px rgba(255, 255, 255, 0.55); }
+body[data-theme="light"] .window.active { box-shadow: var(--shadow-window-active), 0 0 0 1px rgba(255, 255, 255, 0.65); }
+body[data-theme="light"] .window-titlebar::before { background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent); }
+body[data-theme="light"] .window-content { background: rgba(255, 255, 255, 0.4); }
+body[data-theme="light"] .window-control { border-color: rgba(0, 0, 0, 0.14); }
+
+/* ── Panels, menus, toasts ──────────────────────────────────── */
+body[data-theme="light"] .xorbit-menu,
+body[data-theme="light"] .time-menu,
+body[data-theme="light"] .folder-popup,
+body[data-theme="light"] .desktop-context-menu,
+body[data-theme="light"] .desktop-update-badge,
+body[data-theme="light"] .desktop-dm-badge,
+body[data-theme="light"] .xmodal-card,
+body[data-theme="light"] .tutorial-content,
+body[data-theme="light"] #whatsNewCard,
+body[data-theme="light"] #pwaInstallCard,
+body[data-theme="light"] #spotlightBox {
+  box-shadow: var(--shadow-menu), 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+body[data-theme="light"] .xmodal-overlay,
+body[data-theme="light"] .tutorial-overlay,
+body[data-theme="light"] #whatsNewOverlay,
+body[data-theme="light"] #pwaInstallOverlay { background: rgba(226, 228, 236, 0.72); }
+body[data-theme="light"] #spotlightOverlay { background: rgba(226, 228, 236, 0.45); }
+body[data-theme="light"] .notif-pill.active,
+body[data-theme="light"] .desktop-update-badge-install,
+body[data-theme="light"] .tutorial-btn.primary,
+body[data-theme="light"] .dm-reply-send { color: #fff; }
+
+/* ── Settings app ───────────────────────────────────────────── */
+body[data-theme="light"] .settings-sidebar { background: rgba(0, 0, 0, 0.03); }
+body[data-theme="light"] .setting-card { background: rgba(255, 255, 255, 0.55); }
+body[data-theme="light"] .setting-card:hover { background: rgba(255, 255, 255, 0.8); }
+body[data-theme="light"] .xorbit-select select option { background: #ffffff; color: var(--text); }
+body[data-theme="light"] .xorbit-toggle.active::before { background: #fff; }
+body[data-theme="light"] .xorbit-slider::-webkit-slider-thumb { border-color: rgba(0, 0, 0, 0.18); }
+
+/* ── Dev console keeps its terminal look ────────────────────── */
+body[data-theme="light"] #devConsole > div { color-scheme: dark; }
+body[data-theme="light"] #devConsole > div,
+body[data-theme="light"] #devConsole input { background: rgba(12, 12, 14, 0.97) !important; color: #fff; }
+
+/* ── Native controls + scrollbars ───────────────────────────── */
+body[data-theme="light"] select,
+body[data-theme="light"] input,
+body[data-theme="light"] textarea { color-scheme: light; }
+body[data-theme="light"] ::-webkit-scrollbar { width: 8px; height: 8px; }
+body[data-theme="light"] ::-webkit-scrollbar-track { background: transparent; }
+body[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+body[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background-color: rgba(0, 0, 0, 0.3); }
+body[data-theme="light"] ::selection { background: rgba(43, 116, 240, 0.18); }

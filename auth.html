@@ -1803,16 +1803,15 @@
       }
 
       // ── Login (regular / Other User) ───────────────────────────────
-      async function login() {
-        if (!supabaseClient) {
-          document.getElementById("loginStatus").innerHTML = "❌ System error. Please refresh.";
-          return;
-        }
-        if (await isLoginShutdown()) {
-          showShutdownView();
-          return;
-        }
+      // True only when the desktop shell that embeds this page is a beta build
+      // (app.html sets window.IS_BETA_BUILD). Never enabled by URL or standalone.
+      function isBetaBuild() {
+        try {
+          return !!(window.parent && window.parent !== window && window.parent.IS_BETA_BUILD === true);
+        } catch (e) { return false; }
+      }
 
+      async function login() {
         const usernameInput = document.getElementById("usernameOrEmail");
         const passwordInput = document.getElementById("password");
         const rememberCheckbox = document.getElementById("rememberMe");
@@ -1833,6 +1832,26 @@
         loginButton.disabled = false;
         setFieldState("usernameOrEmail", "usernameIcon", null);
         setFieldState("password", "passwordIcon", null);
+
+        // ── Beta build shortcut ──
+        // On beta builds, "Other user" → username "beta" with an empty password
+        // signs in as a local beta tester. No Supabase lookup, no login_attempts row.
+        if (isBetaBuild() && emailOrName.toLowerCase() === "beta" && !pwd) {
+          status.innerHTML = '<span class="loading"></span> Beta access...';
+          loginButton.innerHTML = '<span class="loading"></span>';
+          loginButton.disabled = true;
+          completeLogin({ username: "beta", email: null, id: null, rememberMe: false, isOSMode: false });
+          return;
+        }
+
+        if (!supabaseClient) {
+          status.innerHTML = "❌ System error. Please refresh.";
+          return;
+        }
+        if (await isLoginShutdown()) {
+          showShutdownView();
+          return;
+        }
 
         if (!emailOrName || !pwd) {
           status.innerHTML = "❌ Please fill in both fields.";
