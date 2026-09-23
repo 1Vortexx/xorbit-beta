@@ -3,7 +3,7 @@
   <head>
     <link
       rel="icon"
-      href="https://codehs.com/uploads/7f204d91a682cb833441eb2fc59228b6"
+      href="assets/favicon.png"
       type="image/png"
     />
     <meta charset="UTF-8" />
@@ -1785,8 +1785,10 @@
       }
 
       .boot-planet {
-        font-size: 64px;
-        color: #fff;
+        width: 118px;
+        height: 118px;
+        object-fit: contain;
+        display: block;
         margin: 0;
         animation: bootBreathe 3.2s ease-in-out infinite;
       }
@@ -2601,7 +2603,7 @@
     <div id="startupScreen">
       <div class="boot-center">
         <div class="boot-orbit">
-          <i class="fas fa-globe boot-planet"></i>
+          <img src="assets/logo_notext.png" class="boot-planet" alt="X-ORBIT" />
         </div>
         <div class="boot-spinner">
           <span></span><span></span><span></span><span></span>
@@ -9436,9 +9438,9 @@
       const IS_BETA_BUILD = true;
       // Exposed so the login page (auth.html, loaded in an iframe) can read the build channel
       window.IS_BETA_BUILD = IS_BETA_BUILD;
-      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.2.1-beta" : "v6.2.1";
-      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.2.1 Beta" : "X-ORBIT Desktop v6.2.1 Sahara";
-      // Short label for UI chips, e.g. "v6.2.1 Sahara"
+      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.2.2-beta" : "v6.2.2";
+      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.2.2 Beta" : "X-ORBIT Desktop v6.2.2 Sahara";
+      // Short label for UI chips, e.g. "v6.2.2 Sahara"
       const CURRENT_VERSION_LABEL = CURRENT_VERSION_NAME.replace("X-ORBIT Desktop ", "");
       const UPDATE_CHECK_TABLE = IS_BETA_BUILD ? "update_check_beta" : "update_check";
 
@@ -10415,6 +10417,18 @@
     <script>
       // ── What's New – version changelog data ──
       const WHATSNEW_CHANGELOG = [
+        {
+          version: "v6.2.2",
+          name: "Sahara",
+          date: "September 23, 2026",
+          sections: [
+            { type: "changed", items: [
+              "New X-ORBIT emblem on the startup screen, replacing the placeholder globe icon",
+              "Refreshed favicon and PWA install icons across every page",
+              "Icons are now served from the repo instead of third-party image hosts"
+            ]}
+          ]
+        },
         {
           version: "v6.2.1",
           name: "Sahara",
