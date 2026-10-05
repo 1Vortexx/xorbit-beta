@@ -1,7 +1,8 @@
 // ── Device gate ──────────────────────────────────────────────────────
 // Loaded in the <head> of index.html, app.html and auth.html.
 //   • access_settings.deface is true → index.html (the only page that sets
-//     data-deface-redirect on this script tag) goes to the decoy page.
+//     the data-deface-* attributes on this script tag) goes to the decoy
+//     page, or straight to the desktop if the device has an unbanned UUID.
 //   • access_settings.lockout is true → blocked, whoever it is.
 //   • Device has a UUID  → blocked if that UUID is in banned_devices.
 //   • Device has no UUID → blocked if access_settings.public_access is false.
@@ -12,8 +13,10 @@
   var SUPABASE_ANON_KEY =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1anZtdHZvem9yeWxmenNxcHBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0NjQxNDEsImV4cCI6MjA3MzA0MDE0MX0.b7jJz3Se_oXXDwwd0dWQ8-rEvhY0aU4JDHQVioE39iY";
   var UUID_KEY = "xorbit_device_uuid";
-  var DEFACE_REDIRECT =
-    document.currentScript && document.currentScript.getAttribute("data-deface-redirect");
+  var SCRIPT = document.currentScript;
+  var DEFACE_REDIRECT = SCRIPT && SCRIPT.getAttribute("data-deface-redirect");
+  var DEFACE_KNOWN_DEVICE_REDIRECT =
+    SCRIPT && SCRIPT.getAttribute("data-deface-known-device-redirect");
   var TIMEOUT_MS = 6000;
 
   function readUUID() {
@@ -116,7 +119,9 @@
         var settings = results[0];
         var ban = results[1];
         if (DEFACE_REDIRECT && settings.deface === true) {
-          window.location.replace(DEFACE_REDIRECT);
+          // Known, unbanned devices skip the decoy; the page they land on
+          // runs its own lockout check. Banned devices get the decoy.
+          window.location.replace((uuid && !ban && DEFACE_KNOWN_DEVICE_REDIRECT) || DEFACE_REDIRECT);
         } else if (settings.lockout === true) {
           blockLockout();
         } else if (ban) {
