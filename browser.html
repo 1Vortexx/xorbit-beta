@@ -7,6 +7,10 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+      // Hide immediately — will be revealed only after token auth passes
+      document.documentElement.style.visibility = "hidden";
+    </script>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1239,7 +1243,65 @@
         document.getElementById(id).classList.remove("active");
       }
 
-      window.addEventListener("DOMContentLoaded", checkAuth);
+      // ── Iframe auth (mirrors jittery.html pattern) ────────────
+      let _isAuthenticated = false;
+      let _authTimeout     = null;
+
+      function verifyAuthToken(token) {
+        return token && typeof token === "string" && token.startsWith("xorbit-browser-");
+      }
+
+      function showBlockedPage() {
+        document.documentElement.style.visibility = "visible";
+        document.body.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:center;
+                      height:100vh;background:#000;font-family:'Inter',sans-serif;">
+            <div style="text-align:center;">
+              <div style="font-size:1.8rem;font-weight:700;color:#fff;letter-spacing:4px;margin-bottom:20px;">
+                X-<span style="background:#fff;color:#000;padding:0 6px;">ORBIT</span>
+              </div>
+              <div style="font-size:0.6rem;letter-spacing:4px;text-transform:uppercase;
+                          color:#444;margin-bottom:10px;">Access Restricted</div>
+              <div style="font-size:0.65rem;color:#2a2a2a;letter-spacing:1px;">
+                This app must be opened from within X-ORBIT
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function waitForAuthentication() {
+        _authTimeout = setTimeout(() => {
+          if (!_isAuthenticated) showBlockedPage();
+        }, 2000);
+
+        // Listen for the token from app.html
+        window.addEventListener("message", function onAuth(event) {
+          if (event.data && event.data.type === "auth-token") {
+            clearTimeout(_authTimeout);
+            if (verifyAuthToken(event.data.token)) {
+              _isAuthenticated = true;
+              window.removeEventListener("message", onAuth);
+              document.documentElement.style.visibility = "visible";
+              checkAuth();
+            } else {
+              showBlockedPage();
+            }
+          }
+        });
+
+        // Ask the parent for the token
+        window.parent.postMessage({ type: "request-auth" }, "*");
+      }
+
+      window.addEventListener("load", () => {
+        // Must be inside an iframe
+        if (window.self === window.top) {
+          showBlockedPage();
+          return;
+        }
+        waitForAuthentication();
+      });
     </script>
   </body>
 </html>

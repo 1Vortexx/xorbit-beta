@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plotwise | Free online graphing calculator</title>
+  <meta name="description" content="A free graphing calculator for algebra, trigonometry and calculus homework. Type a function and see its graph. Nothing to install, no account." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23edf1df'/%3E%3Cpath d='M3 16h26M16 3v26' stroke='%23b4c69d' stroke-width='2'/%3E%3Cpath d='M4 24c5 0 6-16 12-16s7 16 12 16' fill='none' stroke='%232b4fa8' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --pad:    #edf1df;
+      --sheet:  #f7f9ef;
+      --rule:   #b4c69d;
+      --ink:    #1d2b24;
+      --ink-2:  #52634f;
+      --margin: #c2372e;
+      --pencil: #2b4fa8;
+      --sans: "Schibsted Grotesk", system-ui, sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, monospace;
+      --gutter: clamp(20px, 5vw, 56px);
+    }
+
+    body {
+      font-family: var(--sans);
+      color: var(--ink);
+      background: var(--sheet);
+      line-height: 1.55;
+    }
+
+    :focus-visible { outline: 2px solid var(--pencil); outline-offset: 3px; }
+    a { color: var(--pencil); }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px var(--gutter);
+      border-bottom: 1px solid var(--rule);
+    }
+    .brand { font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em; color: var(--ink); text-decoration: none; }
+    .topbar-link { font-size: 0.92rem; font-weight: 500; }
+
+    .button {
+      display: inline-block;
+      font: inherit;
+      font-weight: 700;
+      font-size: 1rem;
+      color: #fff;
+      background: var(--pencil);
+      border-radius: 6px;
+      padding: 13px 22px;
+      text-decoration: none;
+    }
+    .button:hover { background: #223f88; }
+
+    /* Hero: the pad's margin column on the left, the live plot on the right */
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(320px, 5fr) 7fr;
+      min-height: min(640px, calc(100vh - 54px));
+      border-bottom: 1px solid var(--rule);
+    }
+    .hero-copy {
+      padding: clamp(32px, 6vw, 72px) var(--gutter);
+      border-right: 2px solid var(--margin);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .hero-copy h1 {
+      font-size: clamp(2.3rem, 4.6vw, 3.7rem);
+      font-weight: 800;
+      line-height: 1.02;
+      letter-spacing: -0.035em;
+      max-width: 11em;
+    }
+    .hero-copy p {
+      margin-top: 18px;
+      font-size: 1.08rem;
+      color: var(--ink-2);
+      max-width: 30em;
+    }
+
+    .try { margin-top: 30px; }
+    .try label { display: block; font-size: 0.9rem; font-weight: 500; margin-bottom: 8px; }
+    .try-field {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #fff;
+      border: 1px solid var(--rule);
+      border-bottom: 2px solid var(--pencil);
+      border-radius: 6px 6px 0 0;
+      padding: 0 14px;
+      max-width: 26rem;
+    }
+    .try-field span { font-family: var(--mono); color: var(--ink-2); }
+    .try-field input {
+      flex: 1;
+      min-width: 0;
+      font-family: var(--mono);
+      font-size: 1.1rem;
+      color: var(--ink);
+      border: none;
+      background: transparent;
+      padding: 13px 0;
+    }
+    .try-field input:focus { outline: none; }
+    .try-field:focus-within { outline: 2px solid var(--pencil); outline-offset: 3px; }
+    .try-error { min-height: 1.5em; margin-top: 6px; font-size: 0.88rem; color: var(--margin); }
+
+    .hero-copy .button { margin-top: 14px; align-self: flex-start; }
+
+    .hero-plot { position: relative; background: var(--pad); min-height: 320px; }
+    .hero-plot canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+    /* Sections */
+    .section { padding: clamp(40px, 7vw, 80px) var(--gutter); }
+    .section + .section { border-top: 1px solid var(--rule); }
+    .section h2 { font-size: clamp(1.5rem, 2.6vw, 2rem); font-weight: 800; letter-spacing: -0.025em; line-height: 1.15; }
+    .section-intro { margin-top: 8px; color: var(--ink-2); max-width: 38em; }
+
+    .examples {
+      list-style: none;
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 20px;
+    }
+    .example a { display: block; color: var(--ink); text-decoration: none; }
+    .example canvas {
+      display: block;
+      width: 100%;
+      aspect-ratio: 3 / 2;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+    }
+    .example a:hover canvas { border-color: var(--pencil); }
+    .example-name { display: block; margin-top: 10px; font-weight: 700; }
+    .example-formula { display: block; font-family: var(--mono); font-size: 0.88rem; color: var(--ink-2); }
+
+    .reference {
+      margin-top: 24px;
+      max-width: 46rem;
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      column-gap: 28px;
+    }
+    .reference dt, .reference dd { padding: 11px 0; border-bottom: 1px solid var(--rule); }
+    .reference dt { font-family: var(--mono); font-size: 0.92rem; }
+    .reference dd { color: var(--ink-2); }
+
+    .footer {
+      padding: 24px var(--gutter);
+      border-top: 1px solid var(--rule);
+      font-size: 0.88rem;
+      color: var(--ink-2);
+    }
+
+    @media (max-width: 820px) {
+      .hero { grid-template-columns: 1fr; min-height: 0; }
+      .hero-copy { border-right: none; border-bottom: 2px solid var(--margin); }
+      .hero-plot { height: 320px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="landing.html">Plotwise</a>
+    <a class="topbar-link" href="graph.html">Open the calculator</a>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <h1>Type a function. See its graph.</h1>
+        <p>Plotwise is a free graphing calculator for algebra, trig and calculus homework. It runs in your browser, with nothing to install and no account.</p>
+
+        <div class="try">
+          <label for="tryInput">Change this one and watch the graph</label>
+          <div class="try-field">
+            <span>y =</span>
+            <input id="tryInput" type="text" value="sin(x) + x/3" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="tryError" />
+          </div>
+          <p class="try-error" id="tryError" role="status"></p>
+        </div>
+
+        <a class="button" id="openCalc" href="graph.html">Open the calculator</a>
+      </div>
+      <div class="hero-plot">
+        <canvas id="heroPlot" role="img" aria-label="Graph of the function typed on the left"></canvas>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Start from an example</h2>
+      <p class="section-intro">Each one opens in the calculator, where you can edit it, add more functions and zoom in.</p>
+      <ul class="examples" id="examples"></ul>
+    </section>
+
+    <section class="section">
+      <h2>What you can type</h2>
+      <p class="section-intro">Use x as the variable. Multiplication signs are optional, so 2x and 3(x + 1) both work.</p>
+      <dl class="reference">
+        <dt>+ − * / ^</dt><dd>Add, subtract, multiply, divide and raise to a power</dd>
+        <dt>sin cos tan</dt><dd>Trigonometry in radians, plus asin, acos and atan</dd>
+        <dt>sqrt abs</dt><dd>Square root and absolute value</dd>
+        <dt>ln log exp</dt><dd>Natural log, base-10 log and e to a power</dd>
+        <dt>floor ceil round</dt><dd>Rounding down, up and to the nearest whole number</dd>
+        <dt>pi e</dt><dd>The constants 3.14159… and 2.71828…</dd>
+      </dl>
+    </section>
+  </main>
+
+  <footer class="footer">Plotwise is free for students and teachers.</footer>
+
+  <script src="assets/graph-engine.js"></script>
+  <script>
+    const { compile, draw } = GraphEngine;
+    const PENCIL = "#2b4fa8";
+
+    // ── Hero: live plot of whatever is typed ─────────────────
+    const heroCanvas = document.getElementById("heroPlot");
+    const tryInput   = document.getElementById("tryInput");
+    const tryError   = document.getElementById("tryError");
+    const openCalc   = document.getElementById("openCalc");
+
+    let heroFn = compile(tryInput.value);
+    let progress = 1;
+
+    function drawHero() {
+      const view = { cx: 0, cy: 0, scale: 16 / Math.max(heroCanvas.clientWidth, 320) };
+      draw(heroCanvas, view, heroFn ? [{ fn: heroFn, color: PENCIL }] : [], { progress });
+    }
+
+    tryInput.addEventListener("input", () => {
+      const text = tryInput.value;
+      try {
+        heroFn = text.trim() ? compile(text) : null;
+        tryError.textContent = "";
+      } catch (err) {
+        // Keep the last good graph on screen while the function is half-typed
+        tryError.textContent = err.message;
+      }
+      openCalc.href = text.trim() && !tryError.textContent
+        ? "graph.html?f=" + encodeURIComponent(text)
+        : "graph.html";
+      drawHero();
+    });
+    openCalc.href = "graph.html?f=" + encodeURIComponent(tryInput.value);
+
+    // The curve draws itself once on load
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      drawHero();
+    } else {
+      const DURATION = 1200;
+      const start = performance.now();
+      (function frame(now) {
+        const t = Math.min((now - start) / DURATION, 1);
+        progress = 1 - Math.pow(1 - t, 3);
+        drawHero();
+        if (t < 1) requestAnimationFrame(frame);
+      })(start);
+    }
+    new ResizeObserver(drawHero).observe(heroCanvas);
+
+    // ── Examples ─────────────────────────────────────────────
+    const EXAMPLES = [
+      { name: "Sine wave",       formula: "sin(x)",             color: "#2b4fa8", scale: 0.045 },
+      { name: "Parabola",        formula: "x^2 - 4",            color: "#c2372e", scale: 0.05  },
+      { name: "Damped wave",     formula: "exp(-x/4) * cos(2x)", color: "#1e7a4c", scale: 0.04, cx: 4 },
+      { name: "Reciprocal",      formula: "1/x",                color: "#7a3fa0", scale: 0.04  },
+    ];
+
+    const examplesEl = document.getElementById("examples");
+    const drawExamples = [];
+    EXAMPLES.forEach((ex) => {
+      const li = document.createElement("li");
+      li.className = "example";
+      li.innerHTML = `
+        <a href="graph.html?f=${encodeURIComponent(ex.formula)}">
+          <canvas aria-hidden="true"></canvas>
+          <span class="example-name">${ex.name}</span>
+          <span class="example-formula">y = ${ex.formula}</span>
+        </a>`;
+      examplesEl.appendChild(li);
+      const canvas = li.querySelector("canvas");
+      const fn = compile(ex.formula);
+      const render = () =>
+        draw(canvas, { cx: ex.cx || 0, cy: 0, scale: ex.scale }, [{ fn, color: ex.color }], { labels: false });
+      drawExamples.push(render);
+      new ResizeObserver(render).observe(canvas);
+    });
+
+    document.fonts && document.fonts.ready.then(() => { drawHero(); drawExamples.forEach((r) => r()); });
+  </script>
+</body>
+</html>

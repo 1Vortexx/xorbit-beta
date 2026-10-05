@@ -168,6 +168,13 @@
                 const banReason = sessionStorage.getItem('ban_reason');
                 const username = sessionStorage.getItem('banned_username');
 
+                // Device gate (assets/device-gate.js) sets its own heading
+                const banTitle = sessionStorage.getItem('ban_title');
+                if (banTitle) {
+                    document.querySelector('.blocked-title').textContent = banTitle;
+                    sessionStorage.removeItem('ban_title');
+                }
+
                 // Update username
                 if (username) {
                     document.getElementById('username').textContent = username;

@@ -1782,6 +1782,10 @@
                             <div class="admin-sidebar-item" onclick="switchAdminPage('tags', this)">
                                 <i class="fas fa-tags"></i> Tag Management
                             </div>
+                            <div class="admin-sidebar-item" onclick="switchAdminPage('devices', this)">
+                                <i class="fas fa-ban"></i> Device Bans
+                                <span class="admin-sidebar-badge" id="sidebarDeviceBanCount">0</span>
+                            </div>
                             <div class="admin-sidebar-heading" style="margin-top:16px;">Actions</div>
                             <div class="admin-sidebar-item" onclick="switchAdminPage('create', this)">
                                 <i class="fas fa-user-plus"></i> Create User
@@ -1869,6 +1873,73 @@
 
                                 <div class="admin-sidebar-heading" style="margin-bottom:10px;">All Tags</div>
                                 <div id="tagMgmtList">
+                                    <div class="loading-spinner"><i class="fas fa-spinner"></i> Loading…</div>
+                                </div>
+                            </div>
+
+                            <!-- PAGE: Device Bans -->
+                            <div class="admin-page" id="adminPage-devices">
+                                <h2 class="admin-page-title">Device Bans</h2>
+                                <p class="admin-page-desc">Ban specific device UUIDs, control whether devices without a UUID can load X-ORBIT, lock the whole site, or swap the landing page for a decoy.</p>
+
+                                <div style="margin-top:20px;">
+                                    <div class="admin-sidebar-heading" style="margin-bottom:10px;">Site Access</div>
+                                    <div class="tag-mgmt-card">
+                                        <div class="tag-mgmt-left">
+                                            <span class="tag-mgmt-key">public_access</span>
+                                            <span class="tag-mgmt-label" id="publicAccessDesc">Loading…</span>
+                                        </div>
+                                        <div class="tag-mgmt-actions">
+                                            <select id="publicAccessSelect" onchange="setAccessSetting('public_access', this.value)" disabled
+                                                style="background:var(--bg);color:var(--text);border:1px solid var(--border-hi);padding:7px 10px;font-family:inherit;font-size:0.72rem;cursor:pointer;">
+                                                <option value="true">true</option>
+                                                <option value="false">false</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="tag-mgmt-card">
+                                        <div class="tag-mgmt-left">
+                                            <span class="tag-mgmt-key">lockout</span>
+                                            <span class="tag-mgmt-label" id="lockoutDesc">Loading…</span>
+                                        </div>
+                                        <div class="tag-mgmt-actions">
+                                            <select id="lockoutSelect" onchange="setAccessSetting('lockout', this.value)" disabled
+                                                style="background:var(--bg);color:var(--text);border:1px solid var(--border-hi);padding:7px 10px;font-family:inherit;font-size:0.72rem;cursor:pointer;">
+                                                <option value="false">false</option>
+                                                <option value="true">true</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="tag-mgmt-card">
+                                        <div class="tag-mgmt-left">
+                                            <span class="tag-mgmt-key">deface</span>
+                                            <span class="tag-mgmt-label" id="defaceDesc">Loading…</span>
+                                        </div>
+                                        <div class="tag-mgmt-actions">
+                                            <select id="defaceSelect" onchange="setAccessSetting('deface', this.value)" disabled
+                                                style="background:var(--bg);color:var(--text);border:1px solid var(--border-hi);padding:7px 10px;font-family:inherit;font-size:0.72rem;cursor:pointer;">
+                                                <option value="false">false</option>
+                                                <option value="true">true</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="create-msg" id="publicAccessMsg" style="display:none;margin-top:10px;"></div>
+                                </div>
+
+                                <div style="margin-top:24px;">
+                                    <div class="admin-sidebar-heading" style="margin-bottom:10px;">Ban Device</div>
+                                    <div class="tag-add-row">
+                                        <input type="text" id="banDeviceUuid" placeholder="Device UUID (e.g. A1B2C3)" maxlength="6" style="text-transform:uppercase;">
+                                        <input type="text" id="banDeviceReason" placeholder="Reason (optional)">
+                                        <button class="tag-mgmt-btn danger" onclick="banDevice()" style="padding:9px 16px;">
+                                            <i class="fas fa-ban"></i> Ban
+                                        </button>
+                                    </div>
+                                    <div class="create-msg" id="banDeviceMsg" style="display:none;margin-bottom:16px;"></div>
+                                </div>
+
+                                <div class="admin-sidebar-heading" style="margin-bottom:10px;">Banned Devices</div>
+                                <div id="bannedDevicesList">
                                     <div class="loading-spinner"><i class="fas fa-spinner"></i> Loading…</div>
                                 </div>
                             </div>
@@ -2755,6 +2826,180 @@
             else if (page === 'online') loadOnlineUsers();
             else if (page === 'submitters') loadSubmitters();
             else if (page === 'tags') loadTagManagement();
+            else if (page === 'devices') loadDeviceBans();
+        }
+
+        /* ════════════════════════════════════════════════
+           DEVICE BANS + PUBLIC ACCESS
+        ════════════════════════════════════════════════ */
+        function showDeviceMsg(id, type, text) {
+            const msgEl = document.getElementById(id);
+            msgEl.className = 'create-msg ' + type;
+            msgEl.textContent = text;
+            msgEl.style.display = 'block';
+        }
+
+        const ACCESS_SETTINGS = {
+            public_access: {
+                el: 'publicAccess',
+                on:  'Devices without a UUID can load X-ORBIT',
+                off: 'Devices without a UUID are blocked'
+            },
+            lockout: {
+                el: 'lockout',
+                on:  'X-ORBIT is disabled for everyone',
+                off: 'X-ORBIT is open'
+            },
+            deface: {
+                el: 'deface',
+                on:  'index.html redirects to the graphing calculator decoy',
+                off: 'index.html shows the X-ORBIT landing page'
+            }
+        };
+
+        function renderAccessSetting(field, value) {
+            const setting = ACCESS_SETTINGS[field];
+            const select = document.getElementById(setting.el + 'Select');
+            select.value = value ? 'true' : 'false';
+            select.disabled = false;
+            const descEl = document.getElementById(setting.el + 'Desc');
+            descEl.textContent = value ? setting.on : setting.off;
+            descEl.style.color = field === 'lockout' && value ? '#f87171' : '';
+        }
+
+        async function loadDeviceBans() {
+            const listEl = document.getElementById('bannedDevicesList');
+            listEl.innerHTML = '<div class="loading-spinner"><i class="fas fa-spinner"></i> Loading…</div>';
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('access_settings')
+                    .select('public_access, lockout, deface')
+                    .eq('id', 1)
+                    .maybeSingle();
+                if (error) throw error;
+                // No row yet behaves the same as public_access = true, lockout = false
+                renderAccessSetting('public_access', data ? data.public_access !== false : true);
+                renderAccessSetting('lockout', data ? data.lockout === true : false);
+                renderAccessSetting('deface', data ? data.deface === true : false);
+            } catch (err) {
+                console.error('Error loading access settings:', err);
+                document.getElementById('publicAccessDesc').textContent = 'Failed to load';
+                document.getElementById('lockoutDesc').textContent = 'Failed to load';
+                document.getElementById('defaceDesc').textContent = 'Failed to load';
+            }
+
+            try {
+                const { data: devices, error } = await supabaseClient
+                    .from('banned_devices')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                if (error) throw error;
+
+                document.getElementById('sidebarDeviceBanCount').textContent = devices.length;
+
+                if (devices.length === 0) {
+                    listEl.innerHTML = '<div class="no-tickets">No banned devices</div>';
+                    return;
+                }
+
+                listEl.innerHTML = devices.map(d => `
+                    <div class="tag-mgmt-card">
+                        <div class="tag-mgmt-left">
+                            <span class="tag-mgmt-key">${escapeHtml(d.device_uuid)}</span>
+                            <span class="tag-mgmt-label">${escapeHtml(d.reason || 'No reason given')}</span>
+                            <span class="tag-mgmt-count">${d.banned_by ? escapeHtml(d.banned_by) + ' · ' : ''}${formatTime(d.created_at)}</span>
+                        </div>
+                        <div class="tag-mgmt-actions">
+                            <button class="tag-mgmt-btn" onclick="unbanDevice('${escapeHtml(d.device_uuid)}')">
+                                <i class="fas fa-unlock"></i> Unban
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error('Error loading banned devices:', err);
+                listEl.innerHTML = '<div class="no-tickets">Failed to load banned devices</div>';
+            }
+        }
+
+        async function setAccessSetting(field, value) {
+            const enabled = value === 'true';
+            const select = document.getElementById(ACCESS_SETTINGS[field].el + 'Select');
+            document.getElementById('publicAccessMsg').style.display = 'none';
+
+            if (field === 'lockout' && enabled &&
+                !confirm('Lock out the entire X-ORBIT site? Nobody will be able to load it, and active sessions are booted within 10 minutes.')) {
+                renderAccessSetting(field, false);
+                return;
+            }
+
+            select.disabled = true;
+
+            try {
+                const { error } = await supabaseClient
+                    .from('access_settings')
+                    .upsert({
+                        id: 1,
+                        [field]: enabled,
+                        updated_by: currentAdmin.email,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'id' });
+                if (error) throw error;
+
+                renderAccessSetting(field, enabled);
+                showDeviceMsg('publicAccessMsg', 'success', `${field} set to ${enabled}.`);
+            } catch (err) {
+                console.error('Error updating access setting:', err);
+                renderAccessSetting(field, !enabled);
+                showDeviceMsg('publicAccessMsg', 'error', err.message || `Failed to update ${field}.`);
+            }
+        }
+
+        async function banDevice() {
+            const uuidInput   = document.getElementById('banDeviceUuid');
+            const reasonInput = document.getElementById('banDeviceReason');
+
+            const uuid   = uuidInput.value.trim().toUpperCase();
+            const reason = reasonInput.value.trim() || null;
+
+            document.getElementById('banDeviceMsg').style.display = 'none';
+
+            if (!/^[A-Z0-9]{6}$/.test(uuid)) {
+                showDeviceMsg('banDeviceMsg', 'error', 'Device UUIDs are 6 letters or numbers.');
+                return;
+            }
+
+            try {
+                const { error } = await supabaseClient
+                    .from('banned_devices')
+                    .insert({ device_uuid: uuid, reason, banned_by: currentAdmin.email });
+                if (error) {
+                    if (error.code === '23505') throw new Error(`Device ${uuid} is already banned.`);
+                    throw error;
+                }
+
+                uuidInput.value = '';
+                reasonInput.value = '';
+                showDeviceMsg('banDeviceMsg', 'success', `Device ${uuid} banned.`);
+                await loadDeviceBans();
+            } catch (err) {
+                console.error('Error banning device:', err);
+                showDeviceMsg('banDeviceMsg', 'error', err.message || 'Failed to ban device.');
+            }
+        }
+
+        async function unbanDevice(uuid) {
+            if (!confirm(`Unban device ${uuid}?`)) return;
+
+            try {
+                const { error } = await supabaseClient.from('banned_devices').delete().eq('device_uuid', uuid);
+                if (error) throw error;
+                await loadDeviceBans();
+            } catch (err) {
+                console.error('Error unbanning device:', err);
+                alert('Failed to unban device: ' + err.message);
+            }
         }
 
         async function loadClients() {

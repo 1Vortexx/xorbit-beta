@@ -9,6 +9,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>X-ORBIT Desktop</title>
+    <script src="assets/device-gate.js"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
@@ -4723,6 +4724,12 @@
           if (jitterWin && jitterWin.contentWindow) {
             jitterWin.contentWindow.postMessage({ type: "auth-token", token: jitterAuthToken }, "*");
           }
+          // browser.html uses the same handshake
+          document.querySelectorAll('#desktop iframe[src="browser.html"]').forEach((browserWin) => {
+            if (browserWin.contentWindow === event.source) {
+              browserWin.contentWindow.postMessage({ type: "auth-token", token: generateBrowserAuthToken() }, "*");
+            }
+          });
         }
       });
 
@@ -5204,6 +5211,13 @@
         return `xorbit-jitter-${timestamp}-${random}`;
       }
 
+      // Browser iframe auth token
+      function generateBrowserAuthToken() {
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 9);
+        return `xorbit-browser-${timestamp}-${random}`;
+      }
+
       // ── App Folders ────────────────────────────────────────
       const FOLDERS = {
         games: {
@@ -5427,6 +5441,16 @@
             const iframe = windowEl.querySelector("iframe");
             if (iframe && iframe.contentWindow) {
               iframe.contentWindow.postMessage({ type: "auth-token", token: jitterAuthToken }, "*");
+            }
+          }, 100);
+        }
+
+        // Send auth token to Browser iframe
+        if (src === "browser.html") {
+          setTimeout(() => {
+            const iframe = windowEl.querySelector("iframe");
+            if (iframe && iframe.contentWindow) {
+              iframe.contentWindow.postMessage({ type: "auth-token", token: generateBrowserAuthToken() }, "*");
             }
           }, 100);
         }
@@ -9246,6 +9270,7 @@
 
       // Ban checking variables
       let banCheckInterval = null;
+      let lockoutCheckInterval = null;
 
       // Check if account is banned or doesn't exist
       async function checkAccountBanStatus() {
@@ -9416,7 +9441,18 @@
         // Then check every 15 seconds
         banCheckInterval = setInterval(() => {
           checkAccountBanStatus();
+          // Also catch device bans issued mid-session
+          if (window.xorbitDeviceGate) window.xorbitDeviceGate.recheckDeviceBan();
         }, 15000); // 15 seconds
+
+        // Check the site-wide lockout flag every 10 minutes; if it comes
+        // back true the session is booted to blocked.html
+        if (lockoutCheckInterval) {
+          clearInterval(lockoutCheckInterval);
+        }
+        lockoutCheckInterval = setInterval(() => {
+          if (window.xorbitDeviceGate) window.xorbitDeviceGate.recheckLockout();
+        }, 600000); // 10 minutes
 
         console.log("Ban checking started (every 15 seconds)");
       }
@@ -9428,6 +9464,10 @@
           banCheckInterval = null;
           console.log("Ban checking stopped");
         }
+        if (lockoutCheckInterval) {
+          clearInterval(lockoutCheckInterval);
+          lockoutCheckInterval = null;
+        }
       }
       // ============================================
       // X-ORBIT UPDATE SYSTEM - JAVASCRIPT CODE
@@ -9438,9 +9478,9 @@
       const IS_BETA_BUILD = true;
       // Exposed so the login page (auth.html, loaded in an iframe) can read the build channel
       window.IS_BETA_BUILD = IS_BETA_BUILD;
-      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.2.2-beta" : "v6.2.2";
-      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.2.2 Beta" : "X-ORBIT Desktop v6.2.2 Sahara";
-      // Short label for UI chips, e.g. "v6.2.2 Sahara"
+      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.2.3-beta" : "v6.2.3";
+      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.2.3 Beta" : "X-ORBIT Desktop v6.2.3 Sahara";
+      // Short label for UI chips, e.g. "v6.2.3 Sahara"
       const CURRENT_VERSION_LABEL = CURRENT_VERSION_NAME.replace("X-ORBIT Desktop ", "");
       const UPDATE_CHECK_TABLE = IS_BETA_BUILD ? "update_check_beta" : "update_check";
 
@@ -10417,6 +10457,21 @@
     <script>
       // ── What's New – version changelog data ──
       const WHATSNEW_CHANGELOG = [
+        {
+          version: "v6.2.3",
+          name: "Sahara",
+          date: "October 5, 2026",
+          sections: [
+            { type: "added", items: [
+              "Device-level access controls, managed from the admin dashboard",
+              "A clear error screen when X-ORBIT can\u2019t connect to the server"
+            ]},
+            { type: "changed", items: [
+              "Sign in on the home page now opens the desktop directly",
+              "Browser can only be opened from inside the desktop"
+            ]}
+          ]
+        },
         {
           version: "v6.2.2",
           name: "Sahara",

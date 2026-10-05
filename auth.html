@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Login into X-ORBIT</title>
+    <script src="assets/device-gate.js"></script>
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
@@ -1771,7 +1772,7 @@
           if (window.parent && window.parent !== window) {
             window.parent.postMessage("auth-success", "*");
           } else {
-            window.location.href = "browser.html";
+            window.location.href = "app.html";
           }
         }, 1000);
       }
@@ -2171,6 +2172,10 @@
 
       // ── Init ───────────────────────────────────────────────────────
       async function initApp() {
+        // Refuse to load (and never mint a device UUID) unless the device
+        // gate allows this device — see assets/device-gate.js
+        if (!(await window.xorbitDeviceGate.ready)) return;
+
         console.log("🔧 Initializing X-ORBIT Login System...");
 
         startSessionTimer();

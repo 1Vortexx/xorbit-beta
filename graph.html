@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graphing calculator | Plotwise</title>
+  <meta name="description" content="Plot functions of x, zoom, pan and read off values. Free, nothing to install." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23edf1df'/%3E%3Cpath d='M3 16h26M16 3v26' stroke='%23b4c69d' stroke-width='2'/%3E%3Cpath d='M4 24c5 0 6-16 12-16s7 16 12 16' fill='none' stroke='%232b4fa8' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Schibsted+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --pad:    #edf1df;
+      --sheet:  #f7f9ef;
+      --rule:   #b4c69d;
+      --ink:    #1d2b24;
+      --ink-2:  #52634f;
+      --margin: #c2372e;
+      --pencil: #2b4fa8;
+      --sans: "Schibsted Grotesk", system-ui, sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, monospace;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: var(--sans);
+      color: var(--ink);
+      background: var(--sheet);
+      display: grid;
+      grid-template-columns: minmax(280px, 340px) 1fr;
+      grid-template-rows: auto 1fr;
+      height: 100dvh;
+      overflow: hidden;
+    }
+
+    :focus-visible { outline: 2px solid var(--pencil); outline-offset: 2px; }
+
+    .topbar {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 18px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .brand {
+      font-weight: 700;
+      font-size: 1.05rem;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      text-decoration: none;
+    }
+    .topbar-hint { font-size: 0.8rem; color: var(--ink-2); }
+
+    /* Function list: the "margin" of the pad */
+    .panel {
+      border-right: 2px solid var(--margin);
+      overflow-y: auto;
+      padding: 16px 16px 24px;
+    }
+    .panel h1 { font-size: 0.95rem; font-weight: 700; margin-bottom: 12px; }
+
+    .fn-list { list-style: none; }
+    .fn-row { padding: 10px 0; border-bottom: 1px solid var(--rule); }
+    .fn-line { display: flex; align-items: center; gap: 8px; }
+
+    .fn-swatch {
+      flex: none;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--swatch);
+      background: var(--swatch);
+      cursor: pointer;
+    }
+    .fn-swatch[aria-pressed="false"] { background: transparent; }
+
+    .fn-prefix { font-family: var(--mono); font-size: 0.9rem; color: var(--ink-2); }
+
+    .fn-input {
+      flex: 1;
+      min-width: 0;
+      font-family: var(--mono);
+      font-size: 0.95rem;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      padding: 7px 9px;
+    }
+    .fn-input[aria-invalid="true"] { border-color: var(--margin); }
+
+    .fn-remove {
+      flex: none;
+      width: 28px; height: 28px;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: var(--ink-2);
+      font-size: 1.1rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .fn-remove:hover { background: var(--pad); color: var(--ink); }
+
+    .fn-note {
+      margin: 6px 0 0 30px;
+      font-size: 0.8rem;
+      min-height: 1.1em;
+      color: var(--ink-2);
+      font-family: var(--mono);
+    }
+    .fn-note.is-error { color: var(--margin); font-family: var(--sans); }
+
+    .add-fn {
+      margin-top: 14px;
+      font: inherit;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--pencil);
+      background: transparent;
+      border: 1px dashed var(--pencil);
+      border-radius: 4px;
+      padding: 8px 12px;
+      width: 100%;
+      cursor: pointer;
+    }
+    .add-fn:hover { background: var(--pad); }
+    .add-fn:disabled { opacity: 0.45; cursor: default; }
+
+    .help { margin-top: 22px; font-size: 0.82rem; line-height: 1.55; color: var(--ink-2); }
+    .help code { font-family: var(--mono); color: var(--ink); }
+
+    /* Plot */
+    .plot { position: relative; min-height: 0; min-width: 0; background: var(--pad); }
+    .plot canvas {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      touch-action: none;
+      cursor: grab;
+    }
+    .plot canvas.is-dragging { cursor: grabbing; }
+
+    .zoom {
+      position: absolute; top: 12px; right: 12px;
+      display: flex; flex-direction: column;
+      background: var(--sheet);
+      border: 1px solid var(--rule);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .zoom button {
+      font: inherit;
+      font-size: 1.05rem;
+      width: 38px; height: 36px;
+      color: var(--ink);
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--rule);
+      cursor: pointer;
+    }
+    .zoom button:last-child { border-bottom: none; font-size: 0.72rem; font-weight: 500; }
+    .zoom button:hover { background: var(--pad); }
+
+    .readout {
+      position: absolute; left: 12px; bottom: 12px;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--ink);
+      background: var(--sheet);
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      padding: 4px 8px;
+      pointer-events: none;
+    }
+    .readout:empty { display: none; }
+
+    @media (max-width: 720px) {
+      body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; }
+      .panel { border-right: none; border-bottom: 2px solid var(--margin); max-height: 38dvh; }
+      .topbar-hint, .help { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="landing.html">Plotwise</a>
+    <span class="topbar-hint">Drag to move, scroll to zoom</span>
+  </header>
+
+  <aside class="panel">
+    <h1>Functions</h1>
+    <ul class="fn-list" id="fnList"></ul>
+    <button class="add-fn" id="addFn" type="button">Add a function</button>
+    <p class="help">
+      Use <code>x</code> as the variable. You can write <code>2x</code>, <code>x^2</code>,
+      <code>sqrt(x)</code>, <code>sin(x)</code>, <code>ln(x)</code>, <code>abs(x)</code>,
+      <code>pi</code> and <code>e</code>. Click a colored dot to hide a curve.
+    </p>
+  </aside>
+
+  <main class="plot">
+    <canvas id="plot" tabindex="0" aria-label="Graph. Arrow keys move, plus and minus zoom, 0 resets the view."></canvas>
+    <div class="zoom">
+      <button type="button" id="zoomIn" aria-label="Zoom in">+</button>
+      <button type="button" id="zoomOut" aria-label="Zoom out">−</button>
+      <button type="button" id="zoomReset" aria-label="Reset view">Reset</button>
+    </div>
+    <div class="readout" id="readout"></div>
+  </main>
+
+  <script src="assets/graph-engine.js"></script>
+  <script>
+    const { compile, draw, formatNumber } = GraphEngine;
+
+    const COLORS = ["#2b4fa8", "#c2372e", "#1e7a4c", "#b26a00", "#7a3fa0", "#0f7c8a"];
+    const MAX_FUNCTIONS = COLORS.length;
+
+    const canvas  = document.getElementById("plot");
+    const listEl  = document.getElementById("fnList");
+    const addBtn  = document.getElementById("addFn");
+    const readout = document.getElementById("readout");
+
+    const view = { cx: 0, cy: 0, scale: 0.02 };
+    let rows = [];
+    let hover = null; // { px, py } while the mouse is over the plot
+
+    // ── Functions ────────────────────────────────────────────
+    function nextColor() {
+      return COLORS.find((c) => !rows.some((r) => r.color === c)) || COLORS[0];
+    }
+
+    function parseRow(row) {
+      row.fn = null;
+      row.error = "";
+      if (!row.text.trim()) return;
+      try { row.fn = compile(row.text); }
+      catch (err) { row.error = err.message; }
+    }
+
+    function addRow(text) {
+      if (rows.length >= MAX_FUNCTIONS) return;
+      const row = { text, color: nextColor(), visible: true, fn: null, error: "" };
+      parseRow(row);
+      rows.push(row);
+
+      const li = document.createElement("li");
+      li.className = "fn-row";
+      li.innerHTML = `
+        <div class="fn-line">
+          <button type="button" class="fn-swatch" aria-pressed="true" aria-label="Show or hide this curve"></button>
+          <span class="fn-prefix">y =</span>
+          <input class="fn-input" type="text" spellcheck="false" autocomplete="off" autocapitalize="off" aria-label="Function of x" />
+          <button type="button" class="fn-remove" aria-label="Remove this function">×</button>
+        </div>
+        <p class="fn-note"></p>`;
+      li.style.setProperty("--swatch", row.color);
+      row.li = li;
+      row.note = li.querySelector(".fn-note");
+      row.input = li.querySelector(".fn-input");
+      row.input.value = text;
+
+      row.input.addEventListener("input", () => {
+        row.text = row.input.value;
+        parseRow(row);
+        render();
+      });
+      li.querySelector(".fn-swatch").addEventListener("click", (e) => {
+        row.visible = !row.visible;
+        e.currentTarget.setAttribute("aria-pressed", String(row.visible));
+        render();
+      });
+      li.querySelector(".fn-remove").addEventListener("click", () => {
+        rows = rows.filter((r) => r !== row);
+        li.remove();
+        addBtn.disabled = false;
+        render();
+      });
+
+      listEl.appendChild(li);
+      addBtn.disabled = rows.length >= MAX_FUNCTIONS;
+      return row;
+    }
+
+    // ── Drawing ──────────────────────────────────────────────
+    function render() {
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      const shown = rows.filter((r) => r.fn && r.visible);
+      draw(canvas, view, shown);
+
+      const xmin = view.cx - (w / 2) * view.scale;
+      const ymax = view.cy + (h / 2) * view.scale;
+      const hoverX = hover ? xmin + hover.px * view.scale : null;
+
+      rows.forEach((row) => {
+        row.input.setAttribute("aria-invalid", String(!!row.error));
+        row.note.classList.toggle("is-error", !!row.error);
+        if (row.error) row.note.textContent = row.error;
+        else if (row.fn && hover) {
+          const y = row.fn(hoverX);
+          row.note.textContent = Number.isFinite(y) ? `y = ${formatNumber(y)}` : "not defined here";
+        } else row.note.textContent = "";
+      });
+
+      if (!hover) { readout.textContent = ""; return; }
+
+      // Trace line and a dot on each curve at the pointer's x
+      const ctx = canvas.getContext("2d");
+      ctx.strokeStyle = "rgba(29, 43, 36, 0.35)";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(hover.px + 0.5, 0);
+      ctx.lineTo(hover.px + 0.5, h);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      shown.forEach((row) => {
+        const y = row.fn(hoverX);
+        if (!Number.isFinite(y)) return;
+        const py = (ymax - y) / view.scale;
+        if (py < -10 || py > h + 10) return;
+        ctx.beginPath();
+        ctx.arc(hover.px, py, 5, 0, Math.PI * 2);
+        ctx.fillStyle = row.color;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#f7f9ef";
+        ctx.stroke();
+      });
+      readout.textContent = `x = ${formatNumber(hoverX)}`;
+    }
+
+    // ── View ─────────────────────────────────────────────────
+    function resetView() {
+      view.cx = 0;
+      view.cy = 0;
+      view.scale = 20 / Math.max(canvas.clientWidth, 320);
+      render();
+    }
+
+    // Zoom keeping the graph point under (px, py) where it is
+    function zoomAt(px, py, factor) {
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      const wx = view.cx + (px - w / 2) * view.scale;
+      const wy = view.cy + (h / 2 - py) * view.scale;
+      view.scale = Math.min(Math.max(view.scale * factor, 1e-7), 1e4);
+      view.cx = wx - (px - w / 2) * view.scale;
+      view.cy = wy - (h / 2 - py) * view.scale;
+      render();
+    }
+
+    const zoomCentre = (factor) => zoomAt(canvas.clientWidth / 2, canvas.clientHeight / 2, factor);
+
+    function pan(dxPx, dyPx) {
+      view.cx -= dxPx * view.scale;
+      view.cy += dyPx * view.scale;
+      render();
+    }
+
+    // ── Pointer, wheel, keyboard ─────────────────────────────
+    const pointers = new Map();
+    let pinchDist = 0;
+
+    const localPoint = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      return { px: e.clientX - rect.left, py: e.clientY - rect.top };
+    };
+
+    canvas.addEventListener("pointerdown", (e) => {
+      canvas.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, localPoint(e));
+      canvas.classList.add("is-dragging");
+      if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        pinchDist = Math.hypot(a.px - b.px, a.py - b.py);
+      }
+    });
+
+    canvas.addEventListener("pointermove", (e) => {
+      const p = localPoint(e);
+      const prev = pointers.get(e.pointerId);
+      if (!prev) {
+        if (e.pointerType === "mouse") { hover = p; render(); }
+        return;
+      }
+      pointers.set(e.pointerId, p);
+      if (pointers.size === 1) {
+        hover = e.pointerType === "mouse" ? p : null;
+        pan(p.px - prev.px, p.py - prev.py);
+      } else if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        const dist = Math.hypot(a.px - b.px, a.py - b.py);
+        if (pinchDist > 0 && dist > 0) zoomAt((a.px + b.px) / 2, (a.py + b.py) / 2, pinchDist / dist);
+        pinchDist = dist;
+      }
+    });
+
+    function endPointer(e) {
+      pointers.delete(e.pointerId);
+      pinchDist = 0;
+      if (!pointers.size) canvas.classList.remove("is-dragging");
+    }
+    canvas.addEventListener("pointerup", endPointer);
+    canvas.addEventListener("pointercancel", endPointer);
+    canvas.addEventListener("pointerleave", () => { hover = null; render(); });
+
+    canvas.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const p = localPoint(e);
+      zoomAt(p.px, p.py, Math.exp(e.deltaY * 0.0015));
+    }, { passive: false });
+
+    canvas.addEventListener("keydown", (e) => {
+      const STEP = 40;
+      if (e.key === "ArrowLeft") pan(STEP, 0);
+      else if (e.key === "ArrowRight") pan(-STEP, 0);
+      else if (e.key === "ArrowUp") pan(0, STEP);
+      else if (e.key === "ArrowDown") pan(0, -STEP);
+      else if (e.key === "+" || e.key === "=") zoomCentre(0.8);
+      else if (e.key === "-") zoomCentre(1.25);
+      else if (e.key === "0") resetView();
+      else return;
+      e.preventDefault();
+    });
+
+    document.getElementById("zoomIn").addEventListener("click", () => zoomCentre(0.8));
+    document.getElementById("zoomOut").addEventListener("click", () => zoomCentre(1.25));
+    document.getElementById("zoomReset").addEventListener("click", resetView);
+
+    addBtn.addEventListener("click", () => {
+      const row = addRow("");
+      if (row) { row.input.focus(); render(); }
+    });
+
+    // ── Start ────────────────────────────────────────────────
+    // graph.html?f=sin(x)&f=x^2 opens with those functions
+    const fromUrl = new URLSearchParams(location.search).getAll("f").filter((f) => f.trim());
+    (fromUrl.length ? fromUrl : ["sin(x)", "x^2/4 - 2"]).slice(0, MAX_FUNCTIONS).forEach(addRow);
+
+    resetView();
+    new ResizeObserver(render).observe(canvas);
+    document.fonts && document.fonts.ready.then(render);
+  </script>
+</body>
+</html>
