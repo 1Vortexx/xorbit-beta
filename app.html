@@ -9545,8 +9545,8 @@
       const IS_BETA_BUILD = true;
       // Exposed so the login page (auth.html, loaded in an iframe) can read the build channel
       window.IS_BETA_BUILD = IS_BETA_BUILD;
-      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.3.0-beta" : "v6.2.4";
-      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.3.0 Beta" : "X-ORBIT Desktop v6.2.4 Sahara";
+      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.3.0-beta" : "v6.3.0";
+      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.3.0 Beta" : "X-ORBIT Desktop v6.3.0 Sahara";
       // Short label for UI chips, e.g. "v6.2.4 Sahara"
       const CURRENT_VERSION_LABEL = CURRENT_VERSION_NAME.replace("X-ORBIT Desktop ", "");
       const UPDATE_CHECK_TABLE = IS_BETA_BUILD ? "update_check_beta" : "update_check";
@@ -10525,8 +10525,8 @@
       // ── What's New – version changelog data ──
       const WHATSNEW_CHANGELOG = [
         {
-          version: "v6.3.0-beta",
-          name: "Beta",
+          version: "v6.3.0",
+          name: "Sahara",
           date: "October 6, 2026",
           sections: [
             { type: "added", items: [
