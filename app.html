@@ -2578,6 +2578,64 @@
       body.no-transparency .desktop-icon i,
       body.no-transparency .folder-icon-grid { backdrop-filter: none; -webkit-backdrop-filter: none; }
 
+      /* ── Performance Mode (Chromebooks / low-power devices) ── */
+      body.perf-effects *,
+      body.perf-effects *::before,
+      body.perf-effects *::after {
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        text-shadow: none !important;
+      }
+      body.perf-effects .window { box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45) !important; }
+      body.perf-effects .dock,
+      body.perf-effects .desktop-update-badge,
+      body.perf-effects .desktop-dm-badge,
+      body.perf-effects .xmodal-card { background: var(--surface-solid) !important; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4) !important; }
+
+      .perf-sleep-overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 24px;
+        text-align: center;
+        background: var(--surface-solid);
+        color: var(--text-2);
+        cursor: pointer;
+        z-index: 5;
+      }
+      .perf-sleep-overlay i { font-size: 28px; color: var(--text-3); margin-bottom: 4px; }
+      .perf-sleep-overlay b { font-size: 14px; color: var(--text); }
+      .perf-sleep-overlay span { font-size: 12px; color: var(--text-3); }
+      .perf-sleep-overlay em { font-style: normal; font-size: 12px; font-weight: 600; padding: 6px 14px; margin-top: 6px; border-radius: var(--r-sm); border: 1px solid var(--hairline-2); background: var(--surface-raised); color: var(--text); }
+
+      .perf-toast {
+        position: fixed;
+        left: 16px;
+        bottom: 16px;
+        z-index: 100000;
+        max-width: 320px;
+        padding: 12px 14px;
+        border-radius: var(--r-md, 10px);
+        border: 1px solid var(--hairline-2);
+        background: var(--surface-solid);
+        color: var(--text-2);
+        font-size: 12px;
+        line-height: 1.45;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45);
+      }
+      .perf-toast b { display: block; margin-bottom: 2px; font-size: 13px; color: var(--text); }
+      .perf-toast b i { margin-right: 6px; }
+      .perf-toast-actions { display: flex; gap: 6px; margin-top: 10px; }
+      .perf-toast-actions button { flex: 1; height: 26px; border-radius: var(--r-sm); border: 1px solid var(--hairline-2); background: var(--surface-raised); color: var(--text); font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+
+      .perf-device-line { font-size: 11.5px; color: var(--text-3); margin-top: 8px; }
+      .perf-device-line b { color: var(--text); font-weight: 600; }
+      .perf-dim { opacity: 0.45; pointer-events: none; }
+
       body.no-animations *,
       body.no-animations *::before,
       body.no-animations *::after {
@@ -3774,12 +3832,18 @@
         if (dmPollInterval) return;
         // Take snapshot first, then begin polling
         takeDMSnapshot().then(() => {
-          dmPollInterval = setInterval(pollDMNotifications, 10000);
+          dmPollInterval = setInterval(pollDMNotifications, dmPollDelay());
         });
       }
 
+      let _dmPollSkip = false;
       async function pollDMNotifications() {
         if (!currentUser || !currentUser.email) return;
+        // Performance Mode: check half as often while the tab is in the background
+        if (document.hidden && perfOn("slowSync")) {
+          _dmPollSkip = !_dmPollSkip;
+          if (_dmPollSkip) return;
+        }
         if (!supabaseClient) { initSupabaseClient(); if (!supabaseClient) return; }
 
         try {
@@ -4578,7 +4642,256 @@
         } else {
           document.body.classList.remove("no-animations");
         }
+
+        // Performance Mode can switch effects and motion off on top of the choices above
+        applyPerformance();
       }
+
+      // ══ Performance Mode ═══════════════════════════════════════════════
+      // Built for Chromebooks and other low-memory devices. These choices are
+      // kept per device (their own localStorage key) and never cloud-synced,
+      // so a Chromebook's settings don't follow the account to a faster PC.
+      const PERF_KEY = "xorbit-performance";
+      const PERF_DEFAULTS = {
+        mode: "auto",        // "auto" (on for Chromebooks / low memory), "on", "off"
+        effects: true,       // drop blur, glass and heavy shadows
+        motion: true,        // drop animations and transitions
+        sleepApps: true,     // unload apps left in the background
+        sleepMinutes: 10,    // ...after this long
+        awakeLimit: 4,       // most apps kept loaded at once (0 = no limit)
+        slowSync: true,      // poll for messages less often
+        liteApps: true,      // tell apps to use their own lighter mode
+      };
+      // Apps that are never put to sleep: music keeps playing, live games stay connected
+      const PERF_NEVER_SLEEP = ["spotify-player.html", "X-MUSIC.html", "cadence.html", "hangman.html"];
+
+      let perf = (() => {
+        try { return Object.assign({}, PERF_DEFAULTS, JSON.parse(localStorage.getItem(PERF_KEY) || "{}")); }
+        catch (e) { return Object.assign({}, PERF_DEFAULTS); }
+      })();
+
+      const perfDevice = (() => {
+        const chromebook = /\bCrOS\b/.test(navigator.userAgent || "");
+        const memory = navigator.deviceMemory || null;          // GB, Chrome only, capped at 8
+        const cores  = navigator.hardwareConcurrency || null;
+        const lowPower = (memory !== null && memory <= 4) || (cores !== null && cores <= 2);
+        return { chromebook, memory, cores, auto: chromebook || lowPower };
+      })();
+
+      function perfActive() {
+        return perf.mode === "on" || (perf.mode === "auto" && perfDevice.auto);
+      }
+      function perfOn(key) {
+        return perfActive() && !!perf[key];
+      }
+      function savePerf() {
+        try { localStorage.setItem(PERF_KEY, JSON.stringify(perf)); } catch (e) {}
+        applySettings();
+      }
+
+      let _perfSleepTimer = null;
+      let _perfLastSync = null;
+
+      function applyPerformance() {
+        const body = document.body;
+        body.classList.toggle("perf-mode", perfActive());
+        body.classList.toggle("perf-effects", perfOn("effects"));
+        if (perfOn("effects")) body.classList.add("no-transparency");
+        if (perfOn("motion"))  body.classList.add("no-animations");
+
+        // App sleeping
+        if ((perfOn("sleepApps") || (perfActive() && perf.awakeLimit > 0)) && !_perfSleepTimer) {
+          _perfSleepTimer = setInterval(perfSleepTick, 20000);
+        } else if (!perfOn("sleepApps") && !(perfActive() && perf.awakeLimit > 0) && _perfSleepTimer) {
+          clearInterval(_perfSleepTimer);
+          _perfSleepTimer = null;
+        }
+
+        // Message polling speed
+        const slow = perfOn("slowSync");
+        if (_perfLastSync !== slow) {
+          _perfLastSync = slow;
+          if (typeof dmPollInterval !== "undefined" && dmPollInterval) {
+            clearInterval(dmPollInterval);
+            dmPollInterval = setInterval(pollDMNotifications, dmPollDelay());
+          }
+        }
+
+        perfTellApps();
+      }
+
+      function dmPollDelay() {
+        return perfOn("slowSync") ? 30000 : 10000;
+      }
+
+      // Apps can lighten themselves: they get { type: "xorbit-performance", lite } on change,
+      // and can ask for it at load with { type: "xorbit-performance-query" }.
+      function perfTellApps(target) {
+        const msg = { type: "xorbit-performance", lite: perfOn("liteApps") };
+        if (target) { try { target.postMessage(msg, "*"); } catch (e) {} return; }
+        document.querySelectorAll("#desktop .window iframe").forEach((f) => {
+          try { f.contentWindow.postMessage(msg, "*"); } catch (e) {}
+        });
+      }
+
+      // ── App sleeping ──
+      function perfWindowIframe(win) {
+        return win.querySelector(".window-content > iframe");
+      }
+      function perfCanSleep(win) {
+        const iframe = perfWindowIframe(win);
+        if (!iframe || win.dataset.asleep) return false;
+        if (win.classList.contains("active") || document.activeElement === iframe) return false;
+        const src = iframe.getAttribute("src") || "";
+        return !PERF_NEVER_SLEEP.some((p) => src.startsWith(p));
+      }
+
+      function sleepWindow(win) {
+        const iframe = perfWindowIframe(win);
+        if (!iframe || win.dataset.asleep) return;
+        win.dataset.asleep = "1";
+        iframe.dataset.sleepSrc = iframe.getAttribute("src");
+        iframe.src = "about:blank";
+        const titleEl = win.querySelector(".window-title");
+        const overlay = document.createElement("div");
+        overlay.className = "perf-sleep-overlay";
+        overlay.innerHTML = '<i class="fas fa-moon"></i><b></b><span>Sleeping to save memory. It restarts when you come back.</span><em>Wake up</em>';
+        overlay.querySelector("b").textContent = (titleEl ? titleEl.textContent.trim() : "This app") + " is asleep";
+        overlay.onclick = () => { focusWindow(win.id); };
+        iframe.parentElement.style.position = "relative";
+        iframe.parentElement.appendChild(overlay);
+      }
+
+      function wakeWindow(win) {
+        if (!win || !win.dataset.asleep) return;
+        const iframe = perfWindowIframe(win);
+        delete win.dataset.asleep;
+        const overlay = win.querySelector(".perf-sleep-overlay");
+        if (overlay) overlay.remove();
+        if (iframe && iframe.dataset.sleepSrc) {
+          iframe.src = iframe.dataset.sleepSrc;
+          delete iframe.dataset.sleepSrc;
+        }
+        win.dataset.lastActive = Date.now();
+      }
+
+      function perfSleepTick() {
+        if (!perfActive()) return;
+        const now = Date.now();
+        const candidates = [...document.querySelectorAll("#desktop .window")].filter(perfCanSleep);
+
+        // 1. anything left alone for too long
+        if (perf.sleepApps) {
+          const limit = (Number(perf.sleepMinutes) || 10) * 60000;
+          candidates.forEach((win) => {
+            if (now - (Number(win.dataset.lastActive) || now) >= limit) sleepWindow(win);
+          });
+        }
+        // 2. more apps loaded than the limit: the least recently used go first
+        perfEnforceAwakeLimit();
+      }
+
+      function perfEnforceAwakeLimit() {
+        const max = Number(perf.awakeLimit) || 0;
+        if (!perfActive() || !max) return;
+        const awake = [...document.querySelectorAll("#desktop .window")]
+          .filter((w) => perfWindowIframe(w) && !w.dataset.asleep);
+        let extra = awake.length - max;
+        if (extra <= 0) return;
+        awake.filter(perfCanSleep)
+          .sort((a, b) => (Number(a.dataset.lastActive) || 0) - (Number(b.dataset.lastActive) || 0))
+          .forEach((win) => { if (extra > 0) { sleepWindow(win); extra--; } });
+      }
+
+      // "Free up memory now" in Settings
+      function perfSleepAllNow() {
+        const wins = [...document.querySelectorAll("#desktop .window")].filter(perfCanSleep);
+        wins.forEach(sleepWindow);
+        return wins.length;
+      }
+
+      // Clicking inside an app moves focus into its iframe without telling the desktop,
+      // so note it here: an app someone is using is never treated as idle.
+      window.addEventListener("blur", () => {
+        setTimeout(() => {
+          const el = document.activeElement;
+          const win = el && el.tagName === "IFRAME" ? el.closest(".window") : null;
+          if (win) win.dataset.lastActive = Date.now();
+        }, 0);
+      });
+      setInterval(() => {
+        const el = document.activeElement;
+        const win = el && el.tagName === "IFRAME" ? el.closest(".window") : null;
+        if (win) win.dataset.lastActive = Date.now();
+      }, 30000);
+
+      // One-time heads-up the first time Performance Mode switches itself on
+      function perfMaybeNotify() {
+        if (perf.mode !== "auto" || !perfDevice.auto) return;
+        try {
+          if (localStorage.getItem("xorbit-performance-noticed")) return;
+          localStorage.setItem("xorbit-performance-noticed", "1");
+        } catch (e) { return; }
+        const toast = document.createElement("div");
+        toast.className = "perf-toast";
+        toast.innerHTML =
+          '<b><i class="fas fa-gauge-high"></i>Performance Mode is on</b>' +
+          (perfDevice.chromebook ? "X-ORBIT noticed you're on a Chromebook" : "X-ORBIT noticed this device is low on memory") +
+          " and switched to lighter visuals and background app sleeping. You can change this in Settings › General › Performance Mode." +
+          '<div class="perf-toast-actions"><button type="button" data-a="ok">Got it</button><button type="button" data-a="off">Turn off</button></div>';
+        toast.addEventListener("click", (e) => {
+          const a = e.target.dataset && e.target.dataset.a;
+          if (!a) return;
+          if (a === "off") { perf.mode = "off"; savePerf(); }
+          toast.remove();
+        });
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 20000);
+      }
+
+      // Settings › General › Performance Mode
+      function initPerformanceSettings(root) {
+        const $p = (id) => root.querySelector("#" + id);
+        const toggles = { perfEffectsToggle: "effects", perfMotionToggle: "motion", perfSleepToggle: "sleepApps", perfSyncToggle: "slowSync", perfLiteToggle: "liteApps" };
+        const modeSel = $p("perfModeSelect");
+        if (!modeSel) return;
+
+        function refresh() {
+          modeSel.value = perf.mode;
+          Object.keys(toggles).forEach((id) => { const t = $p(id); if (t) t.classList.toggle("active", !!perf[toggles[id]]); });
+          $p("perfSleepMinutes").value = String(perf.sleepMinutes);
+          $p("perfAwakeLimit").value = String(perf.awakeLimit);
+          const bits = [];
+          bits.push(perfDevice.chromebook ? "Chromebook" : "Not a Chromebook");
+          if (perfDevice.memory) bits.push((perfDevice.memory >= 8 ? "8 GB or more" : perfDevice.memory + " GB") + " memory");
+          if (perfDevice.cores) bits.push(perfDevice.cores + " cores");
+          $p("perfDeviceLine").innerHTML = "This device: " + bits.join(" · ") + ". Performance Mode is <b>" + (perfActive() ? "on" : "off") + "</b>.";
+          // Options only matter while the mode is active
+          root.querySelectorAll("[data-perf-option]").forEach((el) => el.classList.toggle("perf-dim", !perfActive()));
+        }
+
+        modeSel.addEventListener("change", function () { perf.mode = this.value; savePerf(); refresh(); });
+        Object.keys(toggles).forEach((id) => {
+          const t = $p(id);
+          if (!t) return;
+          t.addEventListener("click", function (e) {
+            e.stopImmediatePropagation();      // keep the generic settings-toggle handler out of it
+            perf[toggles[id]] = !perf[toggles[id]];
+            savePerf();
+            refresh();
+          });
+        });
+        $p("perfSleepMinutes").addEventListener("change", function () { perf.sleepMinutes = Number(this.value) || 10; savePerf(); });
+        $p("perfAwakeLimit").addEventListener("change", function () { perf.awakeLimit = Number(this.value) || 0; savePerf(); perfEnforceAwakeLimit(); });
+        $p("perfFreeNowBtn").addEventListener("click", function () {
+          const n = perfSleepAllNow();
+          const label = this.querySelector("span");
+          label.textContent = n ? "Put " + n + " app" + (n === 1 ? "" : "s") + " to sleep" : "Nothing to put to sleep";
+          setTimeout(() => { label.textContent = "Free up memory now"; }, 2500);
+        });
+        refresh();
+      }
+      // ════════════════════════════════════════════════════════════════════
 
       // Setup dock auto-hide
       function setupDockAutohide() {
@@ -4758,6 +5071,8 @@
         } else if (event.data && event.data.type === "settings-updated") {
           settings = { ...settings, ...event.data.settings };
           applySettings();
+        } else if (event.data && event.data.type === "xorbit-performance-query") {
+          perfTellApps(event.source);
         } else if (event.data && event.data.type === "open-hangman") {
           // Jitter's "Join Game" button on a Hangman invite
           openHangmanInvite(event.data.code);
@@ -4780,6 +5095,7 @@
 
       // Initialize desktop
       function initDesktop() {
+        setTimeout(perfMaybeNotify, 6000);
         loadSettings();
         loadUserData();
         updateTime();
@@ -5481,6 +5797,9 @@
           windowEl.classList.add("window-visible");
         }, 0);
 
+        // Performance Mode: opening one more app may push the oldest one to sleep
+        setTimeout(perfEnforceAwakeLimit, 0);
+
         // Send auth token to Jitter iframe
         if (src === "jittery.html") {
           jitterAuthToken = generateJitterAuthToken();
@@ -5676,6 +5995,7 @@
           reloadBtn.onclick = function () {
             const iframe = windowEl.querySelector("iframe");
             if (!iframe) return;
+            if (windowEl.dataset.asleep) { wakeWindow(windowEl); return; }
             xModal.confirm(
               "Reload " + title + "? Anything unsaved in this window will be lost.",
               function () {
@@ -5734,7 +6054,7 @@
               windowEl.style.top = newY + "px";
 
               // Jelly Mode: skew proportional to drag velocity
-              if (settings.jellyMode) {
+              if (settings.jellyMode && !perfOn("motion")) {
                 const vx = e.clientX - lastMouseX;
                 const vy = e.clientY - lastMouseY;
                 const skewX = Math.max(-22, Math.min(22, vx * 3.5));
@@ -5773,6 +6093,8 @@
         if (windowEl) {
           windowEl.classList.add("active");
           windowEl.style.zIndex = ++zIndexCounter;
+          windowEl.dataset.lastActive = Date.now();
+          wakeWindow(windowEl);   // no-op unless Performance Mode put it to sleep
         }
       }
 
@@ -6579,6 +6901,108 @@
                 </div>
                 <div class="setting-card-desc">Glass morphism and backdrop blur for windows and dock</div>
               </div>
+            </div>
+          </div>
+
+          <div class="settings-subsection" data-sub-id="performance-mode" data-sub-icon="fas fa-gauge-high" data-sub-desc="Lighter visuals and memory saving for Chromebooks and slower devices">
+            <div class="settings-subsection-title">Performance Mode</div>
+            <div class="setting-card">
+              <div class="setting-card-header">
+                <div class="setting-card-title">
+                  <div class="setting-card-icon"><i class="fas fa-gauge-high"></i></div>
+                  <div><div class="setting-card-label">Performance Mode</div></div>
+                </div>
+              </div>
+              <div class="setting-card-desc">Makes X-ORBIT lighter on Chromebooks and other low-memory devices. Saved on this device only, so it doesn't follow your account to other computers.</div>
+              <div class="xorbit-select" style="margin-top:8px;">
+                <select id="perfModeSelect">
+                  <option value="auto">Automatic (on for Chromebooks and low-memory devices)</option>
+                  <option value="on">Always on</option>
+                  <option value="off">Off</option>
+                </select>
+              </div>
+              <div class="perf-device-line" id="perfDeviceLine"></div>
+            </div>
+            <div class="settings-subsection-grid" style="margin-top:12px;">
+              <div class="setting-card" data-perf-option>
+                <div class="setting-card-header">
+                  <div class="setting-card-title">
+                    <div class="setting-card-icon"><i class="fas fa-droplet-slash"></i></div>
+                    <div><div class="setting-card-label">Reduce Visual Effects</div></div>
+                  </div>
+                  <div class="xorbit-toggle" id="perfEffectsToggle"></div>
+                </div>
+                <div class="setting-card-desc">Turns off blur, glass and heavy shadows, the most expensive effects to draw</div>
+              </div>
+              <div class="setting-card" data-perf-option>
+                <div class="setting-card-header">
+                  <div class="setting-card-title">
+                    <div class="setting-card-icon"><i class="fas fa-person-running"></i></div>
+                    <div><div class="setting-card-label">Reduce Motion</div></div>
+                  </div>
+                  <div class="xorbit-toggle" id="perfMotionToggle"></div>
+                </div>
+                <div class="setting-card-desc">Skips window, dock and menu animations, including Jelly Mode</div>
+              </div>
+              <div class="setting-card" data-perf-option>
+                <div class="setting-card-header">
+                  <div class="setting-card-title">
+                    <div class="setting-card-icon"><i class="fas fa-moon"></i></div>
+                    <div><div class="setting-card-label">Sleep Background Apps</div></div>
+                  </div>
+                  <div class="xorbit-toggle" id="perfSleepToggle"></div>
+                </div>
+                <div class="setting-card-desc">Unloads apps you haven't touched for a while. They restart when you click back, so unsaved work in them is lost. Music and Hangman never sleep.</div>
+                <div class="xorbit-select" style="margin-top:8px;">
+                  <select id="perfSleepMinutes">
+                    <option value="2">After 2 minutes</option>
+                    <option value="5">After 5 minutes</option>
+                    <option value="10">After 10 minutes</option>
+                    <option value="20">After 20 minutes</option>
+                  </select>
+                </div>
+              </div>
+              <div class="setting-card" data-perf-option>
+                <div class="setting-card-header">
+                  <div class="setting-card-title">
+                    <div class="setting-card-icon"><i class="fas fa-layer-group"></i></div>
+                    <div><div class="setting-card-label">Apps Kept Loaded</div></div>
+                  </div>
+                </div>
+                <div class="setting-card-desc">When more apps than this are open, the ones used longest ago are put to sleep</div>
+                <div class="xorbit-select" style="margin-top:8px;">
+                  <select id="perfAwakeLimit">
+                    <option value="0">No limit</option>
+                    <option value="2">2 apps</option>
+                    <option value="3">3 apps</option>
+                    <option value="4">4 apps</option>
+                    <option value="6">6 apps</option>
+                  </select>
+                </div>
+              </div>
+              <div class="setting-card" data-perf-option>
+                <div class="setting-card-header">
+                  <div class="setting-card-title">
+                    <div class="setting-card-icon"><i class="fas fa-hourglass-half"></i></div>
+                    <div><div class="setting-card-label">Slower Background Checks</div></div>
+                  </div>
+                  <div class="xorbit-toggle" id="perfSyncToggle"></div>
+                </div>
+                <div class="setting-card-desc">Checks for new Jitter messages every 30 seconds instead of 10, and every minute while the tab is in the background</div>
+              </div>
+              <div class="setting-card" data-perf-option>
+                <div class="setting-card-header">
+                  <div class="setting-card-title">
+                    <div class="setting-card-icon"><i class="fas fa-feather"></i></div>
+                    <div><div class="setting-card-label">Lite Mode for Apps</div></div>
+                  </div>
+                  <div class="xorbit-toggle" id="perfLiteToggle"></div>
+                </div>
+                <div class="setting-card-desc">Asks apps that support it to drop their own effects. Hangman skips confetti and animations.</div>
+              </div>
+            </div>
+            <div style="margin-top:12px;">
+              <button class="xorbit-button" id="perfFreeNowBtn"><i class="fas fa-broom"></i> <span>Free up memory now</span></button>
             </div>
           </div>
         </div>
@@ -7424,6 +7848,10 @@
             updateWallpaperSettingsState(this.value);
           });
         }
+
+        // Performance Mode has its own storage and handlers; wire it first so its
+        // toggles don't fall through to the generic handler below
+        initPerformanceSettings(settingsContent);
 
         // Toggle switches
         settingsContent.querySelectorAll(".xorbit-toggle").forEach((toggle) => {
@@ -10534,7 +10962,8 @@
               "Hangman host options: who picks the word, turn style, misses allowed, turn timer and hints",
               "Hangman points, an all-time leaderboard and an animated scoreboard after every round",
               "Invite Jitter friends to a Hangman room, with a Join Game button in Jitter and in the desktop notification",
-              "Reload button on app windows, next to fullscreen"
+              "Reload button on app windows, next to fullscreen",
+              "Performance Mode for Chromebooks and low-memory devices: lighter visuals, less motion, background app sleeping and slower background checks. Turns on automatically; adjust it in Settings › General › Performance Mode"
             ]},
             { type: "fixed", items: [
               "Browser showing \"cannot be opened\" when launched from the desktop"

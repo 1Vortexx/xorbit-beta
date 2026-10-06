@@ -603,6 +603,12 @@
         .sb-gain.show { opacity: 1; transform: none; }
         .sb-score { min-width: 52px; text-align: right; font-family: var(--display); font-weight: 700; font-size: 0.95rem; }
 
+        body.lite .sb-overlay { backdrop-filter: none; background: rgba(0,0,0,0.92); }
+        body.lite::before { display: none; }
+        body.lite .tile.hop, body.lite #gallows.shake, body.lite .result-title.slam, body.lite .award-row.pop { animation: none; }
+        body.lite .sb-overlay, body.lite .sb-panel, body.lite .sb-row, body.lite .sb-bar, body.lite .sb-gain, body.lite .sb-move,
+        body.lite #gallows .part, body.lite .btn, body.lite .key, body.lite #toast { transition: none; }
+
         @media (prefers-reduced-motion: reduce) {
             .tile.hop, #gallows.shake, .result-title.slam, .award-row.pop { animation: none; }
             .sb-overlay, .sb-panel, .sb-row, .sb-bar, .sb-gain, .sb-move { transition: none; }
@@ -2089,7 +2095,16 @@
        RENDER
     ────────────────────────────────────────────────── */
     /* ── End-of-round animation: confetti, then a scoreboard that counts up and re-ranks ── */
-    const reducedMotion = () => window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // The desktop's Performance Mode (Chromebooks) can ask apps to go lite: no confetti, no animation
+    let liteMode = false;
+    window.addEventListener('message', e => {
+        if (e.source !== window.parent || !e.data || e.data.type !== 'xorbit-performance') return;
+        liteMode = !!e.data.lite;
+        document.body.classList.toggle('lite', liteMode);
+    });
+    if (window.parent !== window) window.parent.postMessage({ type: 'xorbit-performance-query' }, '*');
+
+    const reducedMotion = () => liteMode || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
     function confetti() {
         if (reducedMotion()) return;
