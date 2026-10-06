@@ -1706,6 +1706,62 @@
             border-bottom-right-radius: var(--r-sm);
         }
 
+        /* Hangman invite card (sent from hangman.html) */
+        .message .game-invite {
+            width: 270px;
+            max-width: 100%;
+            padding: 0;
+            overflow: hidden;
+            background: var(--surface-2);
+            color: var(--text);
+            border: 1px solid var(--border-hi);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+        }
+        .game-invite-top {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            background: linear-gradient(135deg, rgba(79,138,255,0.28), rgba(79,138,255,0.06));
+            border-bottom: 1px solid var(--border);
+        }
+        .game-invite-icon {
+            width: 36px; height: 36px;
+            flex-shrink: 0;
+            display: grid; place-items: center;
+            border-radius: var(--r);
+            background: var(--accent);
+            color: #fff;
+        }
+        .game-invite-eyebrow { font-size: 0.56rem; letter-spacing: 2px; text-transform: uppercase; color: var(--accent-hi); }
+        .game-invite-title { font-weight: 700; font-size: 0.92rem; line-height: 1.3; }
+        .game-invite-body { padding: 12px 14px 14px; }
+        .game-invite-text { font-size: 0.78rem; line-height: 1.5; color: var(--text-dim); margin-bottom: 10px; }
+        .game-invite-code {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted);
+        }
+        .game-invite-code b { font-family: 'Orbitron', monospace; font-size: 1.15rem; letter-spacing: 5px; color: var(--accent); }
+        .game-invite-btn {
+            width: 100%;
+            padding: 9px 12px;
+            border: none;
+            border-radius: var(--r-sm);
+            background: var(--accent);
+            color: #fff;
+            font: inherit;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        .game-invite-btn:hover { background: var(--accent-hi); box-shadow: 0 0 18px rgba(79,138,255,0.3); }
+        .game-invite-btn i { margin-right: 6px; }
+        .game-invite-note { font-size: 0.68rem; color: var(--text-muted); text-align: center; }
+
         .message-time {
             font-size: 0.58rem;
             color: var(--text-ghost);
@@ -5340,6 +5396,8 @@
                         </button>
                     </div>
                    </div>`
+                : hangmanInviteCode(msg.message)
+                ? hangmanInviteCard(hangmanInviteCode(msg.message), senderDisplay, isMine)
                 : `<div class="message-bubble">${replyQuote}${escHtml(msg.message)}</div>`;
             const viaDesktop = msg.sent_via === 'desktop';
             const desktopBanner = viaDesktop
@@ -5367,6 +5425,36 @@
         container.innerHTML = html;
         container.scrollTop = container.scrollHeight;
         updateSeenTick();
+    }
+
+    // Hangman invites arrive as a normal message in a fixed format (see sendInvite in hangman.html)
+    function hangmanInviteCode(text) {
+        const m = typeof text === 'string' && text.match(/^🎮 Come play Hangman with me on X-ORBIT!.*code (\d{6})$/);
+        return m ? m[1] : null;
+    }
+
+    function hangmanInviteCard(code, senderName, isMine) {
+        return `<div class="message-bubble game-invite">
+            <div class="game-invite-top">
+                <div class="game-invite-icon"><i class="fas fa-spell-check"></i></div>
+                <div>
+                    <div class="game-invite-eyebrow">Game invite</div>
+                    <div class="game-invite-title">Hangman</div>
+                </div>
+            </div>
+            <div class="game-invite-body">
+                <div class="game-invite-text">${isMine ? 'You sent an invite to your Hangman room.' : escHtml(senderName) + ' wants you in their Hangman room.'}</div>
+                <div class="game-invite-code"><span>Room code</span><b>${code}</b></div>
+                ${isMine
+                    ? '<div class="game-invite-note"><i class="fas fa-check"></i> Invite sent</div>'
+                    : `<button class="game-invite-btn" onclick="joinHangmanInvite('${code}')"><i class="fas fa-play"></i> Join Game</button>`}
+            </div>
+        </div>`;
+    }
+
+    // Ask the desktop shell to open Hangman and join that room
+    function joinHangmanInvite(code) {
+        window.parent.postMessage({ type: 'open-hangman', code }, '*');
     }
 
     // The desktop shell posts this after sending a reply from a notification

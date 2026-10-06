@@ -1535,6 +1535,7 @@
       .window.active .window-control.close    { background: #ff5f57; border-color: rgba(0,0,0,0.2); }
       .window.active .window-control.minimize { background: #febc2e; border-color: rgba(0,0,0,0.2); }
       .window.active .window-control.maximize { background: #28c840; border-color: rgba(0,0,0,0.2); }
+      .window.active .window-control.reload   { background: #5ac8fa; border-color: rgba(0,0,0,0.2); }
       .window-control:hover { filter: brightness(1.12); }
       .window-control:active { transform: scale(0.92); filter: brightness(0.9); }
 
@@ -1545,6 +1546,9 @@
       .window-control.close::before    { content: "\f00d"; font-family: "Font Awesome 6 Free"; font-weight: 900; }
       .window-control.minimize::before { content: "\f2d1"; font-family: "Font Awesome 6 Free"; font-weight: 900; }
       .window-control.maximize::before { content: "\f065"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 6px; }
+      .window-control.reload::before   { content: "\f2f9"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 6px; }
+      .window-control.reload.spinning::before { animation: windowReloadSpin 0.6s ease; }
+      @keyframes windowReloadSpin { to { transform: rotate(360deg); } }
 
       /* Minimize is intentionally disabled in this build */
       .window-control.minimize { display: none !important; }
@@ -2405,6 +2409,8 @@
       .dm-reply-toggle i, .dm-reply-open i { font-size: 10.5px; }
       .dm-reply-toggle:hover, .dm-reply-open:hover { background: var(--surface-active); color: var(--text); border-color: var(--hairline-3); }
       .desktop-dm-badge.replying .dm-reply-actions { display: none; }
+      .dm-join-game { flex: 1.4; background: var(--accent); border-color: transparent; color: #fff; }
+      .dm-join-game:hover { background: var(--accent); color: #fff; border-color: transparent; filter: brightness(1.12); }
 
       .dm-reply-form {
         display: grid;
@@ -2953,6 +2959,7 @@
       </div>
       <div class="desktop-dm-badge-reply" id="dmBadgeReply" onclick="event.stopPropagation()">
         <div class="dm-reply-actions">
+          <button type="button" class="dm-reply-toggle dm-join-game" id="dmJoinGameBtn" style="display:none" onclick="joinHangmanFromBadge(event)"><i class="fas fa-play"></i> Join Game</button>
           <button type="button" class="dm-reply-toggle" onclick="openDMReply(event)"><i class="fas fa-reply"></i> Reply</button>
           <button type="button" class="dm-reply-open" onclick="openDMApp()" title="Open in Jitter"><i class="fas fa-arrow-up-right-from-square"></i></button>
         </div>
@@ -3834,7 +3841,11 @@
         _dmReplyCtx = ctx || null;
 
         const isImage = typeof preview === "string" && preview.startsWith("[IMG]:");
-        const shown = isImage ? "Sent a photo" : preview;
+        // Hangman invites get a Join Game button that opens the game with the room code
+        _dmInviteCode = hangmanInviteCode(preview);
+        const joinBtn = document.getElementById("dmJoinGameBtn");
+        if (joinBtn) joinBtn.style.display = _dmInviteCode ? "" : "none";
+        const shown = isImage ? "Sent a photo" : _dmInviteCode ? `Invited you to play Hangman · room ${_dmInviteCode}` : preview;
         document.getElementById("dmBadgeTitle").textContent = senderName;
         document.getElementById("dmBadgeText").textContent =
           shown.length > 70 ? shown.substring(0, 70) + "…" : shown;
@@ -3861,6 +3872,36 @@
         saveNotificationToCenter('message', senderName, shown, ctx ? {
           convId: ctx.convId, msgId: ctx.msgId, senderEmail: ctx.senderEmail
         } : null);
+      }
+
+      // ── Hangman invites (sent as Jitter messages from hangman.html) ──
+      let _dmInviteCode = null;
+
+      function hangmanInviteCode(text) {
+        const m = typeof text === "string" && text.match(/^🎮 Come play Hangman with me on X-ORBIT!.*code (\d{6})$/);
+        return m ? m[1] : null;
+      }
+
+      // Opens Hangman already pointed at the room, or hands the code to a Hangman window that's open
+      function openHangmanInvite(code) {
+        if (!/^\d{6}$/.test(code || "")) return;
+        if (activeWindows.has("Hangman")) {
+          const winId = activeWindows.get("Hangman");
+          focusWindow(winId);
+          const iframe = document.querySelector("#" + winId + " iframe");
+          if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({ type: "hangman-join", code: code }, "*");
+          }
+          return;
+        }
+        openWindow("Hangman", "hangman.html?join=" + code, "fas fa-spell-check");
+      }
+
+      function joinHangmanFromBadge(e) {
+        if (e) e.stopPropagation();
+        const code = _dmInviteCode;
+        hideDMBadge(null);
+        openHangmanInvite(code);
       }
 
       function hideDMBadge(event) {
@@ -4717,6 +4758,9 @@
         } else if (event.data && event.data.type === "settings-updated") {
           settings = { ...settings, ...event.data.settings };
           applySettings();
+        } else if (event.data && event.data.type === "open-hangman") {
+          // Jitter's "Join Game" button on a Hangman invite
+          openHangmanInvite(event.data.code);
         } else if (event.data && event.data.type === "request-auth") {
           // jittery.html is requesting its auth token
           if (!jitterAuthToken) jitterAuthToken = generateJitterAuthToken();
@@ -4725,7 +4769,8 @@
             jitterWin.contentWindow.postMessage({ type: "auth-token", token: jitterAuthToken }, "*");
           }
           // browser.html uses the same handshake
-          document.querySelectorAll('#desktop iframe[src="browser.html"]').forEach((browserWin) => {
+          // (prefix match: openWindow appends ?username=… to the Browser's src)
+          document.querySelectorAll('#desktop iframe[src^="browser.html"]').forEach((browserWin) => {
             if (browserWin.contentWindow === event.source) {
               browserWin.contentWindow.postMessage({ type: "auth-token", token: generateBrowserAuthToken() }, "*");
             }
@@ -5227,6 +5272,7 @@
             { name: 'Minecraft', src: 'minecraft.html', icon: 'fas fa-tree' },
             { name: 'Block Blast', src: 'blockblast.html', icon: 'fas fa-th-large' },
             { name: 'Dino Run', src: 'dino.html', icon: 'fas fa-gamepad' },
+            { name: 'Hangman', src: 'hangman.html', icon: 'fas fa-spell-check' },
             { name: 'Web Dashers', src: 'web-dashers-main/index.html', icon: 'fas fa-running' },
           ],
         },
@@ -5401,6 +5447,7 @@
           '<div class="window-control close"></div>' +
           '<div class="window-control minimize"></div>' +
           '<div class="window-control maximize"></div>' +
+          '<div class="window-control reload" title="Reload"></div>' +
           "</div>" +
           '<div class="window-title">' +
           '<i class="' +
@@ -5446,7 +5493,7 @@
         }
 
         // Send auth token to Browser iframe
-        if (src === "browser.html") {
+        if (src.startsWith("browser.html")) {
           setTimeout(() => {
             const iframe = windowEl.querySelector("iframe");
             if (iframe && iframe.contentWindow) {
@@ -5620,6 +5667,26 @@
               windowEl.style.height = "calc(100vh - 32px)";
               windowEl.style.borderRadius = "0";
             }
+          };
+        }
+
+        // Reload the app inside this window
+        const reloadBtn = windowEl.querySelector(".window-control.reload");
+        if (reloadBtn) {
+          reloadBtn.onclick = function () {
+            const iframe = windowEl.querySelector("iframe");
+            if (!iframe) return;
+            xModal.confirm(
+              "Reload " + title + "? Anything unsaved in this window will be lost.",
+              function () {
+                // Re-assign the original src (kept identical so iframe[src="..."] lookups still match)
+                iframe.src = iframe.getAttribute("src");
+                reloadBtn.classList.remove("spinning");
+                void reloadBtn.offsetWidth;
+                reloadBtn.classList.add("spinning");
+              },
+              { title: "Reload App", icon: '<i class="fas fa-rotate-right" style="color:var(--accent)"></i>', confirmText: "Reload" }
+            );
           };
         }
 
@@ -9478,8 +9545,8 @@
       const IS_BETA_BUILD = true;
       // Exposed so the login page (auth.html, loaded in an iframe) can read the build channel
       window.IS_BETA_BUILD = IS_BETA_BUILD;
-      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.2.4-beta" : "v6.2.4";
-      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.2.4 Beta" : "X-ORBIT Desktop v6.2.4 Sahara";
+      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.3.0-beta" : "v6.2.4";
+      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.3.0 Beta" : "X-ORBIT Desktop v6.2.4 Sahara";
       // Short label for UI chips, e.g. "v6.2.4 Sahara"
       const CURRENT_VERSION_LABEL = CURRENT_VERSION_NAME.replace("X-ORBIT Desktop ", "");
       const UPDATE_CHECK_TABLE = IS_BETA_BUILD ? "update_check_beta" : "update_check";
@@ -10457,6 +10524,23 @@
     <script>
       // ── What's New – version changelog data ──
       const WHATSNEW_CHANGELOG = [
+        {
+          version: "v6.3.0-beta",
+          name: "Beta",
+          date: "October 6, 2026",
+          sections: [
+            { type: "added", items: [
+              "Hangman in the Games folder: play solo or open a live room for up to 4 players with a 6-digit code",
+              "Hangman host options: who picks the word, turn style, misses allowed, turn timer and hints",
+              "Hangman points, an all-time leaderboard and an animated scoreboard after every round",
+              "Invite Jitter friends to a Hangman room, with a Join Game button in Jitter and in the desktop notification",
+              "Reload button on app windows, next to fullscreen"
+            ]},
+            { type: "fixed", items: [
+              "Browser showing \"cannot be opened\" when launched from the desktop"
+            ]}
+          ]
+        },
         {
           version: "v6.2.4",
           name: "Sahara",
