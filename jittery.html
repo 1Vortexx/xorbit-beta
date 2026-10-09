@@ -2247,6 +2247,33 @@
             border-color: rgba(124,106,247,0.3);
         }
 
+        /* hidden image placeholder (Hide images in chat setting) */
+        .img-hidden > .msg-image { display: none; }
+
+        .msg-image-reveal {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 6px;
+            width: 200px;
+            height: 110px;
+            background: var(--surface-2);
+            border: 1px dashed var(--border-hi);
+            border-radius: var(--r);
+            color: var(--text-faint);
+            font-family: inherit;
+            font-size: 0.65rem;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: color 0.15s, border-color 0.15s, background 0.15s;
+        }
+
+        .msg-image-reveal i { font-size: 1rem; }
+        .msg-image-reveal span { font-size: 0.55rem; color: var(--text-ghost); letter-spacing: 0.8px; }
+        .msg-image-reveal:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+
         /* wrap: column stack of expiry chip + image row */
         .msg-image-wrap {
             display: inline-flex;
@@ -4196,6 +4223,18 @@
             </label>
         </div>
 
+        <div class="privacy-section-label">Chat</div>
+        <div class="privacy-row">
+            <div>
+                <div class="privacy-row-label">Hide images in chat</div>
+                <div class="privacy-row-desc">Images stay hidden until you click them. Saved on this device.</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" id="chatHideImages" onchange="setHideChatImages(this.checked)">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+
         <div class="profile-edit-label">Profile Gradient</div>
         <div class="gradient-preview-bar" id="gradientPreviewBar"></div>
         <div class="gradient-controls-grid">
@@ -5384,8 +5423,9 @@
                         <i class="fas ${chipIcon}"></i> ${chipText}
                     </div>
                     <div class="msg-image-row">
-                        <div class="msg-image-bubble">
-                            <img class="msg-image" src="${displaySrc.replace(/"/g,'&quot;')}" alt="Image"
+                        <div class="msg-image-bubble${isImageHidden(imgUrl) ? ' img-hidden' : ''}">
+                            ${isImageHidden(imgUrl) ? IMAGE_REVEAL_BTN : ''}
+                            <img class="msg-image" ${isImageHidden(imgUrl) ? 'data-src' : 'src'}="${displaySrc.replace(/"/g,'&quot;')}" alt="Image"
                                 onclick="openLightbox('${safeUrl}')"
                                 onerror="handleImgError(this,'${safeUrl}')">
                         </div>
@@ -5823,6 +5863,60 @@
         _lightboxUrl = null;
     }
 
+    /* ── HIDE IMAGES IN CHAT (per-device setting) ────── */
+    let hideChatImages = false;
+    try { hideChatImages = localStorage.getItem('jittery_hide_images') === '1'; } catch { /* ignore */ }
+    // URLs the user has clicked to show this session, so re-renders keep them visible
+    const revealedImages = new Set();
+
+    const IMAGE_REVEAL_BTN = `<button class="msg-image-reveal" type="button" onclick="revealChatImage(this)" title="Show image">
+        <i class="fas fa-eye-slash"></i> Image hidden <span>Click to show</span>
+    </button>`;
+
+    function isImageHidden(url) {
+        return hideChatImages && !revealedImages.has(url);
+    }
+
+    function chatImageKey(img) {
+        const wrap = img.closest('.msg-image-wrap');
+        return (wrap && wrap.dataset.imgUrl) || img.dataset.src || img.getAttribute('src');
+    }
+
+    function revealChatImage(btn) {
+        const holder = btn.parentElement;
+        const img = holder.querySelector('.msg-image');
+        if (img) {
+            revealedImages.add(chatImageKey(img));
+            if (img.dataset.src) {
+                img.src = img.dataset.src;
+                delete img.dataset.src;
+            }
+        }
+        holder.classList.remove('img-hidden');
+        btn.remove();
+    }
+
+    function setHideChatImages(on) {
+        hideChatImages = on;
+        try { localStorage.setItem('jittery_hide_images', on ? '1' : '0'); } catch { /* ignore */ }
+        revealedImages.clear();
+        // Apply to images already on screen
+        if (on) {
+            document.querySelectorAll('.msg-image').forEach(img => {
+                const holder = img.parentElement;
+                if (holder.classList.contains('img-hidden')) return;
+                img.dataset.src = img.getAttribute('src') || '';
+                img.removeAttribute('src');
+                holder.classList.add('img-hidden');
+                img.insertAdjacentHTML('beforebegin', IMAGE_REVEAL_BTN);
+            });
+        } else {
+            document.querySelectorAll('.msg-image-reveal').forEach(btn => revealChatImage(btn));
+            revealedImages.clear();
+        }
+        showToast(on ? 'Images hidden until clicked.' : 'Images shown in chat.');
+    }
+
     async function saveLightboxImage() {
         if (!_lightboxUrl) return;
         if (getLocalImage(_lightboxUrl)) {
@@ -6151,7 +6245,8 @@
             }
             // Restore remote src in case local was being used
             const img = wrap.querySelector('.msg-image');
-            if (img) img.src = url;
+            if (img && img.dataset.src) img.dataset.src = url;
+            else if (img) img.src = url;
         });
 
         // Update lightbox if open for this URL
@@ -7036,6 +7131,7 @@
         if (isOwn) {
             document.getElementById('profileModal').classList.add('editing');
             document.getElementById('profileSettingsPanel').style.display   = 'block';
+            document.getElementById('chatHideImages').checked = hideChatImages;
             document.getElementById('profilePreviewLabelBar').style.display = 'block';
             document.getElementById('profileBannerCloseBtn').style.display  = 'none';
             document.getElementById('profileRemoveAvatarBtn').style.display = profile.avatar_url ? '' : 'none';
@@ -8295,7 +8391,8 @@
         let contentHTML;
         if (isImage) {
             const url = msg.message.slice(6);
-            contentHTML = `<div class="msg-image-wrap"><img class="msg-image" src="${escapeHtml(url)}" alt="Image" onclick="openLightbox('${escapeHtml(url)}')" onerror="this.style.opacity='0.3'"></div>`;
+            const hidden = isImageHidden(url);
+            contentHTML = `<div class="msg-image-wrap${hidden ? ' img-hidden' : ''}">${hidden ? IMAGE_REVEAL_BTN : ''}<img class="msg-image" ${hidden ? 'data-src' : 'src'}="${escapeHtml(url)}" alt="Image" onclick="openLightbox('${escapeHtml(url)}')" onerror="this.style.opacity='0.3'"></div>`;
         } else {
             contentHTML = `<div class="msg-text">${escapeHtml(msg.message)}</div>`;
         }
