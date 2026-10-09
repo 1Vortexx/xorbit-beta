@@ -4314,6 +4314,18 @@
                 <button class="profile-message-btn" id="profileMessageBtn" style="display:none">
                     <i class="fas fa-paper-plane"></i> Send Message
                 </button>
+
+                <!-- Quick chat setting (other users) -->
+                <div class="privacy-row" id="profileHideImagesRow" style="display:none;margin-top:12px;border-top:1px solid var(--border);">
+                    <div>
+                        <div class="privacy-row-label">Hide images in chat</div>
+                        <div class="privacy-row-desc">Images stay hidden until you click them</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="chatHideImagesQuick" onchange="setHideChatImages(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
             </div>
 
         </div>
@@ -5900,6 +5912,8 @@
         hideChatImages = on;
         try { localStorage.setItem('jittery_hide_images', on ? '1' : '0'); } catch { /* ignore */ }
         revealedImages.clear();
+        document.getElementById('chatHideImages').checked = on;
+        document.getElementById('chatHideImagesQuick').checked = on;
         // Apply to images already on screen
         if (on) {
             document.querySelectorAll('.msg-image').forEach(img => {
@@ -7005,6 +7019,7 @@
         document.getElementById('profileBioArea').innerHTML      = '';
         document.getElementById('profileMessageBtn').style.display  = 'none';
         document.getElementById('profileFriendBtn').style.display   = 'none';
+        document.getElementById('profileHideImagesRow').style.display = 'none';
         document.getElementById('profileBannerImg').style.display  = 'none';
         document.querySelector('#profileModal .profile-card').style.background = 'linear-gradient(135deg, #0a0a0a, #1a1a1a)';
 
@@ -7168,6 +7183,9 @@
             } else {
                 msgBtn.style.display = 'none';
             }
+
+            document.getElementById('chatHideImagesQuick').checked = hideChatImages;
+            document.getElementById('profileHideImagesRow').style.display = 'flex';
         }
     }
 
