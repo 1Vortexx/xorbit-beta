@@ -37,9 +37,8 @@
       height: 100%;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      align-items: center;
       padding: 30px;
+      overflow-y: auto;
     }
     
     .glass-panel {
@@ -48,6 +47,8 @@
       padding: 45px 35px;
       max-width: 650px;
       width: 100%;
+      margin: auto;
+      flex-shrink: 0;
       backdrop-filter: blur(20px) saturate(160%);
       border: 1px solid rgba(255, 255, 255, 0.1);
       box-shadow: 
@@ -160,18 +161,6 @@
       }
     }
     
-    .version-info {
-      position: absolute;
-      bottom: 20px;
-      right: 20px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 0.85rem;
-      color: #94a3b8;
-      backdrop-filter: blur(10px);
-    }
-    
     @media (max-width: 600px) {
       .glass-panel { 
         padding: 30px 20px; 
@@ -194,11 +183,6 @@
         font-size: 0.9rem; 
         padding: 15px 18px; 
       }
-      .version-info {
-        position: static;
-        margin-top: 20px;
-        text-align: center;
-      }
     }
   </style>
 </head>
@@ -209,34 +193,33 @@
         <i class="fas fa-globe orbit-icon"></i>
         <div>
           <h1>Welcome to X-ORBIT Desktop</h1>
-          <div style="font-size: 1rem; font-weight: 400; color: #94a3b8; margin-top: 5px;">Version v4.6.1 Astra</div>
         </div>
       </div>
       
       <div class="instructions">
         <div class="instruction-item">
           <i class="fas fa-th"></i>
-          <div>Click the <strong>App Launcher</strong> in the dock to access all installed applications and tools.</div>
+          <div>Click any <strong>app icon</strong> on the desktop to open it. Folders, like Games, hold several apps behind one icon.</div>
         </div>
         
         <div class="instruction-item">
           <i class="fas fa-circle"></i>
-          <div>Control windows using the <strong>traffic light buttons</strong> - red to close, yellow to minimize, and green to maximize.</div>
+          <div>Control windows with the <strong>coloured buttons</strong>: red closes, green fills the screen, purple goes fullscreen, and blue reloads the app.</div>
         </div>
         
         <div class="instruction-item">
           <i class="fas fa-mouse-pointer"></i>
-          <div><strong>Drag window title bars</strong> to move windows around your desktop workspace.</div>
+          <div><strong>Drag a window's title bar</strong> to move it, and drag icons to rearrange your desktop.</div>
         </div>
         
         <div class="instruction-item">
           <i class="fas fa-cog"></i>
-          <div>Open <strong>Settings</strong> to customize themes, dock position, wallpapers, and all desktop preferences.</div>
+          <div>Open <strong>Settings</strong> to change the theme, wallpaper, notifications and Performance Mode.</div>
         </div>
         
         <div class="instruction-item">
           <i class="fas fa-bell"></i>
-          <div>View system notifications and alerts in the <strong>notification area</strong>.</div>
+          <div>Click the <strong>clock</strong> in the menu bar for the weather and your notifications.</div>
         </div>
       </div>
       
@@ -245,10 +228,6 @@
         X-ORBIT Desktop is undergoing platform updates and some applications may experience temporary issues.  
         If applications fail to load or display errors, please try refreshing the desktop or restarting the affected app.
       </div>
-    </div>
-    
-    <div class="version-info">
-      X-ORBIT Desktop v4.6.1 Astra Build
     </div>
   </div>
 </body>

@@ -1479,6 +1479,74 @@
       .window.fullscreen .window-titlebar,
       .window.fullscreen .window-content { border-radius: 0 !important; }
 
+      /* True fullscreen: the window fills the whole viewport. Its titlebar and the
+         menu bar tuck away and slide back when the pointer touches the top edge. */
+      .window.true-fullscreen {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        min-width: 100vw;
+        min-height: 100vh;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        resize: none;
+        margin: 0 !important;
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+      }
+      .window.true-fullscreen .window-content { border-radius: 0 !important; }
+      .window.true-fullscreen .window-titlebar {
+        position: absolute;
+        top: var(--menubar-h);
+        left: 0;
+        right: 0;
+        z-index: 5;
+        opacity: 1;
+        border-radius: 0 !important;
+        background: rgb(var(--glass-rgb));
+        transform: translateY(calc(-100% - var(--menubar-h)));
+        transition: transform var(--t-med) var(--ease);
+      }
+      body.fs-bars-show .window.true-fullscreen .window-titlebar {
+        transform: none;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+      }
+      body.has-true-fs .menu-bar {
+        transform: translateY(-100%);
+        transition: transform var(--t-med) var(--ease);
+      }
+      body.has-true-fs.fs-bars-show .menu-bar { transform: none; }
+
+      /* Thin strip along the top edge that brings the bars back (iframes swallow mouse events) */
+      .fs-hotzone {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 6px;
+        z-index: 1001;
+      }
+      body.has-true-fs:not(.fs-bars-show) .fs-hotzone { display: block; }
+
+      .fs-hint {
+        position: fixed;
+        top: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1002;
+        padding: 7px 14px;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.78);
+        color: #fff;
+        font-size: 12.5px;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity var(--t-med) ease;
+      }
+      .fs-hint.show { opacity: 1; }
+
       @keyframes windowOpen {
         0%   { opacity: 0; transform: translateY(14px) scale(0.975); }
         100% { opacity: 1; transform: translateY(0) scale(1); }
@@ -1536,6 +1604,7 @@
       .window.active .window-control.minimize { background: #febc2e; border-color: rgba(0,0,0,0.2); }
       .window.active .window-control.maximize { background: #28c840; border-color: rgba(0,0,0,0.2); }
       .window.active .window-control.reload   { background: #5ac8fa; border-color: rgba(0,0,0,0.2); }
+      .window.active .window-control.truefs   { background: #bf5af2; border-color: rgba(0,0,0,0.2); }
       .window-control:hover { filter: brightness(1.12); }
       .window-control:active { transform: scale(0.92); filter: brightness(0.9); }
 
@@ -1547,6 +1616,8 @@
       .window-control.minimize::before { content: "\f2d1"; font-family: "Font Awesome 6 Free"; font-weight: 900; }
       .window-control.maximize::before { content: "\f065"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 6px; }
       .window-control.reload::before   { content: "\f2f9"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 6px; }
+      .window-control.truefs::before   { content: "\f424"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 6px; }
+      .window.true-fullscreen .window-control.truefs::before { content: "\f422"; }
       .window-control.reload.spinning::before { animation: windowReloadSpin 0.6s ease; }
       @keyframes windowReloadSpin { to { transform: rotate(360deg); } }
 
@@ -2020,21 +2091,59 @@
       .tutorial-config-btn i { font-size: 13px; color: var(--text-2); }
       .tutorial-config-btn.selected i { color: var(--text); }
 
-      .tutorial-highlight-element { position: relative; z-index: 14000; }
-      .tutorial-highlight-element::before {
-        content: "";
-        position: absolute;
-        inset: -5px;
-        border: 1.5px solid var(--accent);
-        border-radius: inherit;
-        box-shadow: 0 0 0 4px var(--accent-soft), 0 0 30px var(--accent-line);
-        animation: tutorialPulse 2s var(--ease) infinite;
+      /* Spotlight steps: the dimming comes from the spotlight's own shadow, so the
+         real element shows through the hole, and the card sits beside it */
+      .tutorial-overlay { transition: opacity var(--t-slow) var(--ease), background var(--t-med) ease; }
+      .tutorial-overlay.spotlight {
+        background: transparent;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+      .tutorial-spot {
+        position: fixed;
+        border-radius: 10px;
+        border: 2px solid var(--accent);
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.68), 0 0 0 4px var(--accent-soft), 0 0 30px var(--accent-line);
+        opacity: 0;
         pointer-events: none;
+        transition:
+          left 0.45s var(--ease), top 0.45s var(--ease),
+          width 0.45s var(--ease), height 0.45s var(--ease),
+          opacity var(--t-med) ease;
       }
-      @keyframes tutorialPulse {
-        0%, 100% { opacity: 1; }
-        50%      { opacity: 0.55; }
+      .tutorial-overlay.spotlight .tutorial-spot { opacity: 1; }
+      body.light-mode .tutorial-spot { box-shadow: 0 0 0 9999px rgba(40, 40, 50, 0.55), 0 0 0 4px var(--accent-soft); }
+
+      .tutorial-overlay.spotlight .tutorial-content {
+        position: fixed;
+        width: min(400px, 92vw);
+        padding: 20px 22px 18px;
+        text-align: left;
+        transition: left 0.45s var(--ease), top 0.45s var(--ease), transform var(--t-slow) var(--ease);
       }
+      .tutorial-overlay.spotlight .tutorial-header {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        column-gap: 12px;
+        align-items: center;
+        text-align: left;
+        margin-bottom: 12px;
+      }
+      .tutorial-overlay.spotlight .tutorial-icon {
+        grid-row: span 2;
+        width: 40px; height: 40px;
+        border-radius: 12px;
+        font-size: 16px;
+        margin-bottom: 0;
+      }
+      .tutorial-overlay.spotlight .tutorial-title { font-size: 16px; margin-bottom: 2px; }
+      .tutorial-overlay.spotlight .tutorial-description { margin-bottom: 12px; }
+      .tutorial-overlay.spotlight .tutorial-highlight { margin-bottom: 14px; }
+      /* One dot per stop: too many to sit beside the buttons, so they go above */
+      .tutorial-controls { flex-direction: column; align-items: stretch; }
+      .tutorial-progress { justify-content: center; }
+      .tutorial-buttons { justify-content: center; }
+      .tutorial-overlay.spotlight .tutorial-buttons { justify-content: flex-end; }
 
       @media (max-width: 768px) {
         .tutorial-content { padding: 26px 20px 22px; }
@@ -2543,6 +2652,52 @@
       }
       .xmodal-actions { display: flex; gap: 8px; }
       .xmodal-actions button { flex: 1; height: 34px; }
+
+      /* Share with Jitter: friend picker */
+      .share-app-card .xmodal-message { margin-bottom: 14px; }
+      .share-app-search {
+        width: 100%;
+        height: 34px;
+        padding: 0 11px;
+        margin-bottom: 10px;
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline-2);
+        border-radius: var(--r-sm);
+        color: var(--text);
+        font: inherit;
+        font-size: 12.5px;
+        outline: none;
+      }
+      .share-app-search:focus { border-color: var(--accent); }
+      .share-app-list {
+        max-height: 240px;
+        overflow-y: auto;
+        margin-bottom: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .share-app-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 8px;
+        border-radius: var(--r-sm);
+      }
+      .share-app-row:hover { background: var(--surface-active); }
+      .share-app-names { flex: 1; min-width: 0; }
+      .share-app-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .share-app-handle { font-size: 11.5px; color: var(--text-3); }
+      .share-app-row .xorbit-button { flex: 0 0 auto; height: 28px; padding: 0 12px; }
+      .share-app-sent { font-size: 12px; color: var(--accent); padding: 0 6px; }
+      .share-app-empty { padding: 22px 8px; text-align: center; font-size: 12.5px; color: var(--text-3); line-height: 1.5; }
 
       /* ═══════════════════════════════════════════════════════════════
          DEV CONSOLE / LOCKDOWN — shell-level chrome
@@ -3172,6 +3327,7 @@
 
     <!-- Tutorial Overlay -->
     <div class="tutorial-overlay" id="tutorialOverlay">
+      <div class="tutorial-spot" id="tutorialSpot"></div>
       <div class="tutorial-content" id="tutorialContent">
         <div class="tutorial-header">
           <i class="tutorial-icon fas fa-rocket" id="tutorialIcon"></i>
@@ -3197,16 +3353,7 @@
         </div>
 
         <div class="tutorial-controls">
-          <div class="tutorial-progress" id="tutorialProgress">
-            <div class="tutorial-dot active"></div>
-            <div class="tutorial-dot"></div>
-            <div class="tutorial-dot"></div>
-            <div class="tutorial-dot"></div>
-            <div class="tutorial-dot"></div>
-            <div class="tutorial-dot"></div>
-            <div class="tutorial-dot"></div>
-            <div class="tutorial-dot"></div>
-          </div>
+          <div class="tutorial-progress" id="tutorialProgress"></div>
 
           <div class="tutorial-buttons">
             <button class="tutorial-btn secondary" id="tutorialSkip">
@@ -3231,6 +3378,20 @@
     </div>
 
   <!-- X-ORBIT Modal — must be before the script so getElementById works immediately -->
+  <!-- Share an app with a Jitter friend (desktop icon → right-click → Share with Jitter) -->
+  <div id="shareAppModal" class="xmodal-overlay" onclick="if (event.target === this) closeShareApp()">
+    <div class="xmodal-card share-app-card">
+      <div class="xmodal-icon"><i id="shareAppIcon"></i></div>
+      <div class="xmodal-title" id="shareAppTitle"></div>
+      <div class="xmodal-message">They get a Jitter message with a button that opens the app.</div>
+      <input type="text" id="shareAppSearch" class="share-app-search" placeholder="Search friends…" autocomplete="off" oninput="renderShareAppList()">
+      <div class="share-app-list" id="shareAppList"></div>
+      <div class="xmodal-actions">
+        <button class="xorbit-button" type="button" onclick="closeShareApp()">Done</button>
+      </div>
+    </div>
+  </div>
+
   <div id="xModal" class="xmodal-overlay">
     <div class="xmodal-card">
       <div class="xmodal-icon"  id="xModalIcon"></div>
@@ -3706,16 +3867,19 @@
 
       // Tutorial system
       let currentTutorialStep = 0;
+      // A step with a `target` spotlights that element and puts the card beside it;
+      // without one the card sits in the middle. A target that isn't on screen
+      // (say, an app moved into a folder) is skipped. `needsWindow` steps open a
+      // real window to point at.
       let tutorialSteps = [
         {
           icon: "fas fa-rocket",
           title: "Welcome to X-ORBIT!",
           description:
-            "Welcome to your personal browser-based desktop OS. X-ORBIT gives you a full desktop experience — complete with apps, windows, a dock, and a menu bar — right in your browser.",
+            "X-ORBIT is a desktop that runs in your browser, with apps, windows and a menu bar. This tour walks around the screen and points at each part.",
           highlightTitle: "Quick Tip",
           highlightText:
-            "Use arrow keys or spacebar to navigate this tour. Press Escape to skip anytime.",
-          highlightElement: null,
+            "Use the arrow keys or spacebar to move through the tour. Press Escape to skip it.",
         },
         {
           icon: "fas fa-palette",
@@ -3725,7 +3889,6 @@
           highlightTitle: "Available Themes",
           highlightText:
             "Dark Mode, Light Mode, Minimalist, and Auto (System). You can change this anytime in Settings → Personalization.",
-          highlightElement: null,
           isConfig: true,
           configType: "theme",
         },
@@ -3737,59 +3900,119 @@
           highlightTitle: "Immersive Experience",
           highlightText:
             "Fullscreen mode removes all browser UI so X-ORBIT feels like a native desktop application.",
-          highlightElement: null,
           isConfig: true,
           configType: "fullscreen",
         },
         {
-          icon: "fas fa-mouse-pointer",
-          title: "Desktop & Windows",
-          description:
-            "This is your desktop workspace. Open multiple windows, drag them by their titlebars, resize them from any edge, and layer them however you like — just like a real OS.",
-          highlightTitle: "Try This",
-          highlightText:
-            "Click and drag window titlebars to move them. Use the colored buttons to close, minimize, or maximize windows.",
-          highlightElement: ".desktop",
-        },
-        {
           icon: "fas fa-bars",
-          title: "Menu Bar",
+          title: "The Menu Bar",
+          target: ".menu-bar",
+          pad: 0,
           description:
-            'The top menu bar is your command center. Click "X-ORBIT" to access system options, settings, and logout. Click the clock to see live weather and timezone info for your location.',
-          highlightTitle: "Time & Weather",
-          highlightText:
-            "X-ORBIT automatically detects your location to show real-time weather and a detailed clock.",
-          highlightElement: ".menu-bar",
+            "This bar stays at the top of the screen. The left side opens X-ORBIT's own menus and pages; the right side is about you and your connection.",
+          highlightTitle: "Next",
+          highlightText: "The next few stops go through it one piece at a time.",
         },
         {
-          icon: "fas fa-th-large",
-          title: "The Dock & Apps",
+          icon: "fas fa-circle-dot",
+          title: "The X-ORBIT Menu",
+          target: "#xorbitMenu",
           description:
-            "Your dock is the launchpad for all X-ORBIT apps — Browser, Terminal, Music, Jitter, Notes, and more. Click any icon to open that app instantly.",
-          highlightTitle: "Pro Tips",
-          highlightText:
-            "A dot under an icon means the app is running. Right-click dock icons for more options.",
-          highlightElement: ".dock",
+            "Click the X-ORBIT name for system options: Settings, fullscreen, this Desktop Tour, and Shut Down to sign out.",
+          highlightTitle: "Good to Know",
+          highlightText: "You can replay this tour from here whenever you like.",
+        },
+        {
+          icon: "fas fa-clock",
+          title: "Clock, Weather & Notifications",
+          target: "#timeMenu",
+          description:
+            "Click the clock to open a panel with a larger clock, live weather for your location, and your notifications.",
+          highlightTitle: "Notifications",
+          highlightText: "New Jitter messages and system notices collect in that panel until you clear them.",
+        },
+        {
+          icon: "fas fa-user",
+          title: "Your Account",
+          target: "#userNameplate",
+          description:
+            "This is who you're signed in as. Click it to manage your account.",
+          highlightTitle: "Next Door",
+          highlightText: "The Wi-Fi icon beside it shows whether you're online and how fast your connection is.",
+        },
+        {
+          icon: "fas fa-globe",
+          title: "Browser",
+          target: '.desktop-icon[data-app="Browser"]',
+          description:
+            "Every icon on the desktop is an app. Click one to open it. This one is the Browser: it opens websites in a window without leaving X-ORBIT.",
+          highlightTitle: "Try It Later",
+          highlightText: "Drag any icon to move it somewhere else on the desktop.",
+        },
+        {
+          icon: "fas fa-comment-dots",
+          title: "Jitter",
+          target: '.desktop-icon[data-app="Jitter"]',
+          description:
+            "Jitter is X-ORBIT's messaging app: direct messages, group chats and servers with your friends.",
+          highlightTitle: "Sharing Apps",
+          highlightText: "Right-click (two-finger click) any app and choose Share with Jitter to send it to a friend.",
+        },
+        {
+          icon: "fas fa-music",
+          title: "Music",
+          target: '.desktop-icon[data-app="Music"]',
+          description:
+            "Music plays in its own window, so it keeps going while you use other apps.",
+          highlightTitle: "More Apps",
+          highlightText: "The other icons work the same way. Open any of them to see what it does.",
+        },
+        {
+          icon: "fas fa-folder",
+          title: "Folders",
+          target: ".desktop-folder-icon",
+          description:
+            "A folder holds several apps behind one icon. Click it to see what's inside. This one has the games.",
+          highlightTitle: "Make Your Own",
+          highlightText: "Right-click an empty part of the desktop and choose New Folder, then drag apps into it.",
         },
         {
           icon: "fas fa-sliders-h",
-          title: "Settings & Notifications",
+          title: "Settings",
+          target: '.desktop-icon[data-app="Settings"]',
           description:
-            "Access Settings from the X-ORBIT menu to personalize themes, dock behavior, notifications, and account options. Your notification center lives in the top-right corner of the menu bar.",
-          highlightTitle: "Staying in Control",
-          highlightText:
-            "All your preferences are saved automatically so X-ORBIT looks and feels the same every time you log in.",
-          highlightElement: null,
+            "Settings is where you change the theme and wallpaper, notifications, and Performance Mode for slower devices.",
+          highlightTitle: "Saved Automatically",
+          highlightText: "Your choices are remembered, so X-ORBIT looks the same next time you sign in.",
+        },
+        {
+          icon: "fas fa-window-maximize",
+          title: "Windows",
+          target: ".window.active",
+          needsWindow: true,
+          description:
+            "Apps open in windows like this one. Drag the bar along its top to move it, and drag the bottom-right corner to resize it. You can have several open at once.",
+          highlightTitle: "Bring to Front",
+          highlightText: "Click a window to bring it in front of the others.",
+        },
+        {
+          icon: "fas fa-circle",
+          title: "Window Buttons",
+          target: ".window.active .window-controls",
+          needsWindow: true,
+          description:
+            "Red closes the window. Green stretches it across the screen. Purple goes fully fullscreen and hides the bars until your mouse touches the top edge. Blue reloads the app.",
+          highlightTitle: "Leaving Fullscreen",
+          highlightText: "Move your mouse to the very top of the screen, then click purple again.",
         },
         {
           icon: "fas fa-check-circle",
           title: "You're All Set!",
           description:
-            "That's the X-ORBIT tour! Explore the apps, customize your workspace, and make it yours. You can replay this tour anytime from the X-ORBIT menu → Help.",
-          highlightTitle: "Ready to Explore",
+            "That's the tour. Open some apps, move things around, and make the desktop yours.",
+          highlightTitle: "See It Again",
           highlightText:
-            "Your desktop is ready. Open some apps, check your settings, and enjoy X-ORBIT.",
-          highlightElement: null,
+            "Replay this tour anytime from the X-ORBIT menu → Desktop Tour.",
         },
       ];
 
@@ -4039,6 +4262,205 @@
         } catch (e) {}
         _desktopSenderName = name || "User";
         return _desktopSenderName;
+      }
+
+      // ── Share an app with a Jitter friend ────────────────────────
+      // Sends a normal Jitter DM in a fixed format; Jitter renders it as a card with
+      // an Open button (see sharedAppName in jittery.html). Like Jitter, only accepted
+      // friends can be messaged, and blocks are respected.
+
+      // Apps that can be shared and opened from a share card: the built-in desktop
+      // icons, read before any of them are moved into folders.
+      const SHAREABLE_APPS = {};
+      document.querySelectorAll("#desktop .desktop-icon[data-app]").forEach(function (el) {
+        SHAREABLE_APPS[el.dataset.app] = { src: el.dataset.src, icon: el.dataset.icon };
+      });
+
+      let _shareApp = null;            // app name being shared
+      let _shareFriends = null;        // [{ email, username, label }]
+      const _shareSent = new Set();    // "app:email" already sent this session
+
+      async function loadShareFriends() {
+        const e = currentUser.email;
+        const [fr, iBlocked, blockedMe] = await Promise.all([
+          supabaseClient.from("friendships").select("requester_email, recipient_email, status")
+            .or(`requester_email.eq.${e},recipient_email.eq.${e}`),
+          supabaseClient.from("user_blocks").select("blocked_email").eq("blocker_email", e),
+          supabaseClient.from("user_blocks").select("blocker_email").eq("blocked_email", e),
+        ]);
+        if (fr.error) throw fr.error;
+        const blocked = new Set([
+          ...(iBlocked.data || []).map((r) => r.blocked_email),
+          ...(blockedMe.data || []).map((r) => r.blocker_email),
+        ]);
+        const emails = (fr.data || [])
+          .filter((f) => f.status === "accepted")
+          .map((f) => (f.requester_email === e ? f.recipient_email : f.requester_email))
+          .filter((x) => x && !blocked.has(x));
+        if (!emails.length) return [];
+
+        const { data, error } = await supabaseClient.from("clients")
+          .select("email, name, username, display_name").in("email", emails);
+        if (error) throw error;
+        return (data || [])
+          .map((c) => ({ email: c.email, username: c.username || null, label: c.display_name || c.username || c.name || "Friend" }))
+          .sort((a, b) => a.label.localeCompare(b.label));
+      }
+
+      function shareAppMessage(text) {
+        const list = document.getElementById("shareAppList");
+        list.innerHTML = "";
+        const div = document.createElement("div");
+        div.className = "share-app-empty";
+        div.textContent = text;
+        list.appendChild(div);
+      }
+
+      async function openShareApp(appName) {
+        const app = SHAREABLE_APPS[appName];
+        if (!app) return;
+        _shareApp = appName;
+        document.getElementById("shareAppIcon").className = app.icon;
+        document.getElementById("shareAppTitle").textContent = "Share " + appName + " with Jitter";
+        document.getElementById("shareAppSearch").value = "";
+        document.getElementById("shareAppModal").classList.add("show");
+
+        if (!supabaseClient) initSupabaseClient();
+        if (!supabaseClient || !currentUser.email) {
+          shareAppMessage("Sign in to share apps with your Jitter friends.");
+          return;
+        }
+        // Reload each time so new friends show up
+        shareAppMessage("Loading friends…");
+        try {
+          _shareFriends = await loadShareFriends();
+          renderShareAppList();
+        } catch (e) {
+          _shareFriends = null;
+          shareAppMessage("Couldn't load your Jitter friends. Try again.");
+        }
+      }
+
+      function closeShareApp() {
+        document.getElementById("shareAppModal").classList.remove("show");
+        _shareApp = null;
+      }
+
+      function renderShareAppList() {
+        if (!_shareFriends || !_shareApp) return;
+        if (!_shareFriends.length) {
+          shareAppMessage("No Jitter friends yet. Add some in Jitter first.");
+          return;
+        }
+        const q = document.getElementById("shareAppSearch").value.trim().toLowerCase();
+        const shown = _shareFriends.filter((f) => !q || f.label.toLowerCase().includes(q) || (f.username || "").toLowerCase().includes(q));
+        if (!shown.length) {
+          shareAppMessage("No friends match that.");
+          return;
+        }
+        const list = document.getElementById("shareAppList");
+        list.innerHTML = "";
+        shown.forEach(function (f) {
+          const row = document.createElement("div");
+          row.className = "share-app-row";
+          const names = document.createElement("div");
+          names.className = "share-app-names";
+          const name = document.createElement("div");
+          name.className = "share-app-name";
+          name.textContent = f.label;
+          names.appendChild(name);
+          if (f.username) {
+            const handle = document.createElement("div");
+            handle.className = "share-app-handle";
+            handle.textContent = "@" + f.username;
+            names.appendChild(handle);
+          }
+          row.appendChild(names);
+          if (_shareSent.has(_shareApp + ":" + f.email)) {
+            const sent = document.createElement("span");
+            sent.className = "share-app-sent";
+            sent.innerHTML = '<i class="fas fa-check"></i> Sent';
+            row.appendChild(sent);
+          } else {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "xorbit-button xmodal-btn-primary";
+            btn.textContent = "Send";
+            btn.onclick = function () { sendAppShare(f, btn); };
+            row.appendChild(btn);
+          }
+          list.appendChild(row);
+        });
+      }
+
+      async function sendAppShare(friend, btn) {
+        const appName = _shareApp;
+        if (!appName || !SHAREABLE_APPS[appName]) return;
+        const me   = currentUser.email;
+        const text = `🚀 Check out ${appName} on X-ORBIT!`;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        try {
+          const myName = await getDesktopSenderName();
+          // Same lookup-or-create Jitter uses when you start a DM
+          const { data: existing, error: findErr } = await supabaseClient.from("dm_conversations")
+            .select("id, participant_1_email")
+            .or(
+              `and(participant_1_email.eq.${me},participant_2_email.eq.${friend.email}),` +
+              `and(participant_1_email.eq.${friend.email},participant_2_email.eq.${me})`
+            )
+            .limit(1);
+          if (findErr) throw findErr;
+
+          let conv = existing && existing[0];
+          if (!conv) {
+            const { data: created, error } = await supabaseClient.from("dm_conversations")
+              .insert([{
+                participant_1_email: me,
+                participant_2_email: friend.email,
+                participant_1_name:  myName,
+                participant_2_name:  friend.label,
+                last_message_preview: "",
+                last_message_at: new Date().toISOString(),
+              }])
+              .select("id, participant_1_email")
+              .single();
+            if (error) throw error;
+            conv = created;
+          }
+
+          const { error: msgErr } = await supabaseClient.from("dm_messages").insert([{
+            conversation_id: conv.id,
+            sender_email:    me,
+            sender_name:     myName,
+            message:         text,
+          }]);
+          if (msgErr) throw msgErr;
+
+          // Bump the conversation and un-hide it for the recipient, as Jitter does on send
+          await supabaseClient.from("dm_conversations").update({
+            last_message_at:      new Date().toISOString(),
+            last_message_preview: "🚀 Shared " + appName,
+            [conv.participant_1_email === me ? "hidden_for_p2" : "hidden_for_p1"]: false,
+          }).eq("id", conv.id);
+
+          _shareSent.add(appName + ":" + friend.email);
+          if (_shareApp === appName) renderShareAppList();
+        } catch (e) {
+          console.error("[Share app] send failed:", e);
+          btn.disabled = false;
+          btn.textContent = "Retry";
+        }
+      }
+
+      // Jitter's "Open" button on a shared-app card. Only known desktop apps open.
+      function openSharedApp(appName) {
+        const app = SHAREABLE_APPS[appName];
+        if (!app) {
+          xModal.alert("That app isn't available on this version of X-ORBIT.", { title: "Can't open app" });
+          return;
+        }
+        openWindow(appName, app.src, app.icon);
       }
 
       // Shared by the toast and the notification center. Inserts a dm_messages row
@@ -5076,6 +5498,9 @@
         } else if (event.data && event.data.type === "open-hangman") {
           // Jitter's "Join Game" button on a Hangman invite
           openHangmanInvite(event.data.code);
+        } else if (event.data && event.data.type === "open-shared-app") {
+          // Jitter's "Open" button on an app someone shared
+          openSharedApp(String(event.data.app || ""));
         } else if (event.data && event.data.type === "request-auth") {
           // jittery.html is requesting its auth token
           if (!jitterAuthToken) jitterAuthToken = generateJitterAuthToken();
@@ -5214,7 +5639,7 @@
         const tutorialOverlay = document.getElementById("tutorialOverlay");
         if (tutorialOverlay) {
           tutorialOverlay.classList.remove("show");
-          clearTutorialHighlight();
+          tutorialOverlay.classList.remove("spotlight");
           markTutorialCompleted();
 
           // Hide overlay after animation
@@ -5231,25 +5656,8 @@
         const prevBtn = document.getElementById("tutorialPrev");
         const skipBtn = document.getElementById("tutorialSkip");
 
-        if (nextBtn) {
-          nextBtn.onclick = function () {
-            if (currentTutorialStep < tutorialSteps.length - 1) {
-              currentTutorialStep++;
-              updateTutorialStep();
-            } else {
-              hideTutorial();
-            }
-          };
-        }
-
-        if (prevBtn) {
-          prevBtn.onclick = function () {
-            if (currentTutorialStep > 0) {
-              currentTutorialStep--;
-              updateTutorialStep();
-            }
-          };
-        }
+        if (nextBtn) nextBtn.onclick = function () { tutorialGo(1); };
+        if (prevBtn) prevBtn.onclick = function () { tutorialGo(-1); };
 
         if (skipBtn) {
           skipBtn.onclick = function () {
@@ -5272,24 +5680,19 @@
           });
         }
 
-        // Add keyboard navigation for tutorial
+        // Keyboard navigation and resize handling, bound once however often the tour is replayed
+        if (_tutorialBound) return;
+        _tutorialBound = true;
+        window.addEventListener("resize", positionTutorial);
         document.addEventListener("keydown", function (e) {
           const tutorialOverlay = document.getElementById("tutorialOverlay");
           if (tutorialOverlay && tutorialOverlay.classList.contains("show")) {
-            if (
-              e.key === "ArrowRight" ||
-              e.key === "Space" ||
-              e.key === "Enter"
-            ) {
+            if (e.key === "ArrowRight" || e.key === " " || e.key === "Enter") {
               e.preventDefault();
-              const nextBtn = document.getElementById("tutorialNext");
-              if (nextBtn) nextBtn.click();
+              tutorialGo(1);
             } else if (e.key === "ArrowLeft") {
               e.preventDefault();
-              if (currentTutorialStep > 0) {
-                currentTutorialStep--;
-                updateTutorialStep();
-              }
+              tutorialGo(-1);
             } else if (e.key === "Escape") {
               e.preventDefault();
               const skipBtn = document.getElementById("tutorialSkip");
@@ -5297,6 +5700,97 @@
             }
           }
         });
+      }
+
+      let _tutorialBound = false;
+      let _tourOpenedWindow = false;
+      const TOUR_WINDOW_TITLE = "Welcome to X-ORBIT";
+
+      function tutorialTargetEl(step) {
+        if (!step.target) return null;
+        let el = null;
+        try { el = document.querySelector(step.target); } catch (e) {}
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 ? el : null;
+      }
+
+      // Move forward or back, passing over steps whose target isn't on screen
+      function tutorialGo(dir) {
+        let i = currentTutorialStep + dir;
+        while (i >= 0 && i < tutorialSteps.length) {
+          const step = tutorialSteps[i];
+          if (!step.target || step.needsWindow || tutorialTargetEl(step)) break;
+          i += dir;
+        }
+        if (i >= tutorialSteps.length) { hideTutorial(); return; }
+        if (i < 0) return;
+        currentTutorialStep = i;
+        updateTutorialStep();
+      }
+
+      // The window steps point at a real window: the Welcome one the tour ends on anyway
+      function openTourWindow() {
+        if (activeWindows.has(TOUR_WINDOW_TITLE)) {
+          focusWindow(activeWindows.get(TOUR_WINDOW_TITLE));
+          return;
+        }
+        _tourOpenedWindow = true;
+        openWindow(TOUR_WINDOW_TITLE, "render.html", "fas fa-rocket");
+      }
+
+      function closeTourWindow() {
+        if (!_tourOpenedWindow || !activeWindows.has(TOUR_WINDOW_TITLE)) return;
+        _tourOpenedWindow = false;
+        const closeBtn = document.querySelector("#" + activeWindows.get(TOUR_WINDOW_TITLE) + " .window-control.close");
+        if (closeBtn) closeBtn.click();
+      }
+
+      // Put the spotlight over the current step's target and the card beside it
+      function positionTutorial() {
+        const overlay = document.getElementById("tutorialOverlay");
+        const card    = document.getElementById("tutorialContent");
+        const spot    = document.getElementById("tutorialSpot");
+        const step    = tutorialSteps[currentTutorialStep];
+        if (!overlay || !card || !spot || !step || overlay.style.display === "none") return;
+
+        const el = tutorialTargetEl(step);
+        if (!el) {
+          overlay.classList.remove("spotlight");
+          card.style.left = card.style.top = "";
+          return;
+        }
+        overlay.classList.add("spotlight");
+
+        const r   = el.getBoundingClientRect();
+        const pad = step.pad === undefined ? 6 : step.pad;
+        const vw  = window.innerWidth, vh = window.innerHeight;
+        const box = {
+          left:   Math.max(0, r.left - pad),
+          top:    Math.max(0, r.top - pad),
+          right:  Math.min(vw, r.right + pad),
+          bottom: Math.min(vh, r.bottom + pad),
+        };
+        spot.style.left   = box.left + "px";
+        spot.style.top    = box.top + "px";
+        spot.style.width  = (box.right - box.left) + "px";
+        spot.style.height = (box.bottom - box.top) + "px";
+
+        // Below the target if it fits, else above, right, left; last resort a corner
+        const cw = card.offsetWidth, ch = card.offsetHeight, gap = 14, m = 12;
+        const clampX = (x) => Math.max(m, Math.min(vw - cw - m, x));
+        const clampY = (y) => Math.max(m, Math.min(vh - ch - m, y));
+        const fits   = (x, y) => x >= m && y >= m && x + cw <= vw - m && y + ch <= vh - m;
+        const cx = (box.left + box.right) / 2, cy = (box.top + box.bottom) / 2;
+        const spots = [
+          [clampX(cx - cw / 2), box.bottom + gap],
+          [clampX(cx - cw / 2), box.top - gap - ch],
+          [box.right + gap, clampY(cy - ch / 2)],
+          [box.left - gap - cw, clampY(cy - ch / 2)],
+        ];
+        const pos = spots.find(([x, y]) => fits(x, y)) || [clampX(vw - cw - 24), clampY(vh - ch - 24)];
+        card.style.left = pos[0] + "px";
+        card.style.top  = pos[1] + "px";
       }
 
       function updateTutorialStep() {
@@ -5363,17 +5857,21 @@
           prevBtn.style.display = currentTutorialStep > 0 ? "flex" : "none";
         }
 
-        // Update progress dots
-        const dots = document.querySelectorAll(".tutorial-dot");
-        dots.forEach((dot, index) => {
-          dot.classList.toggle("active", index === currentTutorialStep);
-        });
-
-        // Highlight element if specified
-        clearTutorialHighlight();
-        if (step.highlightElement) {
-          highlightTutorialElement(step.highlightElement);
+        // Progress dots, one per step
+        const progress = document.getElementById("tutorialProgress");
+        if (progress) {
+          progress.innerHTML = tutorialSteps
+            .map((_, index) => `<div class="tutorial-dot${index === currentTutorialStep ? " active" : ""}"></div>`)
+            .join("");
         }
+
+        // Window steps need a window on screen; earlier steps shouldn't have the tour's one in the way
+        if (step.needsWindow) openTourWindow();
+        else if (currentTutorialStep < tutorialSteps.findIndex((s) => s.needsWindow)) closeTourWindow();
+
+        // Position now, then again once layout and the window's opening animation settle
+        positionTutorial();
+        [200, 550].forEach((ms) => setTimeout(positionTutorial, ms));
       }
 
       function renderConfigUI(configType) {
@@ -5460,29 +5958,6 @@
         const buttons = document.querySelectorAll(".tutorial-config-btn");
         buttons.forEach((btn) => btn.classList.remove("selected"));
         event.target.closest(".tutorial-config-btn")?.classList.add("selected");
-      }
-
-      function highlightTutorialElement(selector) {
-        try {
-          const element = document.querySelector(selector);
-          if (element) {
-            element.classList.add("tutorial-highlight-element");
-          }
-        } catch (e) {
-          console.warn("Could not highlight element:", selector);
-        }
-      }
-
-      function clearTutorialHighlight() {
-        try {
-          document
-            .querySelectorAll(".tutorial-highlight-element")
-            .forEach((el) => {
-              el.classList.remove("tutorial-highlight-element");
-            });
-        } catch (e) {
-          console.warn("Error clearing highlights");
-        }
       }
 
       // Add restart tutorial function to help menu
@@ -5989,6 +6464,19 @@
           };
         }
 
+        // True fullscreen button, added here so every kind of window gets one
+        const controls = windowEl.querySelector(".window-controls");
+        if (controls && !controls.querySelector(".window-control.truefs")) {
+          const fsBtn = document.createElement("div");
+          fsBtn.className = "window-control truefs";
+          fsBtn.title = "Fullscreen";
+          fsBtn.onclick = function () {
+            toggleTrueFullscreen(windowEl, windowId);
+          };
+          if (maxBtn) maxBtn.after(fsBtn);
+          else controls.appendChild(fsBtn);
+        }
+
         // Reload the app inside this window
         const reloadBtn = windowEl.querySelector(".window-control.reload");
         if (reloadBtn) {
@@ -6020,7 +6508,7 @@
           titlebar.onmousedown = function (e) {
             if (e.target.closest(".window-control")) return;
             // Don't allow dragging if fullscreen
-            if (windowEl.classList.contains("fullscreen")) return;
+            if (windowEl.classList.contains("fullscreen") || windowEl.classList.contains("true-fullscreen")) return;
 
             isDragging = true;
             focusWindow(windowId);
@@ -6083,6 +6571,65 @@
       }
 
       // Focus window
+      // ── True fullscreen ──────────────────────────────────────────
+      // Hides the window's titlebar and the menu bar; both slide back while the
+      // pointer is at the top edge or over either bar.
+      let _fsReady = false;
+      let _fsBarsTimer = null;
+      let _fsHintTimer = null;
+
+      function setFsBars(show) {
+        document.body.classList.toggle("fs-bars-show", show);
+        clearInterval(_fsBarsTimer);
+        _fsBarsTimer = null;
+        if (!show) return;
+        // Poll rather than listen: once the pointer is over an app's iframe the
+        // desktop gets no mouse events. Two misses in a row so crossing the gap
+        // between the menu bar and an open menu doesn't hide them.
+        let misses = 0;
+        _fsBarsTimer = setInterval(function () {
+          const over = document.querySelector(".menu-bar:hover, .window.true-fullscreen .window-titlebar:hover");
+          misses = over ? 0 : misses + 1;
+          if (misses >= 2) setFsBars(false);
+        }, 250);
+      }
+
+      function syncTrueFullscreen() {
+        const any = !!document.querySelector(".window.true-fullscreen");
+        document.body.classList.toggle("has-true-fs", any);
+        if (!any) setFsBars(false);
+      }
+
+      function toggleTrueFullscreen(windowEl, windowId) {
+        if (!_fsReady) {
+          _fsReady = true;
+          const hotzone = document.createElement("div");
+          hotzone.className = "fs-hotzone";
+          hotzone.addEventListener("mouseenter", function () { setFsBars(true); });
+          document.body.appendChild(hotzone);
+          const hint = document.createElement("div");
+          hint.className = "fs-hint";
+          hint.id = "fsHint";
+          hint.textContent = "Move your mouse to the top of the screen to show the bars";
+          document.body.appendChild(hint);
+          // A fullscreen window can be closed from several places; keep the body state in step
+          const desktop = document.getElementById("desktop");
+          if (desktop) new MutationObserver(syncTrueFullscreen).observe(desktop, { childList: true });
+        }
+
+        const on = windowEl.classList.toggle("true-fullscreen");
+        const btn = windowEl.querySelector(".window-control.truefs");
+        if (btn) btn.title = on ? "Exit Fullscreen" : "Fullscreen";
+        if (on) focusWindow(windowId);
+        setFsBars(false);
+        syncTrueFullscreen();
+
+        const hint = document.getElementById("fsHint");
+        clearTimeout(_fsHintTimer);
+        hint.classList.toggle("show", on);
+        if (on) _fsHintTimer = setTimeout(function () { hint.classList.remove("show"); }, 3000);
+      }
+
       function focusWindow(windowId) {
         const windows = document.querySelectorAll(".window");
         windows.forEach(function (w) {
@@ -9634,6 +10181,8 @@
       function constrainWindowSize(windowEl) {
         const resizeObserver = new ResizeObserver((entries) => {
           for (let entry of entries) {
+            // Fullscreen fills the viewport on purpose; leave the saved size alone
+            if (entry.target.classList.contains("true-fullscreen")) continue;
             const rect = entry.target.getBoundingClientRect();
             const menuBarHeight = 32;
             const dockHeight = 70;
@@ -9973,8 +10522,8 @@
       const IS_BETA_BUILD = true;
       // Exposed so the login page (auth.html, loaded in an iframe) can read the build channel
       window.IS_BETA_BUILD = IS_BETA_BUILD;
-      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.3.0-beta" : "v6.3.0";
-      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.3.0 Beta" : "X-ORBIT Desktop v6.3.0 Sahara";
+      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.4.0-beta" : "v6.4.0";
+      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.4.0 Beta" : "X-ORBIT Desktop v6.4.0 Sahara";
       // Short label for UI chips, e.g. "v6.2.4 Sahara"
       const CURRENT_VERSION_LABEL = CURRENT_VERSION_NAME.replace("X-ORBIT Desktop ", "");
       const UPDATE_CHECK_TABLE = IS_BETA_BUILD ? "update_check_beta" : "update_check";
@@ -10952,6 +11501,35 @@
     <script>
       // ── What's New – version changelog data ──
       const WHATSNEW_CHANGELOG = [
+        {
+          version: "v6.4.0",
+          name: "Sahara",
+          date: "October 12, 2026",
+          sections: [
+            { type: "added", items: [
+              "Jitter has a new look: larger text, blue and grey message bubbles, and messages from the same person grouped together",
+              "Message reactions in Jitter direct messages and group chats",
+              "Read receipts now show when your message was read, and newer unread messages show Delivered",
+              "Message requests: people who aren\u2019t your friends can message you, and their first message arrives marked as a request. Turn it off in Jitter Settings",
+              "A Settings screen in Jitter for privacy, chat options, hidden conversations, blocked users and signing out",
+              "Hide images in chat until you click them",
+              "Private nicknames for other people in Jitter",
+              "Up to two links on your Jitter profile",
+              "An Accept friend requests setting that stops new requests when turned off",
+              "Share with Jitter: right-click an app on the desktop to send it to a friend, who can open it from the message",
+              "True fullscreen for windows: the new purple button hides the title bar and menu bar until your mouse touches the top of the screen"
+            ]},
+            { type: "changed", items: [
+              "The Desktop Tour now moves around the screen and highlights each part of the desktop as it explains it",
+              "Sending a friend request adds that person to your Jitter messages straight away",
+              "The Welcome window describes the current desktop"
+            ]},
+            { type: "fixed", items: [
+              "Saving your Jitter profile failing when you have a profile photo",
+              "Server channel messages in Jitter appearing unstyled"
+            ]}
+          ]
+        },
         {
           version: "v6.3.0",
           name: "Sahara",
@@ -11932,6 +12510,8 @@
             e.preventDefault(); e.stopPropagation();
             showIconCtxMenu(e.clientX, e.clientY, [
               { label: 'Open',           icon: 'fas fa-external-link-alt', action: () => openWindow(el.dataset.app, el.dataset.src, el.dataset.icon) },
+              { label: 'Share with Jitter', icon: 'fas fa-share',          action: () => openShareApp(el.dataset.app) },
+              { sep: true },
               { label: 'Reset Position', icon: 'fas fa-undo',              action: () => { delete savedLayout[el.dataset.iconId]; localStorage.setItem(LAYOUT_KEY, JSON.stringify(savedLayout)); location.reload(); } },
             ]);
           });
@@ -12057,6 +12637,7 @@
               e.preventDefault(); e.stopPropagation();
               showIconCtxMenu(e.clientX, e.clientY, [
                 { label: 'Open',              icon: 'fas fa-external-link-alt', action: () => { closeFolder(); openWindow(app.name, app.src, app.icon); } },
+                { label: 'Share with Jitter', icon: 'fas fa-share',             action: () => { closeFolder(); openShareApp(app.name); } },
                 { sep: true },
                 { label: 'Remove from folder', icon: 'fas fa-folder-minus', action: () => {
                   folder.apps.splice(i, 1);

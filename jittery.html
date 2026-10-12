@@ -13,31 +13,33 @@
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
+            --font:       -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             --bg:         #000;
-            --surface:    #0a0a0a;
-            --surface-2:  #111;
-            --surface-3:  #161616;
-            --border:     rgba(255,255,255,0.08);
-            --border-hi:  rgba(255,255,255,0.15);
+            --surface:    #1c1c1e;
+            --surface-2:  #2c2c2e;
+            --surface-3:  #3a3a3c;
+            --bubble-in:  #262629;
+            --border:     rgba(255,255,255,0.09);
+            --border-hi:  rgba(255,255,255,0.16);
             --text:       #fff;
-            --text-dim:   rgba(255,255,255,0.65);
-            --text-muted: rgba(255,255,255,0.38);
-            --text-faint: rgba(255,255,255,0.18);
-            --text-ghost: rgba(255,255,255,0.08);
-            --text-dead:  rgba(255,255,255,0.04);
-            --accent:     #4f8aff;
-            --accent-hi:  #7aaaff;
-            --accent-dim: rgba(79,138,255,0.12);
-            --online:     #22c55e;
-            --away:       #f97316;
-            --offline:    #383844;
-            --warning:    #fbbf24;
-            --success:    #34d399;
-            --error:      #f87171;
-            --r:          8px;
-            --r-sm:       5px;
-            --r-lg:       14px;
-            --sidebar-w:           272px;
+            --text-dim:   rgba(235,235,245,0.82);
+            --text-muted: rgba(235,235,245,0.6);
+            --text-faint: rgba(235,235,245,0.42);
+            --text-ghost: rgba(235,235,245,0.3);
+            --text-dead:  rgba(235,235,245,0.14);
+            --accent:     #0a84ff;
+            --accent-hi:  #409cff;
+            --accent-dim: rgba(10,132,255,0.16);
+            --online:     #30d158;
+            --away:       #ff9f0a;
+            --offline:    #48484a;
+            --warning:    #ffd60a;
+            --success:    #30d158;
+            --error:      #ff453a;
+            --r:          10px;
+            --r-sm:       8px;
+            --r-lg:       18px;
+            --sidebar-w:           300px;
             --sidebar-w-collapsed: 62px;
         }
 
@@ -65,8 +67,8 @@
             position: absolute;
             inset: 0;
             background-image:
-                linear-gradient(rgba(124,106,247,0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(124,106,247,0.04) 1px, transparent 1px);
+                linear-gradient(rgba(10,132,255,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(10,132,255,0.04) 1px, transparent 1px);
             background-size: 48px 48px;
             pointer-events: none;
         }
@@ -77,7 +79,7 @@
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             width: 700px; height: 500px;
-            background: radial-gradient(ellipse, rgba(124,106,247,0.1) 0%, transparent 65%);
+            background: radial-gradient(ellipse, rgba(10,132,255,0.1) 0%, transparent 65%);
             pointer-events: none;
         }
 
@@ -92,7 +94,7 @@
             border: 1px solid var(--border-hi);
             border-radius: var(--r-lg);
             padding: 36px 40px 32px;
-            box-shadow: 0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,106,247,0.08);
+            box-shadow: 0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(10,132,255,0.08);
         }
 
         .explain-card::before {
@@ -108,21 +110,21 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            font-size: 0.55rem;
-            font-family: 'Orbitron', monospace;
+            font-size: 0.72rem;
+            font-family: var(--font);
             font-weight: 700;
             color: var(--accent);
-            letter-spacing: 3px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             margin-bottom: 14px;
         }
 
         .explain-title {
-            font-family: 'Orbitron', monospace;
+            font-family: var(--font);
             font-size: 1.3rem;
             font-weight: 900;
             color: var(--text);
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
             line-height: 1.2;
             margin-bottom: 8px;
         }
@@ -154,7 +156,7 @@
             height: 38px;
             border-radius: var(--r);
             background: var(--accent-dim);
-            border: 1px solid rgba(124,106,247,0.25);
+            border: 1px solid rgba(10,132,255,0.25);
             color: var(--accent);
             display: flex;
             align-items: center;
@@ -166,11 +168,11 @@
         .explain-item-body { flex: 1; }
 
         .explain-item-title {
-            font-family: 'Orbitron', monospace;
-            font-size: 0.65rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
             color: var(--text);
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             margin-bottom: 5px;
         }
@@ -203,8 +205,8 @@
             position: absolute;
             inset: 0;
             background-image:
-                linear-gradient(rgba(124,106,247,0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(124,106,247,0.04) 1px, transparent 1px);
+                linear-gradient(rgba(10,132,255,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(10,132,255,0.04) 1px, transparent 1px);
             background-size: 48px 48px;
             pointer-events: none;
         }
@@ -215,7 +217,7 @@
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             width: 600px; height: 400px;
-            background: radial-gradient(ellipse, rgba(124,106,247,0.1) 0%, transparent 65%);
+            background: radial-gradient(ellipse, rgba(10,132,255,0.1) 0%, transparent 65%);
             pointer-events: none;
         }
 
@@ -226,7 +228,7 @@
 
         /* ── BODY ─────────────────────────────────────── */
         body {
-            font-family: 'Share Tech Mono', monospace;
+            font-family: var(--font);
             background: var(--bg);
             color: var(--text);
             font-size: 14px;
@@ -253,8 +255,8 @@
             position: absolute;
             inset: 0;
             background-image:
-                linear-gradient(rgba(124,106,247,0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(124,106,247,0.04) 1px, transparent 1px);
+                linear-gradient(rgba(10,132,255,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(10,132,255,0.04) 1px, transparent 1px);
             background-size: 48px 48px;
             pointer-events: none;
         }
@@ -265,7 +267,7 @@
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             width: 700px; height: 500px;
-            background: radial-gradient(ellipse, rgba(124,106,247,0.1) 0%, transparent 65%);
+            background: radial-gradient(ellipse, rgba(10,132,255,0.1) 0%, transparent 65%);
             pointer-events: none;
         }
 
@@ -280,7 +282,7 @@
             border-radius: var(--r-lg);
             border: 1px solid var(--border-hi);
             overflow: hidden;
-            box-shadow: 0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,106,247,0.08);
+            box-shadow: 0 24px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(10,132,255,0.08);
         }
 
         .login-brand {
@@ -303,11 +305,11 @@
         }
 
         .login-eyebrow {
-            font-size: 0.55rem;
+            font-size: 0.72rem;
             color: var(--accent);
-            letter-spacing: 3px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
-            font-family: 'Orbitron', monospace;
+            font-family: var(--font);
             font-weight: 700;
             margin-bottom: 12px;
             display: flex;
@@ -316,11 +318,11 @@
         }
 
         .login-logo {
-            font-family: 'Orbitron', monospace;
+            font-family: var(--font);
             font-size: 1.7rem;
             font-weight: 900;
             color: var(--text);
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             line-height: 1;
             margin-bottom: 8px;
         }
@@ -328,9 +330,9 @@
         .login-logo span { color: var(--accent); }
 
         .login-tagline {
-            font-size: 0.62rem;
+            font-size: 0.72rem;
             color: var(--text-muted);
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
             line-height: 1.6;
         }
 
@@ -343,9 +345,9 @@
         }
 
         .login-feature {
-            font-size: 0.6rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -365,11 +367,11 @@
         }
 
         .login-form-heading {
-            font-family: 'Orbitron', monospace;
-            font-size: 0.62rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
             color: var(--text-muted);
-            letter-spacing: 3px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             margin-bottom: 20px;
         }
@@ -380,9 +382,9 @@
             display: block;
             margin-bottom: 6px;
             color: var(--text-muted);
-            font-size: 0.58rem;
+            font-size: 0.72rem;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
         }
 
         .form-group input {
@@ -392,7 +394,7 @@
             border: 1px solid var(--border-hi);
             border-radius: var(--r-sm);
             color: var(--text);
-            font-family: 'Share Tech Mono', monospace;
+            font-family: var(--font);
             font-size: 0.88rem;
             outline: none;
             transition: border-color 0.2s, box-shadow 0.2s;
@@ -411,10 +413,10 @@
             border: none;
             border-radius: var(--r-sm);
             color: #fff;
-            font-family: 'Orbitron', monospace;
-            font-size: 0.68rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             cursor: pointer;
             transition: background 0.2s, box-shadow 0.2s;
@@ -427,7 +429,7 @@
 
         .login-btn:hover:not(:disabled) {
             background: var(--accent-hi);
-            box-shadow: 0 4px 18px rgba(124,106,247,0.35);
+            box-shadow: 0 4px 18px rgba(10,132,255,0.35);
         }
         .login-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -474,11 +476,11 @@
         }
 
         .logo {
-            font-family: 'Orbitron', monospace;
+            font-family: var(--font);
             font-size: 0.82rem;
             font-weight: 900;
             color: var(--text);
-            letter-spacing: 3px;
+            letter-spacing: 0.2px;
             white-space: nowrap;
         }
 
@@ -487,7 +489,7 @@
         .compose-btn {
             width: 32px; height: 32px;
             background: var(--accent-dim);
-            border: 1px solid rgba(124,106,247,0.25);
+            border: 1px solid rgba(10,132,255,0.25);
             border-radius: var(--r-sm);
             color: var(--accent);
             font-size: 0.78rem;
@@ -571,7 +573,7 @@
             border: 1px solid var(--border-hi);
             border-radius: var(--r-sm);
             color: var(--text-faint);
-            font-size: 0.7rem;
+            font-size: 0.72rem;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -660,10 +662,10 @@
             border: none;
             border-bottom: 2px solid transparent;
             color: var(--text-muted);
-            font-family: 'Orbitron', monospace;
-            font-size: 0.58rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             cursor: pointer;
             display: flex;
@@ -717,7 +719,7 @@
         }
 
         .server-item:hover { background: var(--surface-2); }
-        .server-item.active { background: var(--accent-dim); border: 1px solid rgba(124,106,247,0.2); }
+        .server-item.active { background: var(--accent-dim); border: 1px solid rgba(10,132,255,0.2); }
 
         .server-icon {
             width: 40px;
@@ -728,7 +730,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Orbitron', monospace;
+            font-family: var(--font);
             font-size: 0.72rem;
             font-weight: 700;
             color: var(--accent);
@@ -751,7 +753,7 @@
         }
 
         .server-member-count {
-            font-size: 0.65rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
         }
 
@@ -763,13 +765,13 @@
             margin: 8px;
             padding: 10px;
             background: var(--accent-dim);
-            border: 1px dashed rgba(124,106,247,0.3);
+            border: 1px dashed rgba(10,132,255,0.3);
             border-radius: var(--r);
             color: var(--accent);
-            font-family: 'Orbitron', monospace;
-            font-size: 0.58rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             cursor: pointer;
             display: flex;
@@ -810,7 +812,7 @@
             border: 1px solid var(--border-hi);
             border-radius: var(--r-sm);
             color: var(--text-muted);
-            font-size: 0.68rem;
+            font-size: 0.72rem;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -858,10 +860,10 @@
         }
 
         .channel-category-label {
-            font-size: 0.55rem;
-            font-family: 'Orbitron', monospace;
+            font-size: 0.72rem;
+            font-family: var(--font);
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             color: var(--text-ghost);
             padding: 12px 12px 4px;
@@ -880,7 +882,7 @@
         }
 
         .channel-item:hover { background: var(--surface-2); color: var(--text-dim); }
-        .channel-item.active { background: var(--accent-dim); color: var(--text); border: 1px solid rgba(124,106,247,0.15); }
+        .channel-item.active { background: var(--accent-dim); color: var(--text); border: 1px solid rgba(10,132,255,0.15); }
 
         .channel-item i { font-size: 0.72rem; color: var(--text-ghost); }
         .channel-item.active i { color: var(--accent); }
@@ -912,10 +914,10 @@
         }
 
         .server-modal-label {
-            font-size: 0.58rem;
-            font-family: 'Orbitron', monospace;
+            font-size: 0.72rem;
+            font-family: var(--font);
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             color: var(--text-muted);
             margin-bottom: 8px;
@@ -956,7 +958,7 @@
             border: none;
             border-radius: var(--r-sm);
             color: var(--text-ghost);
-            font-size: 0.68rem;
+            font-size: 0.72rem;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -984,8 +986,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Orbitron', monospace;
-            font-size: 0.58rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
             color: var(--text-muted);
             flex-shrink: 0;
@@ -1006,10 +1008,10 @@
 
         .member-role-tag {
             display: inline-block;
-            font-size: 0.52rem;
-            font-family: 'Orbitron', monospace;
+            font-size: 0.72rem;
+            font-family: var(--font);
             font-weight: 700;
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             padding: 1px 6px;
             border-radius: 3px;
@@ -1032,10 +1034,10 @@
 
         .invite-code-text {
             flex: 1;
-            font-family: 'Share Tech Mono', monospace;
+            font-family: var(--font);
             font-size: 0.88rem;
             color: var(--accent);
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
         }
 
         .invite-copy-btn {
@@ -1044,9 +1046,9 @@
             border: 1px solid rgba(79,138,255,0.3);
             border-radius: var(--r-sm);
             color: var(--accent);
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 0.62rem;
-            letter-spacing: 1px;
+            font-family: var(--font);
+            font-size: 0.72rem;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             cursor: pointer;
             transition: background 0.15s;
@@ -1076,9 +1078,9 @@
             gap: 12px;
             margin: 16px 0;
             color: var(--text-ghost);
-            font-size: 0.62rem;
-            font-family: 'Orbitron', monospace;
-            letter-spacing: 2px;
+            font-size: 0.72rem;
+            font-family: var(--font);
+            letter-spacing: 0.2px;
             text-transform: uppercase;
         }
 
@@ -1108,7 +1110,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.7rem;
+            font-size: 0.72rem;
             transition: color 0.15s, border-color 0.15s, background 0.15s;
         }
 
@@ -1138,7 +1140,7 @@
         }
 
         .blocked-user-email {
-            font-size: 0.65rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
             white-space: nowrap;
             overflow: hidden;
@@ -1151,9 +1153,9 @@
             border: 1px solid rgba(248,113,113,0.3);
             border-radius: var(--r-sm);
             color: #f87171;
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 0.62rem;
-            letter-spacing: 1px;
+            font-family: var(--font);
+            font-size: 0.72rem;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             cursor: pointer;
             flex-shrink: 0;
@@ -1175,7 +1177,7 @@
             border: 1px solid var(--border);
             border-radius: var(--r-sm);
             color: var(--text);
-            font-family: 'Share Tech Mono', monospace;
+            font-family: var(--font);
             font-size: 0.78rem;
             outline: none;
             transition: border-color 0.2s, box-shadow 0.2s;
@@ -1193,7 +1195,7 @@
             top: 50%;
             transform: translateY(-50%);
             color: var(--text-faint);
-            font-size: 0.68rem;
+            font-size: 0.72rem;
             pointer-events: none;
         }
 
@@ -1221,7 +1223,7 @@
 
         .conv-item.active {
             background: var(--accent-dim);
-            border: 1px solid rgba(124,106,247,0.2);
+            border: 1px solid rgba(10,132,255,0.2);
         }
 
         .conv-avatar {
@@ -1233,7 +1235,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Orbitron', monospace;
+            font-family: var(--font);
             font-size: 0.72rem;
             font-weight: 700;
             color: var(--text-muted);
@@ -1280,10 +1282,10 @@
         }
 
         .profile-tag {
-            font-size: 0.58rem;
-            font-family: 'Orbitron', monospace;
+            font-size: 0.72rem;
+            font-family: var(--font);
             font-weight: 700;
-            letter-spacing: 1.5px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             padding: 3px 8px;
             border-radius: 3px;
@@ -1315,8 +1317,8 @@
         .status-dot-sm.offline { background: var(--offline); }
 
         .status-text {
-            font-size: 0.65rem;
-            letter-spacing: 1px;
+            font-size: 0.72rem;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
         }
 
@@ -1328,10 +1330,10 @@
             display: inline-flex;
             align-items: center;
             gap: 5px;
-            font-size: 0.55rem;
-            font-family: 'Orbitron', monospace;
+            font-size: 0.72rem;
+            font-family: var(--font);
             font-weight: 700;
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             padding: 2px 7px;
             border: 1px solid;
@@ -1372,15 +1374,15 @@
         }
 
         .conv-time {
-            font-size: 0.58rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
         }
 
         .unread-badge {
             background: var(--accent);
             color: #fff;
-            font-family: 'Orbitron', monospace;
-            font-size: 0.5rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
             padding: 2px 6px;
             border-radius: 8px;
@@ -1415,9 +1417,9 @@
         }
 
         .sidebar-empty p {
-            font-size: 0.68rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
             line-height: 1.6;
         }
 
@@ -1464,11 +1466,11 @@
         .empty-welcome-icon { display: none; }
 
         .empty-welcome-title {
-            font-family: 'Orbitron', monospace;
+            font-family: var(--font);
             font-size: 0.88rem;
             font-weight: 900;
             color: var(--text-dim);
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
         }
 
         .empty-welcome-sub {
@@ -1483,10 +1485,10 @@
             border: none;
             border-radius: var(--r-sm);
             color: #fff;
-            font-family: 'Orbitron', monospace;
-            font-size: 0.62rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             cursor: pointer;
             display: inline-flex;
@@ -1498,7 +1500,7 @@
 
         .start-dm-btn:hover {
             background: var(--accent-hi);
-            box-shadow: 0 4px 18px rgba(124,106,247,0.35);
+            box-shadow: 0 4px 18px rgba(10,132,255,0.35);
         }
 
         /* Active chat */
@@ -1529,8 +1531,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Orbitron', monospace;
-            font-size: 0.7rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
             color: var(--text-muted);
             text-transform: uppercase;
@@ -1547,11 +1549,11 @@
         }
 
         .chat-header-name {
-            font-family: 'Orbitron', monospace;
+            font-family: var(--font);
             font-size: 0.78rem;
             font-weight: 700;
             color: var(--text);
-            letter-spacing: 1.5px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             white-space: nowrap;
             overflow: hidden;
@@ -1559,7 +1561,7 @@
         }
 
         .chat-header-email {
-            font-size: 0.68rem;
+            font-size: 0.72rem;
             color: var(--text-muted);
             letter-spacing: 0.3px;
             white-space: nowrap;
@@ -1577,9 +1579,9 @@
 
         .chat-header-tags-row .profile-tag,
         .chat-header-tags-row .status-tag {
-            font-size: 0.48rem;
+            font-size: 0.72rem;
             padding: 2px 6px;
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
         }
 
         .online-dot {
@@ -1616,9 +1618,9 @@
         }
 
         .msg-day-label {
-            font-size: 0.55rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             white-space: nowrap;
         }
@@ -1655,8 +1657,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Orbitron', monospace;
-            font-size: 0.58rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
             color: var(--text-muted);
             text-transform: uppercase;
@@ -1675,7 +1677,7 @@
         .msg-content { flex: 1; min-width: 0; }
 
         .message-header {
-            font-size: 0.63rem;
+            font-size: 0.72rem;
             color: var(--text-muted);
             letter-spacing: 0.3px;
             margin-bottom: 4px;
@@ -1733,7 +1735,7 @@
             background: var(--accent);
             color: #fff;
         }
-        .game-invite-eyebrow { font-size: 0.56rem; letter-spacing: 2px; text-transform: uppercase; color: var(--accent-hi); }
+        .game-invite-eyebrow { font-size: 0.72rem; letter-spacing: 0.2px; text-transform: uppercase; color: var(--accent-hi); }
         .game-invite-title { font-weight: 700; font-size: 0.92rem; line-height: 1.3; }
         .game-invite-body { padding: 12px 14px 14px; }
         .game-invite-text { font-size: 0.78rem; line-height: 1.5; color: var(--text-dim); margin-bottom: 10px; }
@@ -1742,9 +1744,9 @@
             align-items: baseline;
             justify-content: space-between;
             margin-bottom: 12px;
-            font-size: 0.6rem; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted);
+            font-size: 0.72rem; letter-spacing: 0.2px; text-transform: uppercase; color: var(--text-muted);
         }
-        .game-invite-code b { font-family: 'Orbitron', monospace; font-size: 1.15rem; letter-spacing: 5px; color: var(--accent); }
+        .game-invite-code b { font-family: var(--font); font-size: 1.15rem; letter-spacing: 5px; color: var(--accent); }
         .game-invite-btn {
             width: 100%;
             padding: 9px 12px;
@@ -1760,10 +1762,10 @@
         }
         .game-invite-btn:hover { background: var(--accent-hi); box-shadow: 0 0 18px rgba(79,138,255,0.3); }
         .game-invite-btn i { margin-right: 6px; }
-        .game-invite-note { font-size: 0.68rem; color: var(--text-muted); text-align: center; }
+        .game-invite-note { font-size: 0.72rem; color: var(--text-muted); text-align: center; }
 
         .message-time {
-            font-size: 0.58rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
             opacity: 0.75;
             flex-shrink: 0;
@@ -1780,7 +1782,7 @@
             border: 1px solid rgba(79,138,255,0.28);
             background: rgba(79,138,255,0.10);
             color: var(--accent-hi);
-            font-size: 0.56rem;
+            font-size: 0.72rem;
             font-weight: 600;
             letter-spacing: 0.4px;
             text-transform: uppercase;
@@ -1837,7 +1839,7 @@
             background: none;
             border: none;
             color: var(--away);
-            font-size: 0.68rem;
+            font-size: 0.72rem;
             cursor: help;
             padding: 2px 4px;
             flex-shrink: 0;
@@ -1857,7 +1859,7 @@
             background: var(--surface-3);
             border: 1px solid rgba(249,115,22,0.45);
             color: var(--text);
-            font-size: 0.68rem;
+            font-size: 0.72rem;
             font-weight: 400;
             line-height: 1.5;
             letter-spacing: 0;
@@ -1901,7 +1903,7 @@
             background: none;
             border: none;
             color: var(--text-ghost);
-            font-size: 0.68rem;
+            font-size: 0.72rem;
             cursor: pointer;
             padding: 2px 4px;
             opacity: 0;
@@ -1916,7 +1918,7 @@
             border-left: 2px solid var(--accent);
             padding: 5px 10px;
             margin-bottom: 6px;
-            background: rgba(124,106,247,0.08);
+            background: rgba(10,132,255,0.08);
             border-radius: 0 var(--r-sm) var(--r-sm) 0;
         }
 
@@ -1927,10 +1929,10 @@
 
         .msg-reply-quote-name {
             display: block;
-            font-size: 0.58rem;
-            font-family: 'Orbitron', monospace;
+            font-size: 0.72rem;
+            font-family: var(--font);
             font-weight: 700;
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             color: var(--accent-hi);
             margin-bottom: 2px;
@@ -1955,7 +1957,7 @@
             gap: 10px;
             padding: 8px 16px;
             background: var(--accent-dim);
-            border-top: 1px solid rgba(124,106,247,0.2);
+            border-top: 1px solid rgba(10,132,255,0.2);
         }
 
         .reply-bar-accent {
@@ -1969,10 +1971,10 @@
         .reply-bar-body { flex: 1; min-width: 0; }
 
         .reply-bar-label {
-            font-size: 0.57rem;
-            font-family: 'Orbitron', monospace;
+            font-size: 0.72rem;
+            font-family: var(--font);
             font-weight: 700;
-            letter-spacing: 1.5px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             color: var(--accent-hi);
             margin-bottom: 2px;
@@ -1999,7 +2001,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.65rem;
+            font-size: 0.72rem;
             flex-shrink: 0;
             transition: color 0.12s, border-color 0.12s, background 0.12s;
         }
@@ -2019,8 +2021,8 @@
         .messages-empty i { font-size: 28px; color: var(--border-hi); }
 
         .messages-empty p {
-            font-size: 0.7rem;
-            letter-spacing: 2px;
+            font-size: 0.72rem;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
         }
 
@@ -2031,9 +2033,9 @@
             gap: 12px;
             margin: 20px 0 14px;
             align-self: stretch;
-            font-size: 0.55rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
         }
 
@@ -2083,8 +2085,8 @@
             background: var(--surface-3);
             border: 1px solid var(--border-hi);
             display: flex; align-items: center; justify-content: center;
-            font-family: 'Orbitron', monospace;
-            font-size: 0.58rem; font-weight: 700;
+            font-family: var(--font);
+            font-size: 0.72rem; font-weight: 700;
             color: var(--text-muted); text-transform: uppercase;
             flex-shrink: 0; overflow: hidden;
         }
@@ -2114,7 +2116,7 @@
 
         /* ── SEEN RECEIPT ─────────────────────────────── */
         .message.mine.is-seen .message-bubble {
-            box-shadow: 0 0 22px rgba(124,106,247,0.18), 0 0 0 1px rgba(124,106,247,0.13);
+            box-shadow: 0 0 22px rgba(10,132,255,0.18), 0 0 0 1px rgba(10,132,255,0.13);
             transition: box-shadow 1s ease;
         }
         .seen-receipt {
@@ -2133,27 +2135,27 @@
         .seen-receipt-line {
             width: 52px;
             height: 1px;
-            background: linear-gradient(to right, transparent, rgba(124,106,247,0.45));
+            background: linear-gradient(to right, transparent, rgba(10,132,255,0.45));
             flex-shrink: 0;
         }
         .seen-receipt-name {
-            font-size: 0.51rem;
+            font-size: 0.72rem;
             color: var(--accent);
             opacity: 0.82;
-            font-family: 'Orbitron', monospace;
+            font-family: var(--font);
             letter-spacing: 0.3px;
             white-space: nowrap;
         }
         .sent-receipt {
             text-align: right;
             padding: 2px 0 0;
-            font-size: 0.55rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
             opacity: 0.35;
         }
 
         .input-hint {
-            font-size: 0.55rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
             letter-spacing: 0.5px;
             padding: 0 2px;
@@ -2167,7 +2169,7 @@
             border-radius: var(--r-lg);
             color: var(--text);
             resize: none;
-            font-family: 'Share Tech Mono', monospace;
+            font-family: var(--font);
             font-size: 0.88rem;
             outline: none;
             line-height: 1.5;
@@ -2200,7 +2202,7 @@
 
         .send-btn:hover:not(:disabled) {
             background: var(--accent-hi);
-            box-shadow: 0 3px 14px rgba(124,106,247,0.45);
+            box-shadow: 0 3px 14px rgba(10,132,255,0.45);
             transform: scale(1.05);
         }
 
@@ -2243,8 +2245,8 @@
         }
 
         .message.mine .msg-image-bubble {
-            background: rgba(124,106,247,0.2);
-            border-color: rgba(124,106,247,0.3);
+            background: rgba(10,132,255,0.2);
+            border-color: rgba(10,132,255,0.3);
         }
 
         /* hidden image placeholder (Hide images in chat setting) */
@@ -2263,15 +2265,15 @@
             border-radius: var(--r);
             color: var(--text-faint);
             font-family: inherit;
-            font-size: 0.65rem;
-            letter-spacing: 1px;
+            font-size: 0.72rem;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             cursor: pointer;
             transition: color 0.15s, border-color 0.15s, background 0.15s;
         }
 
         .msg-image-reveal i { font-size: 1rem; }
-        .msg-image-reveal span { font-size: 0.55rem; color: var(--text-ghost); letter-spacing: 0.8px; }
+        .msg-image-reveal span { font-size: 0.72rem; color: var(--text-ghost); letter-spacing: 0.2px; }
         .msg-image-reveal:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
 
         /* wrap: column stack of expiry chip + image row */
@@ -2291,10 +2293,10 @@
             padding: 3px 9px;
             border: 1px solid var(--border-hi);
             border-radius: 8px;
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 0.58rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             color: var(--text-ghost);
-            letter-spacing: 0.8px;
+            letter-spacing: 0.2px;
             white-space: nowrap;
         }
 
@@ -2314,8 +2316,8 @@
             border: 1px solid var(--border);
             border-radius: var(--r);
             color: var(--text-faint);
-            font-size: 0.65rem;
-            letter-spacing: 1px;
+            font-size: 0.72rem;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
         }
 
@@ -2386,10 +2388,10 @@
             border: 1px solid var(--border-hi);
             border-radius: var(--r-sm);
             color: var(--text-dim);
-            font-family: 'Orbitron', monospace;
-            font-size: 0.58rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             cursor: pointer;
             display: flex;
@@ -2427,11 +2429,11 @@
         }
 
         .group-info-name-display {
-            font-family: 'Orbitron', monospace;
+            font-family: var(--font);
             font-size: 0.9rem;
             font-weight: 700;
             color: var(--text);
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             text-align: center;
         }
@@ -2443,7 +2445,7 @@
             border: 1px solid var(--border-hi);
             border-radius: var(--r-sm);
             color: var(--text);
-            font-family: 'Share Tech Mono', monospace;
+            font-family: var(--font);
             font-size: 0.88rem;
             outline: none;
             text-align: center;
@@ -2456,11 +2458,11 @@
         }
 
         .group-info-section-label {
-            font-family: 'Orbitron', monospace;
-            font-size: 0.52rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
             color: var(--text-muted);
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             padding: 14px 20px 8px;
             display: flex;
@@ -2488,8 +2490,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Orbitron', monospace;
-            font-size: 0.68rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
             color: var(--text-muted);
             text-transform: uppercase;
@@ -2510,7 +2512,7 @@
         }
 
         .group-info-member-email {
-            font-size: 0.65rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
             white-space: nowrap;
             overflow: hidden;
@@ -2518,10 +2520,10 @@
         }
 
         .group-info-member-tag {
-            font-size: 0.52rem;
-            font-family: 'Orbitron', monospace;
+            font-size: 0.72rem;
+            font-family: var(--font);
             color: var(--text-dead);
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             flex-shrink: 0;
         }
@@ -2537,7 +2539,7 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            font-size: 0.7rem;
+            font-size: 0.72rem;
             flex-shrink: 0;
             transition: background 0.15s, border-color 0.15s, color 0.15s;
         }
@@ -2573,11 +2575,11 @@
         }
 
         .save-explain-title {
-            font-family: 'Orbitron', monospace;
+            font-family: var(--font);
             font-size: 0.72rem;
             font-weight: 700;
             color: var(--text);
-            letter-spacing: 3px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             margin-bottom: 14px;
         }
@@ -2593,7 +2595,7 @@
         .save-explain-text strong { color: var(--text); }
 
         .save-explain-note {
-            font-size: 0.7rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
             letter-spacing: 0.5px;
             line-height: 1.7;
@@ -2618,10 +2620,10 @@
             border: 1px solid var(--border-hi);
             border-radius: var(--r-sm);
             color: var(--text-muted);
-            font-family: 'Orbitron', monospace;
-            font-size: 0.6rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             cursor: pointer;
             transition: color 0.15s, border-color 0.15s, background 0.15s;
@@ -2635,10 +2637,10 @@
             border: 1px solid rgba(248,113,113,0.4);
             border-radius: var(--r-sm);
             color: var(--error);
-            font-family: 'Orbitron', monospace;
-            font-size: 0.6rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             cursor: pointer;
             display: inline-flex;
@@ -2659,9 +2661,9 @@
         }
 
         .overwrite-preview-label {
-            font-size: 0.56rem;
+            font-size: 0.72rem;
             color: var(--text-muted);
-            letter-spacing: 1.5px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             padding: 8px 12px 5px;
         }
@@ -2688,10 +2690,10 @@
             border: none;
             border-bottom: 2px solid transparent;
             color: var(--text-muted);
-            font-family: 'Orbitron', monospace;
-            font-size: 0.57rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             cursor: pointer;
             display: flex;
@@ -2715,9 +2717,9 @@
 
         .dm-section-label {
             padding: 8px 16px 5px;
-            font-size: 0.57rem;
+            font-size: 0.72rem;
             font-weight: 700;
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             color: var(--text-ghost);
             flex-shrink: 0;
@@ -2752,11 +2754,11 @@
         }
 
         .group-members-label {
-            font-family: 'Orbitron', monospace;
-            font-size: 0.52rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
             color: var(--text-muted);
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             margin-bottom: 8px;
             display: flex;
@@ -2764,7 +2766,7 @@
             gap: 8px;
         }
 
-        .group-member-count { color: var(--text-ghost); font-size: 0.48rem; }
+        .group-member-count { color: var(--text-ghost); font-size: 0.72rem; }
 
         .group-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 
@@ -2773,7 +2775,7 @@
             align-items: center;
             gap: 6px;
             padding: 4px 8px 4px 10px;
-            border: 1px solid rgba(124,106,247,0.3);
+            border: 1px solid rgba(10,132,255,0.3);
             border-radius: 20px;
             background: var(--accent-dim);
             font-size: 0.72rem;
@@ -2789,7 +2791,7 @@
             color: var(--accent-hi);
             cursor: pointer;
             padding: 0;
-            font-size: 0.65rem;
+            font-size: 0.72rem;
             line-height: 1;
             flex-shrink: 0;
             opacity: 0.7;
@@ -2806,7 +2808,7 @@
 
         .result-action.added { color: var(--success); }
         .group-conv-avatar { font-size: 0.9rem; color: var(--text-muted); }
-        .group-header-sub { font-size: 0.65rem; color: var(--text-ghost); letter-spacing: 0.5px; }
+        .group-header-sub { font-size: 0.72rem; color: var(--text-ghost); letter-spacing: 0.5px; }
 
         /* ════════════════════════════════════════════════
            MODAL – NEW DM / USER SEARCH
@@ -2849,11 +2851,11 @@
         }
 
         .modal-title {
-            font-family: 'Orbitron', monospace;
+            font-family: var(--font);
             font-size: 0.72rem;
             font-weight: 700;
             color: var(--text);
-            letter-spacing: 3px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
         }
 
@@ -2887,7 +2889,7 @@
             border: 1px solid var(--border-hi);
             border-radius: var(--r-sm);
             color: var(--text);
-            font-family: 'Share Tech Mono', monospace;
+            font-family: var(--font);
             font-size: 0.88rem;
             outline: none;
             transition: border-color 0.2s, box-shadow 0.2s;
@@ -2936,7 +2938,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Orbitron', monospace;
+            font-family: var(--font);
             font-size: 0.75rem;
             font-weight: 700;
             color: var(--text-muted);
@@ -2956,15 +2958,15 @@
         }
 
         .result-email {
-            font-size: 0.65rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
             letter-spacing: 0.3px;
         }
 
         .result-action {
-            font-size: 0.58rem;
+            font-size: 0.72rem;
             color: var(--text-faint);
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
         }
 
@@ -2980,9 +2982,9 @@
         .search-hint i { font-size: 26px; color: var(--border-hi); }
 
         .search-hint p {
-            font-size: 0.68rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
         }
 
         /* ─── PROFILE MODAL ─────────────────────────── */
@@ -3050,8 +3052,8 @@
             cursor: pointer;
             opacity: 0;
             transition: opacity 0.18s;
-            font-size: 0.65rem;
-            letter-spacing: 2px;
+            font-size: 0.72rem;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             color: #fff;
         }
@@ -3078,7 +3080,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Orbitron', monospace;
+            font-family: var(--font);
             font-size: 1.3rem;
             font-weight: 700;
             color: var(--text-muted);
@@ -3117,11 +3119,11 @@
         }
 
         .profile-name {
-            font-family: 'Orbitron', monospace;
+            font-family: var(--font);
             font-size: 0.92rem;
             font-weight: 700;
             color: var(--text);
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             margin-bottom: 4px;
             margin-top: 10px;
@@ -3160,9 +3162,9 @@
         }
 
         .profile-edit-label {
-            font-size: 0.58rem;
+            font-size: 0.72rem;
             color: var(--text-muted);
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             margin-bottom: 8px;
             margin-top: 14px;
@@ -3175,7 +3177,7 @@
             border: 1px solid var(--border-hi);
             border-radius: var(--r-sm);
             color: var(--text);
-            font-family: 'Share Tech Mono', monospace;
+            font-family: var(--font);
             font-size: 0.85rem;
             resize: vertical;
             min-height: 78px;
@@ -3211,9 +3213,9 @@
         }
 
         .gradient-control-item label {
-            font-size: 0.58rem;
+            font-size: 0.72rem;
             color: var(--text-muted);
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
         }
 
@@ -3234,9 +3236,9 @@
         }
 
         .gradient-angle-row label {
-            font-size: 0.58rem;
+            font-size: 0.72rem;
             color: var(--text-muted);
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             white-space: nowrap;
         }
@@ -3260,10 +3262,10 @@
             color: #fff;
             border: none;
             border-radius: var(--r-sm);
-            font-family: 'Orbitron', monospace;
-            font-size: 0.65rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             cursor: pointer;
             margin-top: 16px;
@@ -3276,7 +3278,7 @@
 
         .profile-save-btn:hover:not(:disabled) {
             background: var(--accent-hi);
-            box-shadow: 0 4px 18px rgba(124,106,247,0.35);
+            box-shadow: 0 4px 18px rgba(10,132,255,0.35);
         }
         .profile-save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -3287,10 +3289,10 @@
             color: var(--text-dim);
             border: 1px solid var(--border-hi);
             border-radius: var(--r-sm);
-            font-family: 'Orbitron', monospace;
-            font-size: 0.65rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             cursor: pointer;
             margin-top: 14px;
@@ -3309,9 +3311,9 @@
             color: var(--error);
             border: 1px solid rgba(248, 113, 113, 0.25);
             border-radius: var(--r-sm);
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 0.62rem;
-            letter-spacing: 1px;
+            font-family: var(--font);
+            font-size: 0.72rem;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             cursor: pointer;
             display: flex;
@@ -3350,11 +3352,11 @@
         }
 
         .profile-settings-title {
-            font-family: 'Orbitron', monospace;
-            font-size: 0.68rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
             color: var(--text);
-            letter-spacing: 2px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
         }
 
@@ -3380,9 +3382,9 @@
         }
 
         .profile-preview-label-bar {
-            font-size: 0.54rem;
+            font-size: 0.72rem;
             color: var(--text-muted);
-            letter-spacing: 2.5px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             align-self: flex-start;
             padding-left: 2px;
@@ -3456,8 +3458,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Orbitron', monospace;
-            font-size: 0.6rem;
+            font-family: var(--font);
+            font-size: 0.72rem;
             font-weight: 700;
             color: var(--text-muted);
             text-transform: uppercase;
@@ -3486,7 +3488,7 @@
             justify-content: center;
             opacity: 0;
             transition: opacity 0.15s;
-            font-size: 0.55rem;
+            font-size: 0.72rem;
             color: #fff;
         }
 
@@ -3494,11 +3496,11 @@
 
         /* ─── PRIVACY TOGGLES ────────────────────────── */
         .privacy-section-label {
-            font-size: 0.55rem;
-            font-family: 'Orbitron', monospace;
+            font-size: 0.72rem;
+            font-family: var(--font);
             font-weight: 700;
             color: var(--text-muted);
-            letter-spacing: 3px;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             margin: 16px 0 8px;
         }
@@ -3521,7 +3523,7 @@
         }
 
         .privacy-row-desc {
-            font-size: 0.6rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
             margin-top: 2px;
         }
@@ -3574,7 +3576,7 @@
         }
 
         .profile-blocked-notice p {
-            font-size: 0.7rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
             line-height: 1.6;
         }
@@ -3605,14 +3607,14 @@
 
         /* Username display */
         .profile-username {
-            font-size: 0.68rem;
+            font-size: 0.72rem;
             color: var(--accent);
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
             margin-bottom: 4px;
         }
 
         .conv-username {
-            font-size: 0.65rem;
+            font-size: 0.72rem;
             color: var(--text-ghost);
             white-space: nowrap;
             overflow: hidden;
@@ -3627,9 +3629,9 @@
             border: 1px solid var(--border-hi);
             border-radius: var(--r-sm);
             color: var(--text-muted);
-            font-family: 'Share Tech Mono', monospace;
+            font-family: var(--font);
             font-size: 0.72rem;
-            letter-spacing: 1px;
+            letter-spacing: 0.2px;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -3640,7 +3642,7 @@
         }
 
         .profile-friend-btn:hover:not(:disabled) { background: var(--surface-3); color: var(--text); }
-        .profile-friend-btn.add:hover:not(:disabled) { background: var(--accent-dim); border-color: rgba(124,106,247,0.4); color: var(--accent); }
+        .profile-friend-btn.add:hover:not(:disabled) { background: var(--accent-dim); border-color: rgba(10,132,255,0.4); color: var(--accent); }
         .profile-friend-btn.accept:hover:not(:disabled) { background: rgba(52,211,153,0.1); border-color: rgba(52,211,153,0.4); color: var(--success); }
         .profile-friend-btn.remove:hover:not(:disabled) { background: rgba(248,113,113,0.08); border-color: rgba(248,113,113,0.3); color: var(--error); }
         .profile-friend-btn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -3665,7 +3667,7 @@
         }
 
         .friend-req-username {
-            font-size: 0.65rem;
+            font-size: 0.72rem;
             color: var(--accent);
             letter-spacing: 0.5px;
         }
@@ -3679,9 +3681,9 @@
         .freq-accept-btn, .freq-decline-btn {
             padding: 5px 12px;
             border-radius: var(--r-sm);
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 0.62rem;
-            letter-spacing: 1px;
+            font-family: var(--font);
+            font-size: 0.72rem;
+            letter-spacing: 0.2px;
             text-transform: uppercase;
             cursor: pointer;
             transition: background 0.15s, border-color 0.15s;
@@ -3709,13 +3711,13 @@
             top: 20px;
             right: 20px;
             background: var(--surface-2);
-            border: 1px solid rgba(124,106,247,0.4);
+            border: 1px solid rgba(10,132,255,0.4);
             border-radius: var(--r-lg);
             padding: 14px 16px;
             display: flex;
             align-items: center;
             gap: 12px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(124,106,247,0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(10,132,255,0.1);
             z-index: 9999;
             opacity: 0;
             transform: translateY(-16px);
@@ -3731,8 +3733,8 @@
         .freq-notif-icon {
             width: 36px; height: 36px;
             border-radius: 50%;
-            background: rgba(124,106,247,0.12);
-            border: 1px solid rgba(124,106,247,0.25);
+            background: rgba(10,132,255,0.12);
+            border: 1px solid rgba(10,132,255,0.25);
             display: flex; align-items: center; justify-content: center;
             color: var(--accent);
             font-size: 0.85rem;
@@ -3746,7 +3748,7 @@
             margin-bottom: 2px;
         }
         .freq-notif-sub {
-            font-size: 0.62rem;
+            font-size: 0.72rem;
             color: var(--text-muted);
         }
         .freq-notif-view {
@@ -3755,7 +3757,7 @@
             border: none;
             border-radius: var(--r-sm);
             padding: 5px 10px;
-            font-size: 0.62rem;
+            font-size: 0.72rem;
             font-weight: 700;
             cursor: pointer;
             white-space: nowrap;
@@ -3768,7 +3770,7 @@
             border: none;
             color: var(--text-ghost);
             cursor: pointer;
-            font-size: 0.7rem;
+            font-size: 0.72rem;
             padding: 2px 4px;
             flex-shrink: 0;
         }
@@ -3799,6 +3801,580 @@
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
+
+        /* ════════════════════════════════════════════════
+           iMESSAGE-STYLE REFRESH
+           Restyles the main chat surfaces on top of the base
+           rules above: system sans type, larger text, grey and
+           blue bubbles with tails, pill composer.
+        ════════════════════════════════════════════════ */
+        html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+        body { font-size: 15px; letter-spacing: -0.005em; }
+        button, input, textarea, select { font-family: inherit; }
+
+        /* ─── Avatars: grey gradient with white initials ─── */
+        .conv-avatar,
+        .chat-header-avatar,
+        .msg-avatar,
+        .typing-bubble-wrap .tb-avatar {
+            background: linear-gradient(180deg, #a5abb8, #858994);
+            background-clip: padding-box;
+            border: 2px solid transparent;
+            color: #fff;
+            font-weight: 500;
+        }
+        .group-conv-avatar { color: #fff; }
+
+        /* ─── Sidebar ─── */
+        .dm-sidebar { background: var(--surface); }
+        .sidebar-header { height: 54px; padding: 0 10px 0 16px; border-bottom: none; }
+        .logo { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.02em; }
+
+        .compose-btn,
+        .collapse-btn {
+            width: 30px; height: 30px;
+            background: none;
+            border: none;
+            border-radius: var(--r-sm);
+        }
+        .compose-btn { color: var(--accent); font-size: 1rem; }
+        .collapse-btn { color: var(--text-muted); font-size: 0.78rem; }
+        .compose-btn:hover { background: var(--surface-2); color: var(--accent-hi); }
+        .collapse-btn:hover { background: var(--surface-2); color: var(--text); }
+
+        /* Friends / Servers as a segmented control */
+        .sidebar-tabs {
+            gap: 2px;
+            margin: 2px 12px 10px;
+            padding: 2px;
+            background: var(--surface-2);
+            border-bottom: none;
+            border-radius: 9px;
+        }
+        .sidebar-tab {
+            padding: 6px 0;
+            border: none;
+            border-radius: 7px;
+            color: var(--text-dim);
+            font-size: 0.82rem;
+            font-weight: 500;
+            letter-spacing: 0;
+            text-transform: none;
+        }
+        .sidebar-tab:hover { background: none; color: var(--text); }
+        .sidebar-tab.active { background: #636366; color: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .sidebar-tab i { font-size: 0.75rem; }
+        .dm-sidebar.collapsed .sidebar-tabs { margin: 2px 8px 8px; }
+        .dm-sidebar.collapsed .sidebar-tab { padding: 9px 0; border-left: none; }
+
+        .sidebar-search-wrap { padding: 0 12px; margin-bottom: 8px; }
+        .sidebar-search {
+            padding: 7px 10px 7px 30px;
+            background: var(--surface-2);
+            border-color: transparent;
+            border-radius: 9px;
+            font-size: 0.88rem;
+        }
+        .sidebar-search::placeholder { color: var(--text-muted); }
+        .sidebar-search-icon { left: 22px; color: var(--text-muted); font-size: 0.75rem; }
+
+        /* Conversation rows */
+        .conv-list { padding: 2px 8px 8px; gap: 1px; }
+        .conv-item { padding: 9px 10px; gap: 11px; border: 1px solid transparent; border-radius: var(--r); }
+        .conv-item:hover { background: rgba(255,255,255,0.06); }
+        .conv-item.active,
+        .dm-sidebar.collapsed .conv-item.active {
+            background: var(--accent);
+            border: 1px solid transparent;
+            border-radius: var(--r);
+        }
+        .dm-sidebar.collapsed .conv-item { margin: 0 6px; }
+        .conv-avatar { width: 44px; height: 44px; font-size: 0.95rem; }
+        .conv-name { font-size: 0.94rem; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 1px; }
+        .conv-preview { font-size: 0.82rem; color: var(--text-muted); }
+        .conv-time { font-size: 0.75rem; color: var(--text-muted); }
+        .unread-badge { padding: 1px 6px; border-radius: 10px; font-size: 0.72rem; font-weight: 600; }
+        .conv-item.unread .conv-name { font-weight: 700; }
+        .conv-item.active .conv-preview,
+        .conv-item.active .conv-time { color: rgba(255,255,255,0.82); }
+        .conv-item.active .unread-badge { background: #fff; color: var(--accent); }
+        .conv-item.active .status-dot { border-color: var(--accent); }
+
+        .user-panel { background: none; }
+        .user-panel-name { font-size: 0.9rem; }
+        .user-panel-version { display: block; font-size: 0.72rem; color: var(--text-faint); }
+        .user-panel-btn { width: 30px; height: 30px; color: var(--text-muted); font-size: 0.82rem; }
+        .user-panel-btn:hover { color: var(--text); }
+
+        /* ─── Chat header ─── */
+        .chat-header { min-height: 56px; padding: 8px 18px; gap: 11px; background: #0e0e0f; }
+        .chat-header-avatar { width: 36px; height: 36px; font-size: 0.8rem; }
+        /* name and tags share the first line, handle sits underneath */
+        .chat-header-info { display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; }
+        .chat-header-name { font-size: 0.97rem; font-weight: 600; letter-spacing: -0.01em; text-transform: none; }
+        .chat-header-email { order: 1; flex-basis: 100%; font-size: 0.78rem; letter-spacing: 0; }
+        .chat-header-tags-row { margin-top: 0; }
+        .profile-tag,
+        .status-tag { border-radius: 999px; font-weight: 600; }
+        .chat-header-tags-row .profile-tag,
+        .chat-header-tags-row .status-tag { padding: 1px 7px; font-size: 0.72rem; letter-spacing: 0.2px; }
+
+        /* ─── Message list ─── */
+        .messages-container { padding: 14px 20px 8px; gap: 0; }
+
+        .msg-day-separator { justify-content: center; margin: 14px 0 6px; }
+        .msg-day-separator::before,
+        .msg-day-separator::after { display: none; }
+        .msg-day-label { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); letter-spacing: 0; text-transform: none; }
+
+        /* DM rows (.message) and server rows (.msg) share the bubble look */
+        .message,
+        .msg {
+            display: flex;
+            align-items: flex-end;
+            gap: 7px;
+            max-width: 68%;
+            margin: 1px 0 0;
+            animation: msgIn 0.18s ease;
+        }
+        .message.grp-first,
+        .msg.grp-first { margin-top: 9px; }
+        .msg { align-self: flex-start; }
+        .msg.msg-mine { align-self: flex-end; flex-direction: row-reverse; }
+
+        /* Avatar sits beside the last bubble of a run; never for your own messages or in 1:1 chats */
+        .message .msg-avatar,
+        .msg .msg-avatar {
+            position: relative;
+            z-index: 1;
+            width: 28px; height: 28px;
+            border: none;
+            font-size: 0.72rem;
+            visibility: hidden;
+        }
+        .message.grp-last .msg-avatar,
+        .msg.grp-last .msg-avatar { visibility: visible; }
+        .message.mine .msg-avatar,
+        .msg.msg-mine .msg-avatar,
+        .messages-container:not(.is-group) .message .msg-avatar { display: none; }
+
+        .msg-content,
+        .msg-body {
+            position: relative;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .message.mine .msg-content,
+        .msg-mine .msg-body { align-items: flex-end; }
+        .msg-row { position: relative; max-width: 100%; }
+
+        /* Sender name: first bubble of someone else's run, group chats only */
+        .message-header { display: none; margin: 0 0 2px 12px; font-size: 0.72rem; letter-spacing: 0; }
+        .messages-container.is-group .message.theirs.grp-first .message-header { display: block; }
+
+        /* Bubbles */
+        .message-bubble,
+        .msg-text {
+            position: relative;
+            z-index: 0;
+            padding: 7px 12px 8px;
+            border: none;
+            border-radius: var(--r-lg);
+            font-size: 0.97rem;
+            line-height: 1.32;
+            letter-spacing: -0.01em;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+        .message.theirs .message-bubble,
+        .msg-other .msg-text {
+            background: var(--bubble-in);
+            color: var(--text);
+            border: none;
+            border-radius: var(--r-lg);
+        }
+        .message.mine .message-bubble,
+        .msg-mine .msg-text {
+            background: var(--accent);
+            color: #fff;
+            border-radius: var(--r-lg);
+        }
+        .message.mine.is-seen .message-bubble { box-shadow: none; }
+        .message .game-invite { white-space: normal; }
+
+        /* Tail on the last bubble of a run */
+        .message.grp-last .message-bubble:not(.game-invite)::before,
+        .message.grp-last .message-bubble:not(.game-invite)::after,
+        .msg.grp-last .msg-text::before,
+        .msg.grp-last .msg-text::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            height: 18px;
+            z-index: -1;
+        }
+        .message.mine.grp-last .message-bubble:not(.game-invite)::before,
+        .msg-mine.grp-last .msg-text::before {
+            right: -7px;
+            width: 20px;
+            background: inherit;
+            border-bottom-left-radius: 16px 14px;
+        }
+        .message.mine.grp-last .message-bubble:not(.game-invite)::after,
+        .msg-mine.grp-last .msg-text::after {
+            right: -26px;
+            width: 26px;
+            background: var(--bg);
+            border-bottom-left-radius: 10px;
+        }
+        .message.theirs.grp-last .message-bubble:not(.game-invite)::before,
+        .msg-other.grp-last .msg-text::before {
+            left: -7px;
+            width: 20px;
+            background: inherit;
+            border-bottom-right-radius: 16px 14px;
+        }
+        .message.theirs.grp-last .message-bubble:not(.game-invite)::after,
+        .msg-other.grp-last .msg-text::after {
+            left: -26px;
+            width: 26px;
+            background: var(--bg);
+            border-bottom-right-radius: 10px;
+        }
+
+        /* Replied-from-Desktop bubbles keep their orange, as solid fills */
+        .message.desktop-reply .message-bubble,
+        .message.mine.desktop-reply .message-bubble { border-radius: var(--r-lg); box-shadow: none; }
+        .message.theirs.desktop-reply .message-bubble { background: #4a2c10; border: none; box-shadow: none; }
+        .message.mine.desktop-reply .message-bubble { background: #d9730d; box-shadow: none; }
+        .desktop-reply-banner { margin: 0 4px 4px; text-transform: none; letter-spacing: 0; }
+
+        /* Reply quote inside a bubble */
+        .msg-reply-quote {
+            margin: 2px 0 6px;
+            padding: 4px 9px;
+            background: rgba(255,255,255,0.07);
+            border-radius: 4px 8px 8px 4px;
+            white-space: normal;
+        }
+        .msg-reply-quote-name { font-size: 0.72rem; font-weight: 600; letter-spacing: 0; text-transform: none; }
+        .msg-reply-quote-text { font-size: 0.82rem; }
+
+        /* Time and reply button appear beside the bubble on hover */
+        .msg-meta {
+            position: absolute;
+            bottom: 3px;
+            left: 100%;
+            margin: 0;
+            padding-left: 10px;
+            gap: 6px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+        .message.mine .msg-meta { left: auto; right: 100%; padding: 0 10px 0 0; }
+        .message:hover .msg-meta { opacity: 1; }
+        .message-time { font-size: 0.72rem; color: var(--text-muted); opacity: 1; }
+        .msg-reply-btn { opacity: 1; color: var(--text-muted); font-size: 0.8rem; }
+        .msg-info-btn { font-size: 0.8rem; }
+
+        /* Delivered / Read under your last message */
+        .seen-receipt { margin-top: 2px; gap: 0; }
+        .seen-receipt-line { display: none; }
+        .seen-receipt-name,
+        .sent-receipt {
+            padding: 0 2px;
+            font-size: 0.72rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            letter-spacing: 0;
+            opacity: 1;
+        }
+        .sent-receipt { margin-top: 2px; }
+        .seen-receipt.desktop .seen-receipt-name { color: var(--away); }
+
+        /* Images */
+        .msg-image-bubble,
+        .message.mine .msg-image-bubble { padding: 0; background: none; border: none; border-radius: 16px; overflow: hidden; }
+        .msg-image { max-width: 280px; max-height: 300px; border-radius: 16px; }
+        .msg-image-reveal {
+            background: var(--bubble-in);
+            border: none;
+            border-radius: 16px;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            letter-spacing: 0;
+            text-transform: none;
+        }
+        .msg-image-reveal span { font-size: 0.72rem; color: var(--text-muted); letter-spacing: 0; }
+        .msg-expiry-chip { padding: 2px 8px; border-color: transparent; border-radius: 999px; color: var(--text-muted); letter-spacing: 0; }
+
+        /* Server rows: name above the first bubble, time on hover */
+        .msg-sender {
+            display: flex;
+            align-items: baseline;
+            gap: 6px;
+            margin: 0 0 2px 12px;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+        .msg-name { font-weight: 500; }
+        .msg-time { opacity: 0; transition: opacity 0.15s; }
+        .msg:hover .msg-time { opacity: 1; }
+        .msg-mine .msg-name,
+        .msg:not(.grp-first) .msg-name { display: none; }
+        .msg-mine .msg-sender,
+        .msg:not(.grp-first) .msg-sender { position: absolute; bottom: 4px; left: calc(100% + 38px); margin: 0; }
+        .msg-mine .msg-sender { left: auto; right: calc(100% + 38px); }
+        .msg-actions { align-self: center; opacity: 0; transition: opacity 0.15s; }
+        .msg:hover .msg-actions { opacity: 1; }
+        .msg-action-btn {
+            padding: 4px 6px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .msg-action-btn:hover { color: var(--accent); }
+        .reply-ref {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            max-width: 100%;
+            margin: 0 12px 3px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+        }
+        .reply-ref-name { font-weight: 600; }
+        .reply-ref-preview { overflow: hidden; text-overflow: ellipsis; }
+
+        /* Touch screens have no hover, so keep the time and reply button in view */
+        @media (hover: none) {
+            .msg-meta,
+            .message.mine .msg-meta { position: static; padding: 2px 4px 0; opacity: 1; }
+            .msg-time,
+            .msg-actions { opacity: 1; }
+        }
+
+        /* Typing indicator */
+        .typing-bubble-wrap { padding: 4px 20px 6px; gap: 7px; }
+        .typing-bubble-wrap .tb-avatar { width: 28px; height: 28px; border: none; font-size: 0.72rem; }
+        .typing-bubble { padding: 11px 13px; gap: 4px; background: var(--bubble-in); border: none; border-radius: var(--r-lg); }
+        .typing-dot { background: #8e8e93; }
+
+        /* ─── Composer ─── */
+        .message-input-area { padding: 6px 16px 8px; background: var(--bg); border-top: none; }
+        .message-input-container { margin-bottom: 4px; }
+        .message-input {
+            min-height: 36px;
+            padding: 7px 14px;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.22);
+            border-radius: 19px;
+            font-size: 0.97rem;
+            line-height: 1.35;
+        }
+        .message-input:focus { border-color: rgba(255,255,255,0.42); box-shadow: none; }
+        .message-input::placeholder { color: var(--text-faint); }
+        .send-btn { width: 32px; height: 32px; margin-bottom: 2px; font-size: 0.85rem; }
+        .send-btn:hover:not(:disabled) { box-shadow: none; transform: none; }
+        .image-upload-btn {
+            width: 32px; height: 32px;
+            margin-bottom: 2px;
+            background: var(--surface-2);
+            border: none;
+            border-radius: 50%;
+            color: var(--text-muted);
+        }
+        .input-hint { padding: 0 14px; color: var(--text-faint); }
+
+        .reply-bar { margin-bottom: 6px; padding: 7px 12px; background: var(--surface); border: none; border-radius: 12px; }
+        .reply-bar-label { font-size: 0.72rem; font-weight: 500; color: var(--text-muted); letter-spacing: 0; text-transform: none; }
+        .reply-bar-preview { font-size: 0.82rem; }
+        .reply-bar-close { background: var(--surface-2); border: none; border-radius: 50%; }
+
+        /* ─── Empty states ─── */
+        .empty-welcome-title { font-size: 1.15rem; font-weight: 600; color: var(--text); letter-spacing: -0.01em; }
+        .empty-welcome-sub { font-size: 0.88rem; }
+        .start-dm-btn { padding: 9px 20px; border-radius: 999px; font-size: 0.88rem; font-weight: 600; letter-spacing: 0; text-transform: none; }
+        .start-dm-btn:hover { box-shadow: none; }
+        .messages-empty { color: var(--text-muted); }
+        .messages-empty p { font-size: 0.88rem; letter-spacing: 0; text-transform: none; }
+
+        .profile-nickname-input {
+            width: 150px;
+            flex-shrink: 0;
+            padding: 6px 10px;
+            background: var(--surface-2);
+            border: 1px solid var(--border-hi);
+            border-radius: var(--r-sm);
+            color: var(--text);
+            font-size: 0.85rem;
+            outline: none;
+        }
+        .profile-nickname-input:focus { border-color: var(--accent); }
+
+        /* ─── Settings ─── */
+        .settings-body { overflow-y: auto; flex: 1; min-height: 0; padding: 4px 16px 16px; }
+        .settings-section-label {
+            margin: 16px 4px 6px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+        }
+        .settings-group { background: var(--surface-2); border-radius: 12px; overflow: hidden; }
+        .settings-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 11px 14px;
+            background: none;
+            border: none;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            font-size: 0.9rem;
+            text-align: left;
+        }
+        .settings-row:last-child { border-bottom: none; }
+        button.settings-row { cursor: pointer; }
+        button.settings-row:hover { background: rgba(255,255,255,0.05); }
+        .settings-row > i:first-child { width: 20px; text-align: center; color: var(--accent); font-size: 0.9rem; flex-shrink: 0; }
+        .settings-row-main { flex: 1; min-width: 0; }
+        .settings-row-label { display: block; font-size: 0.9rem; }
+        .settings-row-desc { display: block; margin-top: 1px; font-size: 0.75rem; color: var(--text-muted); line-height: 1.35; }
+        .settings-row-chevron { color: var(--text-faint); font-size: 0.72rem; flex-shrink: 0; }
+        .settings-row.danger,
+        .settings-row.danger > i:first-child { color: var(--error); }
+        .settings-version { margin-top: 16px; text-align: center; font-size: 0.72rem; color: var(--text-faint); }
+
+        /* ─── Reactions ─── */
+        .msg-reactions { display: flex; flex-wrap: wrap; gap: 4px; margin: -5px 6px 2px; position: relative; z-index: 2; }
+        .message.mine .msg-reactions { justify-content: flex-end; }
+        .msg-reaction {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 1px 7px;
+            background: var(--surface-2);
+            border: 2px solid var(--bg);
+            border-radius: 999px;
+            color: var(--text-dim);
+            font-size: 0.78rem;
+            line-height: 1.4;
+            cursor: pointer;
+        }
+        .msg-reaction span { font-size: 0.72rem; font-weight: 600; }
+        .msg-reaction.mine { background: var(--accent); color: #fff; }
+        .msg-reaction:hover { filter: brightness(1.15); }
+
+        #reactionPicker {
+            display: none;
+            position: fixed;
+            z-index: 1500;
+            gap: 2px;
+            padding: 5px 7px;
+            background: var(--surface-2);
+            border: 1px solid var(--border-hi);
+            border-radius: 999px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+        #reactionPicker.show { display: flex; }
+        #reactionPicker button {
+            width: 34px; height: 34px;
+            background: none;
+            border: none;
+            border-radius: 50%;
+            font-size: 1.15rem;
+            cursor: pointer;
+            transition: background 0.12s, transform 0.12s;
+        }
+        #reactionPicker button:hover { background: var(--surface-3); transform: scale(1.15); }
+        #reactionPicker button.picked { background: var(--accent); }
+
+        /* Re-rendering in place (a reaction changed) shouldn't replay the entrance animation */
+        .messages-container.no-anim .message { animation: none; }
+
+        /* ─── Profile links ─── */
+        .profile-link-input { min-height: 0; height: auto; resize: none; margin-bottom: 6px; font-size: 0.85rem; }
+        #profileLinksArea { margin-bottom: 12px; }
+        #profileLinksArea:empty { display: none; }
+        .profile-link {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            min-width: 0;
+            margin-top: 6px;
+            color: var(--accent-hi);
+            font-size: 0.85rem;
+            text-decoration: none;
+        }
+        .profile-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .profile-link:hover span { text-decoration: underline; }
+
+        /* ─── Message requests + undelivered messages ─── */
+        .request-banner {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 9px 18px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .request-banner > i { color: var(--accent); font-size: 1rem; }
+        .request-banner-text { flex: 1; min-width: 0; font-size: 0.82rem; color: var(--text-muted); line-height: 1.35; }
+        .request-banner-text b { display: block; color: var(--text); font-size: 0.88rem; font-weight: 600; }
+        .request-banner-btn {
+            flex-shrink: 0;
+            padding: 6px 14px;
+            background: var(--accent);
+            border: none;
+            border-radius: 999px;
+            color: #fff;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .request-banner-btn:hover:not(:disabled) { background: var(--accent-hi); }
+        .request-banner-btn:disabled { background: var(--surface-3); color: var(--text-muted); cursor: default; }
+
+        .conv-request-tag {
+            display: inline-block;
+            margin-right: 6px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: var(--accent-dim);
+            color: var(--accent-hi);
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+        .conv-item.active .conv-request-tag { background: rgba(255,255,255,0.22); color: #fff; }
+
+        /* A message that was never sent: dimmed bubble, red tag underneath */
+        .message.undelivered .message-bubble { opacity: 0.55; }
+        .undelivered-receipt { display: flex; align-items: center; gap: 2px; margin-top: 2px; }
+        .undelivered-retry {
+            padding: 0 2px;
+            background: none;
+            border: none;
+            color: var(--error);
+            font-size: 0.72rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .undelivered-retry:hover { text-decoration: underline; }
+        .undelivered-receipt .msg-info-btn { color: var(--error); }
+        .undelivered-receipt .msg-info-btn::after { border-color: rgba(255,69,58,0.45); }
+        .undelivered-receipt .msg-info-btn::before { border-top-color: rgba(255,69,58,0.45); }
     </style>
     <script>
         // Hide immediately — will be revealed only after token auth passes
@@ -3897,7 +4473,7 @@
                         maxlength="30" autocomplete="off" autocorrect="off"
                         autocapitalize="off" spellcheck="false"
                         oninput="validateUsernameInput(this)">
-                    <div id="usernameSetupHint" style="font-size:0.58rem;color:var(--text-ghost);margin-top:5px;letter-spacing:0.5px;">
+                    <div id="usernameSetupHint" style="font-size:0.72rem;color:var(--text-ghost);margin-top:5px;letter-spacing:0.5px;">
                         3–30 characters · letters, numbers, underscores only
                     </div>
                 </div>
@@ -4004,20 +4580,15 @@
                 </div>
                 <div class="user-panel-info">
                     <span class="user-panel-name" id="headerUserName"></span>
+                    <span class="user-panel-version" id="jitterVersion"></span>
                 </div>
                 <div class="user-panel-actions">
                     <button class="user-panel-btn notif-btn" onclick="openFriendRequestsModal()" title="Friend Requests" id="friendReqBtn">
                         <i class="fas fa-user-plus"></i>
                         <span class="notif-badge" id="friendReqBadge"></span>
                     </button>
-                    <button class="user-panel-btn" onclick="openHiddenModal()" title="Hidden Conversations">
-                        <i class="fas fa-eye-slash"></i>
-                    </button>
-                    <button class="user-panel-btn" onclick="openBlockedModal()" title="Blocked Users">
-                        <i class="fas fa-ban"></i>
-                    </button>
-                    <button class="user-panel-btn logout-btn" onclick="logout()" title="Sign Out">
-                        <i class="fas fa-sign-out-alt"></i>
+                    <button class="user-panel-btn" onclick="openSettingsModal()" title="Settings">
+                        <i class="fas fa-gear"></i>
                     </button>
                 </div>
             </div>
@@ -4055,6 +4626,13 @@
                     </div>
                 </div>
 
+                <!-- Shown when a non-friend started this conversation -->
+                <div class="request-banner" id="requestBanner" style="display:none">
+                    <i class="fas fa-envelope-open-text"></i>
+                    <div class="request-banner-text"><b>Message request</b><span id="requestBannerText"></span></div>
+                    <button class="request-banner-btn" id="requestBannerBtn" type="button"></button>
+                </div>
+
                 <div class="messages-container" id="messagesContainer"></div>
 
                 <div class="typing-bubble-wrap" id="typingIndicator">
@@ -4083,13 +4661,13 @@
                         <textarea
                             id="messageInput"
                             class="message-input"
-                            placeholder="Write a message…"
+                            placeholder="Message"
                             rows="1"
                             onkeydown="handleMessageKeydown(event)"
                             oninput="broadcastTyping()"
                         ></textarea>
-                        <button class="send-btn" onclick="sendMessage()" id="sendBtn">
-                            <i class="fas fa-paper-plane"></i>
+                        <button class="send-btn" onclick="sendMessage()" id="sendBtn" title="Send">
+                            <i class="fas fa-arrow-up"></i>
                         </button>
                     </div>
                     <div class="input-hint">Enter to send &middot; Shift+Enter for new line</div>
@@ -4191,6 +4769,14 @@
             placeholder="Write something about yourself…" maxlength="300"
             oninput="updateProfilePreview()"></textarea>
 
+        <div class="profile-edit-label" style="margin-top:14px;">Links</div>
+        <input type="url" id="profileLink1" class="profile-bio-input profile-link-input"
+            placeholder="https://…" maxlength="200" autocomplete="off"
+            oninput="updateProfilePreview()">
+        <input type="url" id="profileLink2" class="profile-bio-input profile-link-input"
+            placeholder="https://…" maxlength="200" autocomplete="off"
+            oninput="updateProfilePreview()">
+
         <div class="privacy-section-label">Privacy</div>
         <div class="privacy-row">
             <div>
@@ -4198,10 +4784,11 @@
                 <div class="privacy-row-desc">Turn off to stop receiving new requests</div>
             </div>
             <label class="toggle-switch">
-                <input type="checkbox" id="privacyAcceptRequests" checked>
+                <input type="checkbox" id="privacyAcceptRequests" checked onchange="setAcceptFriendRequests(this.checked)">
                 <span class="toggle-slider"></span>
             </label>
         </div>
+
         <div class="privacy-row">
             <div>
                 <div class="privacy-row-label">Show real name</div>
@@ -4219,18 +4806,6 @@
             </div>
             <label class="toggle-switch">
                 <input type="checkbox" id="privacyShowEmail" onchange="updateProfilePreview()">
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-
-        <div class="privacy-section-label">Chat</div>
-        <div class="privacy-row">
-            <div>
-                <div class="privacy-row-label">Hide images in chat</div>
-                <div class="privacy-row-desc">Images stay hidden until you click them. Saved on this device.</div>
-            </div>
-            <label class="toggle-switch">
-                <input type="checkbox" id="chatHideImages" onchange="setHideChatImages(this.checked)">
                 <span class="toggle-slider"></span>
             </label>
         </div>
@@ -4308,6 +4883,7 @@
                 <div class="profile-email-label" id="profileModalEmail" style="display:none"></div>
                 <div class="profile-tags" id="profileTagsRow" style="display:none"></div>
                 <div id="profileBioArea"></div>
+                <div id="profileLinksArea"></div>
 
                 <!-- Friend action + Message button (other users) -->
                 <button class="profile-friend-btn" id="profileFriendBtn" style="display:none"></button>
@@ -4315,8 +4891,19 @@
                     <i class="fas fa-paper-plane"></i> Send Message
                 </button>
 
+                <!-- Private nickname (other users) -->
+                <div class="privacy-row" id="profileNicknameRow" style="display:none;margin-top:12px;border-top:1px solid var(--border);">
+                    <div>
+                        <div class="privacy-row-label">Nickname</div>
+                        <div class="privacy-row-desc">Only you see it. Saved on this device.</div>
+                    </div>
+                    <input type="text" id="profileNicknameInput" class="profile-nickname-input" maxlength="32"
+                        placeholder="None" autocomplete="off"
+                        onchange="saveNickname()" onkeydown="if(event.key==='Enter')this.blur()">
+                </div>
+
                 <!-- Quick chat setting (other users) -->
-                <div class="privacy-row" id="profileHideImagesRow" style="display:none;margin-top:12px;border-top:1px solid var(--border);">
+                <div class="privacy-row" id="profileHideImagesRow" style="display:none;">
                     <div>
                         <div class="privacy-row-label">Hide images in chat</div>
                         <div class="privacy-row-desc">Images stay hidden until you click them</div>
@@ -4328,6 +4915,123 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+</div>
+
+<!-- ══ SETTINGS MODAL ══════════════════════════════════ -->
+<div id="settingsModal" class="modal" onclick="if(event.target===this)closeSettingsModal()">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">Settings</div>
+            <button class="close-modal" onclick="closeSettingsModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="settings-body">
+
+            <div class="settings-section-label">Account</div>
+            <div class="settings-group">
+                <button class="settings-row" type="button" onclick="closeSettingsModal(); openProfile(currentUser.email)">
+                    <i class="fas fa-user-pen"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Edit profile</span>
+                        <span class="settings-row-desc">Name, bio, links, photo, banner and what others can see</span>
+                    </span>
+                    <i class="fas fa-chevron-right settings-row-chevron"></i>
+                </button>
+            </div>
+
+            <div class="settings-section-label">Privacy</div>
+            <div class="settings-group">
+                <div class="settings-row">
+                    <i class="fas fa-user-plus"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Accept friend requests</span>
+                        <span class="settings-row-desc">Turn off to stop receiving new requests</span>
+                    </span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="settingsAcceptRequests" checked onchange="setAcceptFriendRequests(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <i class="fas fa-id-card"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Show real name</span>
+                        <span class="settings-row-desc">Others see your full name below your display name</span>
+                    </span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="settingsShowName" onchange="setProfileVisibility('show_name', this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <i class="fas fa-at"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Show email address</span>
+                        <span class="settings-row-desc">Others see your email on your profile</span>
+                    </span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="settingsShowEmail" onchange="setProfileVisibility('show_email', this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <i class="fas fa-envelope-open-text"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Message requests</span>
+                        <span class="settings-row-desc">Let people who aren't your friends message you. Their first message arrives as a request.</span>
+                    </span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="privacyMessageRequests" checked onchange="setMessageRequests(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <button class="settings-row" type="button" onclick="closeSettingsModal(); openBlockedModal()">
+                    <i class="fas fa-ban"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Blocked users</span>
+                        <span class="settings-row-desc">See and unblock people you've blocked</span>
+                    </span>
+                    <i class="fas fa-chevron-right settings-row-chevron"></i>
+                </button>
+            </div>
+
+            <div class="settings-section-label">Chat</div>
+            <div class="settings-group">
+                <div class="settings-row">
+                    <i class="fas fa-image"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Hide images in chat</span>
+                        <span class="settings-row-desc">Images stay hidden until you click them. Saved on this device.</span>
+                    </span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="chatHideImages" onchange="setHideChatImages(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <button class="settings-row" type="button" onclick="closeSettingsModal(); openHiddenModal()">
+                    <i class="fas fa-eye-slash"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Hidden conversations</span>
+                        <span class="settings-row-desc">Chats you've hidden from your list</span>
+                    </span>
+                    <i class="fas fa-chevron-right settings-row-chevron"></i>
+                </button>
+            </div>
+
+            <div class="settings-section-label">Session</div>
+            <div class="settings-group">
+                <button class="settings-row danger" type="button" onclick="closeSettingsModal(); logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Sign out</span>
+                    </span>
+                </button>
+            </div>
+
+            <div class="settings-version" id="settingsVersion"></div>
         </div>
     </div>
 </div>
@@ -4373,6 +5077,9 @@
 
 <!-- ══ CONV CONTEXT MENU ════════════════════════════════ -->
 <div id="convContextMenu">
+    <div class="ctx-item" onclick="setNicknameCtx()">
+        <i class="fas fa-tag"></i> Set Nickname
+    </div>
     <div class="ctx-item" onclick="hideConversationCtx()">
         <i class="fas fa-eye-slash"></i> Hide Conversation
     </div>
@@ -4446,6 +5153,9 @@
         </div>
     </div>
 </div>
+
+<!-- ══ REACTION PICKER ═════════════════════════════════ -->
+<div id="reactionPicker"></div>
 
 <!-- ══ IMAGE LIGHTBOX ══════════════════════════════════ -->
 <div id="imageLightbox" onclick="if(event.target===this)closeLightbox()">
@@ -4611,7 +5321,7 @@
             <div class="server-modal-section">
                 <div class="server-modal-label" style="display:flex;align-items:center;justify-content:space-between">
                     Roles
-                    <button class="role-action-btn" onclick="openCreateRoleUI()" title="Add role" style="width:auto;padding:2px 8px;font-size:0.6rem;gap:4px;display:flex;align-items:center">
+                    <button class="role-action-btn" onclick="openCreateRoleUI()" title="Add role" style="width:auto;padding:2px 8px;font-size:0.72rem;gap:4px;display:flex;align-items:center">
                         <i class="fas fa-plus"></i>
                     </button>
                 </div>
@@ -4824,15 +5534,15 @@
         document.documentElement.style.visibility = 'visible';
         document.body.innerHTML = `
             <div style="display:flex;align-items:center;justify-content:center;
-                        height:100vh;background:#000;font-family:'Share Tech Mono',monospace;">
+                        height:100vh;background:#000;font-family:var(--font);">
                 <div style="text-align:center;">
-                    <div style="font-family:'Orbitron',sans-serif;font-size:1.8rem;
+                    <div style="font-family:var(--font);font-size:1.8rem;
                                 font-weight:900;color:#fff;letter-spacing:4px;margin-bottom:20px;">
                         X-<span style="background:#fff;color:#000;padding:0 6px;">ORBIT</span>
                     </div>
-                    <div style="font-size:0.6rem;letter-spacing:4px;text-transform:uppercase;
+                    <div style="font-size:0.72rem;letter-spacing:4px;text-transform:uppercase;
                                 color:#444;margin-bottom:10px;">Access Restricted</div>
-                    <div style="font-size:0.65rem;color:#2a2a2a;letter-spacing:1px;">
+                    <div style="font-size:0.72rem;color:#2a2a2a;letter-spacing:0.2px;">
                         This app must be opened from within X-ORBIT
                     </div>
                 </div>
@@ -4974,6 +5684,7 @@
         setOnlineStatus(false);
         localStorage.removeItem('xorbit_dm_user');
         currentUser  = null;
+        _nicknames   = null;
         activeConvId = null;
         conversations = [];
         friendsSet.clear();
@@ -5265,7 +5976,7 @@
                     <div class="${avatarClass}">${avatarContent}</div>
                     <div class="conv-details">
                         <div class="conv-name">${escHtml(otherName)}</div>
-                        <div class="conv-preview">${escHtml(conv.last_message_preview || 'No messages yet')}</div>
+                        <div class="conv-preview">${isMessageRequest(conv) ? '<span class="conv-request-tag">Request</span>' : ''}${escHtml(conv.last_message_preview || 'No messages yet')}</div>
                     </div>
                     <div class="conv-meta">
                         <div class="conv-time">${conv.last_message_at ? fmtTime(conv.last_message_at) : ''}</div>
@@ -5349,6 +6060,7 @@
 
         document.getElementById('emptyState').style.display = 'none';
         document.getElementById('chatArea').style.display   = 'flex';
+        updateRequestBanner();
 
         hideTypingIndicator();
         await markAsRead(convId);
@@ -5365,7 +6077,7 @@
     /* ──────────────────────────────────────────────────
        MESSAGES
     ────────────────────────────────────────────────── */
-    async function loadMessages(convId) {
+    async function loadMessages(convId, keepScroll = false) {
         try {
             const { data, error } = await sb
                 .from('dm_messages')
@@ -5374,14 +6086,18 @@
                 .order('created_at', { ascending: true });
 
             if (error) throw error;
-            renderMessages(data || []);
+            const all = [...(data || []), ...undeliveredFor(convId)]
+                .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            renderMessages(all, keepScroll);
         } catch (err) {
             console.error('Error loading messages:', err);
         }
     }
 
-    function renderMessages(messages) {
+    function renderMessages(messages, keepScroll = false) {
         const container = document.getElementById('messagesContainer');
+        const prevScrollTop = container.scrollTop;
+        container.classList.toggle('no-anim', keepScroll);
 
         if (messages.length === 0) {
             container.innerHTML = `
@@ -5396,7 +6112,16 @@
         let html = '';
         let lastDay = null;
 
-        messages.forEach(msg => {
+        // Names and avatars only show in group chats
+        const activeConv = conversations.find(c => c.id === activeConvId);
+        container.classList.toggle('is-group', !!(activeConv && activeConv.is_group));
+
+        // Consecutive messages from one sender on the same day form a run
+        const sameRun = (a, b) => !!a && !!b && a.sender_email === b.sender_email
+            && new Date(a.created_at).toDateString() === new Date(b.created_at).toDateString();
+
+        messages.forEach((msg, i) => {
+            const runClass = (sameRun(messages[i - 1], msg) ? '' : ' grp-first') + (sameRun(msg, messages[i + 1]) ? '' : ' grp-last');
             const msgDay = new Date(msg.created_at).toDateString();
             if (msgDay !== lastDay) {
                 html += `<div class="msg-day-separator"><span class="msg-day-label">${fmtDay(msg.created_at)}</span></div>`;
@@ -5424,10 +6149,12 @@
                 : '';
 
             // Prefer cached display name over stored sender_name (which may be a real name from older messages)
-            const senderDisplay = displayNameCache[msg.sender_email] || usernameCache[msg.sender_email] || msg.sender_name;
+            const senderDisplay = nicknameFor(msg.sender_email) || displayNameCache[msg.sender_email] || usernameCache[msg.sender_email] || msg.sender_name;
 
             const safeReplyPreview = (msg.message || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").substring(0, 80);
-            const replyBtn = `<button class="msg-reply-btn" onclick="startReply('${escAttr(msg.id)}','${escAttr(senderDisplay)}','${safeReplyPreview}')" title="Reply"><i class="fas fa-reply"></i></button>`;
+            reactionSnapshot[msg.id] = JSON.stringify(msg.reactions || {});
+            const reactBtn = msg.undelivered ? '' : `<button class="msg-reply-btn" onclick="openReactionPicker(event,'${escAttr(msg.id)}')" title="React"><i class="far fa-face-smile"></i></button>`;
+            const replyBtn = msg.undelivered ? '' : `<button class="msg-reply-btn" onclick="startReply('${escAttr(msg.id)}','${escAttr(senderDisplay)}','${safeReplyPreview}')" title="Reply"><i class="fas fa-reply"></i></button>`;
 
             const bubbleHtml = isImage
                 ? `<div class="msg-image-wrap" data-img-url="${safeUrlAttr}" data-created-at="${msg.created_at}">
@@ -5450,6 +6177,8 @@
                    </div>`
                 : hangmanInviteCode(msg.message)
                 ? hangmanInviteCard(hangmanInviteCode(msg.message), senderDisplay, isMine)
+                : sharedAppName(msg.message)
+                ? sharedAppCard(sharedAppName(msg.message), senderDisplay, isMine)
                 : `<div class="message-bubble">${replyQuote}${escHtml(msg.message)}</div>`;
             const viaDesktop = msg.sent_via === 'desktop';
             const desktopBanner = viaDesktop
@@ -5463,19 +6192,24 @@
                 : '';
 
             html += `
-                <div class="message ${isMine ? 'mine' : 'theirs'}${viaDesktop ? ' desktop-reply' : ''}" data-created-at="${msg.created_at}" data-via="${viaDesktop ? 'desktop' : ''}">
+                <div class="message ${isMine ? 'mine' : 'theirs'}${runClass}${viaDesktop ? ' desktop-reply' : ''}${msg.undelivered ? ' undelivered' : ''}" data-created-at="${msg.created_at}" data-via="${viaDesktop ? 'desktop' : ''}">
                     <div class="msg-avatar" onclick="openProfile('${escAttr(msg.sender_email)}')">${avatarHTML(senderDisplay, msg.sender_email)}</div>
                     <div class="msg-content">
                         <div class="message-header">${escHtml(senderDisplay)}</div>
-                        ${desktopBanner}${bubbleHtml}
-                        <div class="msg-meta">${replyBtn}${infoBtn}<div class="message-time">${fmtTime(msg.created_at)}</div></div>
+                        ${desktopBanner}
+                        <div class="msg-row">
+                            ${bubbleHtml}
+                            ${reactionsHTML(msg)}
+                            <div class="msg-meta">${replyBtn}${reactBtn}${infoBtn}<div class="message-time">${fmtTime(msg.created_at)}</div></div>
+                        </div>
+                        ${msg.undelivered ? undeliveredReceipt(msg.id) : ''}
                     </div>
                 </div>
             `;
         });
 
         container.innerHTML = html;
-        container.scrollTop = container.scrollHeight;
+        container.scrollTop = keepScroll ? prevScrollTop : container.scrollHeight;
         updateSeenTick();
     }
 
@@ -5504,6 +6238,38 @@
         </div>`;
     }
 
+    // Apps shared from the desktop's "Share with Jitter" arrive as a normal message in a fixed format (see sendAppShare in app.html)
+    function sharedAppName(text) {
+        const m = typeof text === 'string' && text.match(/^🚀 Check out (.{1,40}) on X-ORBIT!$/);
+        return m ? m[1] : null;
+    }
+
+    function sharedAppCard(name, senderName, isMine) {
+        const safeName = escHtml(name).replace(/"/g, '&quot;');
+        return `<div class="message-bubble game-invite">
+            <div class="game-invite-top">
+                <div class="game-invite-icon"><i class="fas fa-rocket"></i></div>
+                <div>
+                    <div class="game-invite-eyebrow">Shared app</div>
+                    <div class="game-invite-title">${safeName}</div>
+                </div>
+            </div>
+            <div class="game-invite-body">
+                <div class="game-invite-text">${isMine ? 'You shared this app.' : escHtml(senderName) + ' shared this app with you.'}</div>
+                <button class="game-invite-btn" data-app="${safeName}" onclick="openSharedApp(this.dataset.app)"><i class="fas fa-arrow-up-right-from-square"></i> Open ${safeName}</button>
+            </div>
+        </div>`;
+    }
+
+    // Ask the desktop shell to open the shared app
+    function openSharedApp(name) {
+        if (window.parent === window) {
+            showToast('Open Jitter from the X-ORBIT desktop to launch apps.');
+            return;
+        }
+        window.parent.postMessage({ type: 'open-shared-app', app: name }, '*');
+    }
+
     // Ask the desktop shell to open Hangman and join that room
     function joinHangmanInvite(code) {
         window.parent.postMessage({ type: 'open-hangman', code }, '*');
@@ -5529,7 +6295,324 @@
                 loadMessages(convId);
                 markAsRead(convId);
             })
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'dm_messages',
+                filter: `conversation_id=eq.${convId}`
+            }, (payload) => {
+                // Read flags arrive here too; only redraw when a reaction changed
+                const row = payload.new || {};
+                if (JSON.stringify(row.reactions || {}) !== reactionSnapshot[row.id]) loadMessages(convId, true);
+            })
             .subscribe();
+    }
+
+    /* ──────────────────────────────────────────────────
+       REACTIONS
+       One reaction per person per message, stored on the message as
+       { email: emoji } in dm_messages.reactions
+       (see supabase/reactions-and-profile-links.sql).
+    ────────────────────────────────────────────────── */
+    const REACTIONS = ['❤️', '👍', '👎', '😂', '‼️', '❓'];
+    const reactionSnapshot = {};   // message id -> JSON of the reactions last drawn
+    let reactionPickerMsgId = null;
+
+    function reactionsHTML(msg) {
+        const map = msg.reactions && typeof msg.reactions === 'object' ? msg.reactions : {};
+        const byEmoji = {};
+        Object.keys(map).forEach(email => {
+            if (REACTIONS.includes(map[email])) (byEmoji[map[email]] = byEmoji[map[email]] || []).push(email);
+        });
+        const pills = REACTIONS.filter(e => byEmoji[e]).map(emoji => {
+            const emails = byEmoji[emoji];
+            const mine   = emails.includes(currentUser.email);
+            const names  = emails.map(e => e === currentUser.email ? 'You' : (nicknameFor(e) || displayNameCache[e] || usernameCache[e] || 'Someone')).join(', ');
+            return `<button class="msg-reaction${mine ? ' mine' : ''}" type="button" title="${escHtml(names).replace(/"/g, '&quot;')}"
+                onclick="toggleReaction('${escAttr(msg.id)}', ${REACTIONS.indexOf(emoji)})">${emoji}${emails.length > 1 ? `<span>${emails.length}</span>` : ''}</button>`;
+        }).join('');
+        return pills ? `<div class="msg-reactions">${pills}</div>` : '';
+    }
+
+    function openReactionPicker(event, msgId) {
+        event.stopPropagation();
+        const picker = document.getElementById('reactionPicker');
+        let mine = null;
+        try { mine = (JSON.parse(reactionSnapshot[msgId] || '{}'))[currentUser.email] || null; } catch { /* ignore */ }
+        reactionPickerMsgId = msgId;
+        picker.innerHTML = REACTIONS.map((emoji, i) =>
+            `<button type="button" class="${emoji === mine ? 'picked' : ''}" onclick="toggleReaction(reactionPickerMsgId, ${i})">${emoji}</button>`
+        ).join('');
+        picker.classList.add('show');
+
+        // Above the button, kept inside the window
+        const r  = event.currentTarget.getBoundingClientRect();
+        const pw = picker.offsetWidth, ph = picker.offsetHeight;
+        picker.style.left = Math.max(8, Math.min(window.innerWidth - pw - 8, r.left + r.width / 2 - pw / 2)) + 'px';
+        picker.style.top  = (r.top - ph - 8 < 8 ? r.bottom + 8 : r.top - ph - 8) + 'px';
+    }
+
+    function closeReactionPicker() {
+        document.getElementById('reactionPicker').classList.remove('show');
+        reactionPickerMsgId = null;
+    }
+    document.addEventListener('click', closeReactionPicker);
+
+    async function toggleReaction(msgId, index) {
+        const emoji = REACTIONS[index];
+        if (!msgId || !emoji) return;
+        const convId = activeConvId;
+        closeReactionPicker();
+        try {
+            const { data, error } = await sb.from('dm_messages').select('reactions').eq('id', msgId).single();
+            if (error) throw error;
+            const reactions = { ...(data.reactions || {}) };
+            if (reactions[currentUser.email] === emoji) delete reactions[currentUser.email];
+            else reactions[currentUser.email] = emoji;
+
+            const { error: upErr } = await sb.from('dm_messages').update({ reactions }).eq('id', msgId);
+            if (upErr) throw upErr;
+            if (activeConvId === convId) await loadMessages(convId, true);
+        } catch (err) {
+            console.error('Reaction error:', err);
+            showToast('Could not add reaction.');
+        }
+    }
+
+    /* ──────────────────────────────────────────────────
+       PROFILE LINKS
+       Up to two web links per profile, stored in clients.profile_links
+       (see supabase/reactions-and-profile-links.sql). Loaded and saved on their
+       own so profiles keep working if the column isn't there.
+    ────────────────────────────────────────────────── */
+    // Returns a clean http(s) URL, or null if it isn't one
+    function normalizeProfileLink(raw) {
+        let s = String(raw || '').trim();
+        if (!s) return null;
+        if (!/^[a-z][a-z0-9+.-]*:/i.test(s)) s = 'https://' + s;
+        try {
+            const u = new URL(s);
+            if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+            if (!u.hostname.includes('.')) return null;
+            return u.href.length <= 300 ? u.href : null;
+        } catch { return null; }
+    }
+
+    function profileLinksHTML(links) {
+        return (Array.isArray(links) ? links : []).map(normalizeProfileLink).filter(Boolean).slice(0, 2).map(url => {
+            const u     = new URL(url);
+            const label = (u.hostname.replace(/^www\./, '') + (u.pathname !== '/' ? u.pathname : '')).replace(/\/$/, '');
+            return `<a class="profile-link" href="${escHtml(url).replace(/"/g, '&quot;')}" target="_blank" rel="noopener noreferrer">
+                <i class="fas fa-link"></i><span>${escHtml(label)}</span>
+            </a>`;
+        }).join('');
+    }
+
+    async function loadProfileLinks(email) {
+        try {
+            const { data, error } = await sb.from('clients').select('profile_links').eq('email', email).maybeSingle();
+            if (error || !data) return [];
+            let links = data.profile_links;
+            if (typeof links === 'string') { try { links = JSON.parse(links); } catch { links = []; } }
+            return Array.isArray(links) ? links : [];
+        } catch { return []; }
+    }
+
+    /* ──────────────────────────────────────────────────
+       MESSAGE REQUESTS + UNDELIVERED MESSAGES
+       Friends can always message each other. A non-friend's message goes through
+       only if the recipient has "Message requests" on (the default; needs
+       supabase/message-requests.sql). Otherwise it stays on the sender's device
+       and shows as Not Delivered.
+    ────────────────────────────────────────────────── */
+    const msgRequestPref = {};   // email -> { on, at }
+
+    async function acceptsMessageRequests(email) {
+        const cached = msgRequestPref[email];
+        if (cached && Date.now() - cached.at < 30000) return cached.on;
+        let on = true;   // on by default, and until the column exists
+        try {
+            const { data, error } = await sb.from('clients')
+                .select('accept_message_requests').eq('email', email).maybeSingle();
+            if (!error && data && data.accept_message_requests === false) on = false;
+        } catch { /* treat as on */ }
+        msgRequestPref[email] = { on, at: Date.now() };
+        return on;
+    }
+
+    async function canDeliverTo(email) {
+        return friendsSet.has(email) || await acceptsMessageRequests(email);
+    }
+
+    async function setMessageRequests(on) {
+        const { error } = await sb.from('clients').update({ accept_message_requests: on }).eq('id', currentUser.id);
+        if (error) {
+            console.error('Message requests setting error:', error);
+            document.getElementById('privacyMessageRequests').checked = !on;
+            showToast('Could not save that setting.');
+            return;
+        }
+        msgRequestPref[currentUser.email] = { on, at: Date.now() };
+        showToast(on ? 'Message requests on.' : 'Message requests off.');
+    }
+
+    // A conversation someone who isn't your friend started with you
+    function isMessageRequest(conv) {
+        if (!conv || conv.is_group) return false;
+        const other = getOtherEmail(conv);
+        return !friendsSet.has(other) && conv.participant_1_email === other && !!conv.last_message_preview;
+    }
+
+    function updateRequestBanner() {
+        const banner = document.getElementById('requestBanner');
+        const conv   = activeConvId ? conversations.find(c => c.id === activeConvId) : null;
+        if (!isMessageRequest(conv)) { banner.style.display = 'none'; return; }
+
+        const other = getOtherEmail(conv);
+        const name  = getOtherName(conv);
+        document.getElementById('requestBannerText').textContent =
+            `${name} isn't on your friends list. You can reply, or add them as a friend.`;
+
+        const btn    = document.getElementById('requestBannerBtn');
+        const status = getFriendStatus(other);
+        btn.disabled = status === 'pending_sent';
+        if (status === 'pending_received') {
+            btn.textContent = 'Accept Friend Request';
+            btn.onclick = () => {
+                const req = pendingIncoming.find(r => r.requester_email === other);
+                if (req) acceptFriendRequest(req.id);
+            };
+        } else if (status === 'pending_sent') {
+            btn.textContent = 'Request Sent';
+            btn.onclick = null;
+        } else {
+            btn.textContent = 'Add Friend';
+            btn.onclick = async () => { await sendFriendRequest(other, name); updateRequestBanner(); };
+        }
+        banner.style.display = 'flex';
+    }
+
+    // Messages that were never sent live only in this browser, per account
+    function undeliveredKey() { return 'jittery_undelivered_' + currentUser.email; }
+
+    function readUndelivered() {
+        try { return JSON.parse(localStorage.getItem(undeliveredKey())) || {}; }
+        catch { return {}; }
+    }
+
+    function writeUndelivered(all) {
+        try { localStorage.setItem(undeliveredKey(), JSON.stringify(all)); } catch { /* ignore */ }
+    }
+
+    function undeliveredFor(convId) {
+        return readUndelivered()[convId] || [];
+    }
+
+    function addUndelivered(convId, msg) {
+        const all = readUndelivered();
+        (all[convId] = all[convId] || []).push(msg);
+        writeUndelivered(all);
+    }
+
+    function removeUndelivered(convId, localId) {
+        const all = readUndelivered();
+        all[convId] = (all[convId] || []).filter(m => m.id !== localId);
+        if (!all[convId].length) delete all[convId];
+        writeUndelivered(all);
+    }
+
+    function undeliveredReceipt(localId) {
+        const conv = conversations.find(c => c.id === activeConvId);
+        const name = conv ? getOtherName(conv) : 'They';
+        const tip  = `${name} has to add you back as a friend before your messages can reach them. Click Not Delivered to try again.`;
+        return `<div class="undelivered-receipt">
+            <button class="undelivered-retry" type="button" onclick="retryUndelivered('${escAttr(localId)}')" title="Try again"><i class="fas fa-circle-exclamation"></i> Not Delivered</button>
+            <button class="msg-info-btn" type="button" data-tip="${escHtml(tip).replace(/"/g, '&quot;')}" aria-label="Why wasn't this delivered?"><i class="fas fa-circle-info"></i></button>
+        </div>`;
+    }
+
+    async function retryUndelivered(localId) {
+        const convId = activeConvId;
+        const conv   = conversations.find(c => c.id === convId);
+        const msg    = undeliveredFor(convId).find(m => m.id === localId);
+        if (!conv || !msg) return;
+
+        const other = getOtherEmail(conv);
+        if (blockedByEmails.has(other) || !(await canDeliverTo(other))) {
+            showToast(`${getOtherName(conv)} still has to add you back.`);
+            return;
+        }
+        try {
+            await insertDMMessage(conv, {
+                message:              msg.message,
+                reply_to_id:          msg.reply_to_id || null,
+                reply_to_sender_name: msg.reply_to_sender_name || null,
+                reply_to_preview:     msg.reply_to_preview || null,
+            });
+            removeUndelivered(convId, localId);
+            if (activeConvId === convId) await loadMessages(convId);
+        } catch (err) {
+            console.error('Retry send error:', err);
+            showToast('Failed to send message.');
+        }
+    }
+
+    // Inserts the message, then bumps the conversation and un-hides it for the recipient
+    async function insertDMMessage(conv, fields) {
+        const { error } = await sb.from('dm_messages').insert([{
+            conversation_id: conv.id,
+            sender_email:    currentUser.email,
+            sender_name:     currentUser.display_name || currentUser.username || currentUser.name,
+            ...fields,
+        }]);
+        if (error) throw error;
+
+        const text = fields.message;
+        const convUpdate = {
+            last_message_at:      new Date().toISOString(),
+            last_message_preview: text.length > 60 ? text.substring(0, 60) + '…' : text,
+        };
+        if (!conv.is_group) {
+            convUpdate[conv.participant_1_email === currentUser.email ? 'hidden_for_p2' : 'hidden_for_p1'] = false;
+        }
+        await sb.from('dm_conversations').update(convUpdate).eq('id', conv.id);
+    }
+
+    // Finds the 1:1 conversation with someone, or creates it. A new one with a
+    // non-friend stays out of their list until a message actually reaches them.
+    async function ensureConversation(userEmail, userName) {
+        const me = currentUser.email;
+        const { data: existing } = await sb
+            .from('dm_conversations')
+            .select('id, participant_1_email, hidden_for_p1, hidden_for_p2')
+            .or(
+                `and(participant_1_email.eq.${me},participant_2_email.eq.${userEmail}),` +
+                `and(participant_1_email.eq.${userEmail},participant_2_email.eq.${me})`
+            )
+            .limit(1);
+
+        const conv = existing && existing[0];
+        if (conv) {
+            const myHide = conv.participant_1_email === me ? 'hidden_for_p1' : 'hidden_for_p2';
+            if (conv[myHide]) await sb.from('dm_conversations').update({ [myHide]: false }).eq('id', conv.id);
+            return conv.id;
+        }
+
+        const { data: created, error } = await sb
+            .from('dm_conversations')
+            .insert([{
+                participant_1_email: me,
+                participant_2_email: userEmail,
+                participant_1_name:  currentUser.display_name || currentUser.username || currentUser.name,
+                participant_2_name:  userName,
+                last_message_preview: '',
+                last_message_at: new Date().toISOString(),
+                hidden_for_p2: !friendsSet.has(userEmail),
+            }])
+            .select('id')
+            .single();
+        if (error) throw error;
+        return created.id;
     }
 
     async function sendMessage() {
@@ -5550,30 +6633,27 @@
         btn.disabled = true;
 
         try {
-            const { error: msgError } = await sb.from('dm_messages').insert([{
-                conversation_id:      activeConvId,
-                sender_email:         currentUser.email,
-                sender_name:          currentUser.display_name || currentUser.username || currentUser.name,
+            const fields = {
                 message:              message,
                 reply_to_id:          replyingTo ? replyingTo.id : null,
                 reply_to_sender_name: replyingTo ? replyingTo.senderName : null,
                 reply_to_preview:     replyingTo ? replyingTo.preview : null,
-            }]);
-
-            if (msgError) throw msgError;
-
-            // Update last message + unhide for recipient (skip hide logic for groups)
-            const conv = conversations.find(c => c.id === activeConvId);
-            const convUpdate = {
-                last_message_at:      new Date().toISOString(),
-                last_message_preview: message.length > 60 ? message.substring(0, 60) + '…' : message,
             };
-            if (conv && !conv.is_group) {
-                const recipientHideField = conv.participant_1_email === currentUser.email
-                    ? 'hidden_for_p2' : 'hidden_for_p1';
-                convUpdate[recipientHideField] = false;
+
+            // Not friends and they don't take message requests: keep it on this
+            // device and show it as Not Delivered instead of sending.
+            if (otherEmail && !(await canDeliverTo(otherEmail))) {
+                addUndelivered(activeConvId, {
+                    id:           'local-' + Date.now(),
+                    sender_email: currentUser.email,
+                    sender_name:  currentUser.display_name || currentUser.username || currentUser.name,
+                    created_at:   new Date().toISOString(),
+                    undelivered:  true,
+                    ...fields,
+                });
+            } else {
+                await insertDMMessage(activeConv, fields);
             }
-            await sb.from('dm_conversations').update(convUpdate).eq('id', activeConvId);
 
             input.value = '';
             hideTypingIndicator();
@@ -5873,6 +6953,148 @@
         document.getElementById('imageLightbox').classList.remove('active');
         document.getElementById('lightboxImg').src = '';
         _lightboxUrl = null;
+    }
+
+    /* ── VERSION ─────────────────────────────────────────
+       Shown under your name in the sidebar so you can tell which build is loaded.
+       Bump it with every change to this file: date as YYMMDD, then a counter for that day. */
+    const JITTER_VERSION = '261012-8';
+    document.getElementById('jitterVersion').textContent = 'Jitter v' + JITTER_VERSION;
+
+    /* ── SETTINGS ─────────────────────────────────────── */
+    function openSettingsModal() {
+        document.getElementById('chatHideImages').checked = hideChatImages;
+        document.getElementById('settingsVersion').textContent = 'Jitter v' + JITTER_VERSION;
+        // Always re-read the saved value rather than trusting the cache
+        delete msgRequestPref[currentUser.email];
+        acceptsMessageRequests(currentUser.email).then(on => {
+            document.getElementById('privacyMessageRequests').checked = on;
+        });
+        loadPrivacyToggles();
+        document.getElementById('settingsModal').classList.add('active');
+    }
+
+    // Privacy switches appear in both Settings and Edit Profile; this fills whichever are on screen
+    async function loadPrivacyToggles() {
+        delete friendRequestPref[currentUser.email];
+        acceptsFriendRequests(currentUser.email).then(on => {
+            document.getElementById('settingsAcceptRequests').checked = on;
+            document.getElementById('privacyAcceptRequests').checked  = on;
+        });
+        try {
+            const { data } = await sb.from('clients').select('show_name, show_email').eq('id', currentUser.id).single();
+            if (data) {
+                document.getElementById('settingsShowName').checked  = !!data.show_name;
+                document.getElementById('settingsShowEmail').checked = !!data.show_email;
+            }
+        } catch { /* leave as they are */ }
+    }
+
+    // "Accept friend requests" lives in clients.accept_friend_requests
+    // (see supabase/friend-request-setting.sql). On by default, and until the column exists.
+    const friendRequestPref = {};   // email -> { on, at }
+
+    async function acceptsFriendRequests(email) {
+        const cached = friendRequestPref[email];
+        if (cached && Date.now() - cached.at < 30000) return cached.on;
+        let on = true;
+        try {
+            const { data, error } = await sb.from('clients')
+                .select('accept_friend_requests').eq('email', email).maybeSingle();
+            if (!error && data && data.accept_friend_requests === false) on = false;
+        } catch { /* treat as on */ }
+        friendRequestPref[email] = { on, at: Date.now() };
+        return on;
+    }
+
+    async function setAcceptFriendRequests(on) {
+        const both = ['settingsAcceptRequests', 'privacyAcceptRequests'].map(id => document.getElementById(id));
+        const { error } = await sb.from('clients').update({ accept_friend_requests: on }).eq('id', currentUser.id);
+        if (error) {
+            console.error('Friend request setting error:', error);
+            both.forEach(el => { el.checked = !on; });
+            showToast('Could not save that setting.');
+            return;
+        }
+        both.forEach(el => { el.checked = on; });
+        friendRequestPref[currentUser.email] = { on, at: Date.now() };
+        showToast(on ? 'Friend requests on.' : 'Friend requests off.');
+    }
+
+    // Show real name / Show email, saved straight away from Settings.
+    // Edit Profile keeps its own copies, which save with Save Profile.
+    async function setProfileVisibility(field, on) {
+        const editorId = field === 'show_name' ? 'privacyShowName' : 'privacyShowEmail';
+        const { error } = await sb.from('clients').update({ [field]: on }).eq('id', currentUser.id);
+        if (error) {
+            console.error('Profile visibility setting error:', error);
+            document.getElementById(field === 'show_name' ? 'settingsShowName' : 'settingsShowEmail').checked = !on;
+            showToast('Could not save that setting.');
+            return;
+        }
+        document.getElementById(editorId).checked = on;
+        if (profileCache[currentUser.email]) profileCache[currentUser.email][field] = on;
+        showToast(field === 'show_name'
+            ? (on ? 'Your real name is shown on your profile.' : 'Your real name is hidden.')
+            : (on ? 'Your email is shown on your profile.' : 'Your email is hidden.'));
+    }
+
+    function closeSettingsModal() {
+        document.getElementById('settingsModal').classList.remove('active');
+    }
+
+    /* ── NICKNAMES ───────────────────────────────────────
+       Private names you give other people. They replace that person's name
+       everywhere in your Jitter and live only in this browser, per account. */
+    let _nicknames = null;
+
+    function nicknameStore() {
+        if (!_nicknames) {
+            try { _nicknames = JSON.parse(localStorage.getItem('jittery_nicknames_' + currentUser.email)) || {}; }
+            catch { _nicknames = {}; }
+        }
+        return _nicknames;
+    }
+
+    function nicknameFor(email) {
+        if (!email || !currentUser || email === currentUser.email) return null;
+        return nicknameStore()[email] || null;
+    }
+
+    // Saves the nickname typed on a profile card; an empty box clears it
+    function saveNickname() {
+        const input = document.getElementById('profileNicknameInput');
+        const email = input.dataset.email;
+        if (!email || email === currentUser.email) return;
+        const nick = input.value.trim().slice(0, 32);
+        input.value = nick;
+
+        const store = nicknameStore();
+        if ((store[email] || '') === nick) return;
+        if (nick) store[email] = nick; else delete store[email];
+        try { localStorage.setItem('jittery_nicknames_' + currentUser.email, JSON.stringify(store)); } catch { /* ignore */ }
+
+        // Redraw everywhere the name appears
+        renderConversations(conversations);
+        const conv = activeConvId ? conversations.find(c => c.id === activeConvId) : null;
+        if (conv) {
+            if (!conv.is_group && getOtherEmail(conv) === email) {
+                document.getElementById('chatRecipientName').textContent = getOtherName(conv);
+            }
+            updateRequestBanner();
+            loadMessages(activeConvId, true);
+        }
+        showToast(nick ? `Nickname set to ${nick}.` : 'Nickname removed.');
+    }
+
+    // Right-click a conversation → Set Nickname
+    async function setNicknameCtx() {
+        const conv = conversations.find(c => c.id === ctxConvId);
+        hideContextMenu();
+        if (!conv) return;
+        if (conv.is_group) { showToast('Nicknames are for people, not groups.'); return; }
+        await openProfile(getOtherEmail(conv));
+        document.getElementById('profileNicknameInput').focus();
     }
 
     /* ── HIDE IMAGES IN CHAT (per-device setting) ────── */
@@ -6296,6 +7518,13 @@
             return;
         }
 
+        const imgConv  = conversations.find(c => c.id === activeConvId);
+        const imgOther = imgConv ? getOtherEmail(imgConv) : null;
+        if (imgOther && !(await canDeliverTo(imgOther))) {
+            showToast('Images can\'t be sent until they add you back.');
+            return;
+        }
+
         const btn = document.getElementById('imageUploadBtn');
         btn.disabled = true;
         showToast('Uploading image…');
@@ -6661,8 +7890,8 @@
     async function sendFriendRequestFromSearch(userId, userName, userEmail, el) {
         el.textContent = 'Sending…';
         el.className   = 'result-action sent';
-        await sendFriendRequest(userEmail, userName);
-        el.textContent = 'Sent ✓';
+        const sent = await sendFriendRequest(userEmail, userName);
+        el.textContent = sent ? 'Sent ✓' : 'Not sent';
     }
 
     async function acceptFriendFromSearch(userEmail) {
@@ -6676,45 +7905,8 @@
     async function startDMWith(userId, userName, userEmail) {
         closeNewDMModal();
 
-        // Must be friends to message
-        if (!friendsSet.has(userEmail)) {
-            showToast('Add ' + userName + ' as a friend first.');
-            return;
-        }
-
-        // Check if conversation already exists
         try {
-            const { data: existing } = await sb
-                .from('dm_conversations')
-                .select('id')
-                .or(
-                    `and(participant_1_email.eq.${currentUser.email},participant_2_email.eq.${userEmail}),` +
-                    `and(participant_1_email.eq.${userEmail},participant_2_email.eq.${currentUser.email})`
-                )
-                .maybeSingle();
-
-            let convId;
-
-            if (existing) {
-                convId = existing.id;
-            } else {
-                // Create new conversation
-                const { data: newConv, error } = await sb
-                    .from('dm_conversations')
-                    .insert([{
-                        participant_1_email: currentUser.email,
-                        participant_2_email: userEmail,
-                        participant_1_name:  currentUser.display_name || currentUser.username || currentUser.name,
-                        participant_2_name:  userName,
-                        last_message_preview: '',
-                        last_message_at: new Date().toISOString()
-                    }])
-                    .select('id')
-                    .single();
-
-                if (error) throw error;
-                convId = newConv.id;
-            }
+            const convId = await ensureConversation(userEmail, userName);
 
             await loadConversations();
             await openConversation(convId);
@@ -6733,7 +7925,7 @@
         const otherEmail = conv.participant_1_email === currentUser.email
             ? conv.participant_2_email
             : conv.participant_1_email;
-        return displayNameCache[otherEmail] || usernameCache[otherEmail] || otherEmail;
+        return nicknameFor(otherEmail) || displayNameCache[otherEmail] || usernameCache[otherEmail] || otherEmail;
     }
 
     function getOtherEmail(conv) {
@@ -6812,48 +8004,62 @@
 
         const container = document.getElementById('messagesContainer');
         if (!container) return;
-        const myMsgs = container.querySelectorAll('.message.mine');
+        const myMsgs = container.querySelectorAll('.message.mine:not(.undelivered)');
         if (myMsgs.length === 0) return;
 
-        const lastMine  = myMsgs[myMsgs.length - 1];
-        const createdAt = lastMine.dataset.createdAt;
-        const isSeen    = otherLastRead && createdAt && new Date(otherLastRead) >= new Date(createdAt);
-        const content   = lastMine.querySelector('.msg-content');
-        if (!content) return;
+        const lastMine = myMsgs[myMsgs.length - 1];
+        const isRead   = el => !!otherLastRead && !!el.dataset.createdAt && new Date(otherLastRead) >= new Date(el.dataset.createdAt);
+
+        // The newest of my messages the other person has read. It keeps its "Read"
+        // tag even when I've sent more since that they haven't opened yet.
+        let lastRead = null;
+        for (let i = myMsgs.length - 1; i >= 0 && !lastRead; i--) {
+            if (isRead(myMsgs[i])) lastRead = myMsgs[i];
+        }
+
+        const addReceipt = (msgEl, className, html) => {
+            const content = msgEl.querySelector('.msg-content');
+            if (!content) return;
+            const receipt = document.createElement('div');
+            receipt.className = className;
+            receipt.innerHTML = html;
+            content.appendChild(receipt);
+        };
+
+        if (lastRead) {
+            lastRead.classList.add('is-seen');
+            addReceipt(lastRead, 'seen-receipt', `
+                <div class="seen-receipt-line"></div>
+                <span class="seen-receipt-name">Read ${fmtReadTime(otherLastRead)}</span>
+            `);
+        }
+        if (lastRead === lastMine) return;
 
         // If the other person's next message after mine came from the desktop
-        // notification, they never opened the chat — show that instead of "Seen".
+        // notification, they never opened the chat — show that instead of "Delivered".
         let nextTheirs = lastMine.nextElementSibling;
         while (nextTheirs && !nextTheirs.classList.contains('message')) nextTheirs = nextTheirs.nextElementSibling;
         const repliedFromDesktop = nextTheirs && nextTheirs.classList.contains('theirs') && nextTheirs.dataset.via === 'desktop';
 
         if (repliedFromDesktop) {
             lastMine.classList.add('is-seen');
-            const receipt = document.createElement('div');
-            receipt.className = 'seen-receipt desktop';
-            receipt.innerHTML = `
+            addReceipt(lastMine, 'seen-receipt desktop', `
                 <div class="seen-receipt-line"></div>
                 <span class="seen-receipt-name"><i class="fas fa-desktop"></i> Replied from Desktop</span>
-            `;
-            content.appendChild(receipt);
-        } else if (isSeen) {
-            lastMine.classList.add('is-seen');
-            const otherName = displayNameCache[otherEmail] || usernameCache[otherEmail] || '';
-            const label     = otherName ? `@${otherName}` : 'seen';
-            const seenTime  = fmtTime(otherLastRead);
-            const receipt   = document.createElement('div');
-            receipt.className = 'seen-receipt';
-            receipt.innerHTML = `
-                <div class="seen-receipt-line"></div>
-                <span class="seen-receipt-name">Seen</span>
-            `;
-            content.appendChild(receipt);
+            `);
         } else {
-            const receipt = document.createElement('div');
-            receipt.className = 'sent-receipt';
-            receipt.innerHTML = '<i class="fas fa-check"></i>';
-            content.appendChild(receipt);
+            addReceipt(lastMine, 'sent-receipt', 'Delivered');
         }
+    }
+
+    // "Read 9:41 AM" today, "Read Yesterday", otherwise a short date
+    function fmtReadTime(ts) {
+        const date = new Date(ts);
+        const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const days = Math.round((startOfDay(new Date()) - startOfDay(date)) / 86400000);
+        if (days <= 0)  return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        if (days === 1) return 'Yesterday';
+        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     }
 
     function getInitials(name) {
@@ -7020,6 +8226,7 @@
         document.getElementById('profileMessageBtn').style.display  = 'none';
         document.getElementById('profileFriendBtn').style.display   = 'none';
         document.getElementById('profileHideImagesRow').style.display = 'none';
+        document.getElementById('profileNicknameRow').style.display   = 'none';
         document.getElementById('profileBannerImg').style.display  = 'none';
         document.querySelector('#profileModal .profile-card').style.background = 'linear-gradient(135deg, #0a0a0a, #1a1a1a)';
 
@@ -7143,16 +8350,36 @@
             bioArea.innerHTML = '';
         }
 
+        // Links (fetched separately; ignore the answer if another profile was opened meanwhile)
+        const linksArea = document.getElementById('profileLinksArea');
+        linksArea.innerHTML = '';
+        linksArea.dataset.email = profile.email;
+        if (isOwn) {
+            document.getElementById('profileLink1').value = '';
+            document.getElementById('profileLink2').value = '';
+        }
+        loadProfileLinks(profile.email).then(links => {
+            if (linksArea.dataset.email !== profile.email) return;
+            linksArea.innerHTML = profileLinksHTML(links);
+            if (isOwn) {
+                document.getElementById('profileLink1').value = links[0] || '';
+                document.getElementById('profileLink2').value = links[1] || '';
+            }
+        });
+
         if (isOwn) {
             document.getElementById('profileModal').classList.add('editing');
             document.getElementById('profileSettingsPanel').style.display   = 'block';
-            document.getElementById('chatHideImages').checked = hideChatImages;
             document.getElementById('profilePreviewLabelBar').style.display = 'block';
             document.getElementById('profileBannerCloseBtn').style.display  = 'none';
             document.getElementById('profileRemoveAvatarBtn').style.display = profile.avatar_url ? '' : 'none';
             document.getElementById('profileRemoveBannerBtn').style.display = profile.banner_url ? '' : 'none';
             document.getElementById('profileDisplayNameInput').value = profile.display_name || '';
             document.getElementById('profileBioInput').value         = profile.bio || '';
+            delete friendRequestPref[currentUser.email];
+            acceptsFriendRequests(currentUser.email).then(on => {
+                document.getElementById('privacyAcceptRequests').checked = on;
+            });
             document.getElementById('privacyShowName').checked       = !!profile.show_name;
             document.getElementById('privacyShowEmail').checked      = !!profile.show_email;
             document.getElementById('gradientStart').value           = gradStart;
@@ -7174,7 +8401,7 @@
 
             // Message button — only show if already friends
             const msgBtn = document.getElementById('profileMessageBtn');
-            if (friendsSet.has(profile.email)) {
+            if (!blockedEmails.has(profile.email)) {
                 msgBtn.style.display = 'flex';
                 msgBtn.onclick = () => {
                     closeProfileModal();
@@ -7186,6 +8413,11 @@
 
             document.getElementById('chatHideImagesQuick').checked = hideChatImages;
             document.getElementById('profileHideImagesRow').style.display = 'flex';
+
+            const nickInput = document.getElementById('profileNicknameInput');
+            nickInput.dataset.email = profile.email;
+            nickInput.value = nicknameFor(profile.email) || '';
+            document.getElementById('profileNicknameRow').style.display = 'flex';
         }
     }
 
@@ -7252,6 +8484,10 @@
         document.getElementById('profileBioArea').innerHTML = bio
             ? `<div class="profile-bio-view">${escHtml(bio)}</div>`
             : '';
+        document.getElementById('profileLinksArea').innerHTML = profileLinksHTML([
+            document.getElementById('profileLink1').value,
+            document.getElementById('profileLink2').value,
+        ]);
     }
 
     function updateGradientPreview() {
@@ -7304,9 +8540,28 @@
             displayNameCache[currentUser.email] = displayName || null;
             localStorage.setItem('xorbit_dm_user', JSON.stringify(currentUser));
             document.getElementById('headerUserName').textContent = currentUser.display_name || currentUser.username;
-            document.getElementById('headerAvatarInitials').textContent = getInitials(currentUser.display_name || currentUser.username || currentUser.name);
+            // The initials span is replaced by an <img> once you have a profile photo
+            const initialsEl = document.getElementById('headerAvatarInitials');
+            if (initialsEl) initialsEl.textContent = getInitials(currentUser.display_name || currentUser.username || currentUser.name);
             updateProfilePreview();
-            showToast('Profile saved.');
+
+            // Links are saved on their own so a problem there doesn't lose the rest
+            const typedLinks = [document.getElementById('profileLink1').value, document.getElementById('profileLink2').value]
+                .filter(v => v.trim());
+            const links = typedLinks.map(normalizeProfileLink).filter(Boolean);
+            // Ask for the row back: an update the database quietly ignores returns nothing
+            const { data: savedRows, error: linkErr } = await sb.from('clients')
+                .update({ profile_links: links }).eq('id', currentUser.id).select('profile_links');
+            const stuck = !linkErr && savedRows && savedRows.length
+                && JSON.stringify(savedRows[0].profile_links || []) === JSON.stringify(links);
+            if (!stuck && typedLinks.length) {
+                console.error('Save profile links error:', linkErr || 'update did not take effect', savedRows);
+                showToast('Links not saved: ' + (linkErr ? linkErr.message : 'the database ignored the change.'), 7000);
+            } else if (links.length < typedLinks.length) {
+                showToast('Profile saved. One link wasn\'t a valid web address and was left out.');
+            } else {
+                showToast('Profile saved.');
+            }
         } catch (err) {
             console.error('Save profile error:', err);
             showToast('Failed to save profile.');
@@ -7580,6 +8835,9 @@
             }
 
             updateFriendRequestBadge();
+            // Friend status decides what counts as a message request
+            if (conversations.length) renderConversations(conversations);
+            updateRequestBanner();
         } catch (err) {
             console.error('loadFriendships error:', err);
         }
@@ -7601,11 +8859,6 @@
                     if (friendBtn && friendBtn.style.display !== 'none') {
                         const cachedProfile = profileCache[shownEmail];
                         if (cachedProfile) renderProfileFriendBtn(friendBtn, cachedProfile);
-                        if (friendsSet.has(shownEmail)) {
-                            msgBtn.style.display = 'flex';
-                        } else {
-                            msgBtn.style.display = 'none';
-                        }
                     }
                 }
                 // Refresh modal if open
@@ -7626,7 +8879,12 @@
         return 'none';
     }
 
+    // Resolves true when the request was sent
     async function sendFriendRequest(userEmail, userName, btn, profile) {
+        if (!(await acceptsFriendRequests(userEmail))) {
+            showToast(`${userName} isn't accepting friend requests.`);
+            return false;
+        }
         try {
             const { error } = await sb.from('friendships').insert([{
                 requester_email: currentUser.email,
@@ -7637,6 +8895,14 @@
             sentSet.add(userEmail);
             showToast(`Friend request sent to ${userName}.`);
             if (btn && profile) renderProfileFriendBtn(btn, profile);
+            // They show up in your messages straight away
+            try {
+                await ensureConversation(userEmail, userName);
+                await loadConversations();
+            } catch (convErr) {
+                console.error('Could not start conversation after friend request:', convErr);
+            }
+            return true;
         } catch (err) {
             const msg = err.message || '';
             if (msg.includes('unique') || msg.includes('duplicate')) {
@@ -7644,6 +8910,7 @@
             } else {
                 showToast('Could not send friend request.');
             }
+            return false;
         }
     }
 
@@ -7684,8 +8951,6 @@
             friendsSet.delete(userEmail);
             showToast('Friend removed.');
             if (btn && profile) renderProfileFriendBtn(btn, profile);
-            const msgBtn = document.getElementById('profileMessageBtn');
-            if (msgBtn) msgBtn.style.display = 'none';
         } catch {
             showToast('Could not remove friend.');
         }
@@ -8301,7 +9566,7 @@
                 <i class="fas fa-hashtag"></i>
                 <span class="channel-item-name">${escapeHtml(ch.name)}</span>
                 ${canManageChannels && serverChannels.length > 1 ? `
-                    <button class="role-action-btn danger" onclick="event.stopPropagation();deleteChannel('${ch.id}','${escapeHtml(ch.name)}')" title="Delete channel" style="width:20px;height:20px;font-size:0.55rem">
+                    <button class="role-action-btn danger" onclick="event.stopPropagation();deleteChannel('${ch.id}','${escapeHtml(ch.name)}')" title="Delete channel" style="width:20px;height:20px;font-size:0.72rem">
                         <i class="fas fa-times"></i>
                     </button>
                 ` : ''}
@@ -8333,6 +9598,7 @@
 
         document.getElementById('chatRecipientName').textContent = channel ? channel.name : 'channel';
         document.getElementById('chatRecipientEmail').textContent = channel && channel.topic ? channel.topic : '';
+        document.getElementById('requestBanner').style.display = 'none';
         document.getElementById('chatRecipientTags').innerHTML = '';
         document.getElementById('chatHeaderStatus').innerHTML = '';
 
@@ -8393,7 +9659,7 @@
             : initials;
 
         // Get display name
-        const displayName = displayNameCache[msg.sender_email] || msg.sender_name;
+        const displayName = nicknameFor(msg.sender_email) || displayNameCache[msg.sender_email] || msg.sender_name;
 
         let replyHTML = '';
         if (msg.reply_to_id && msg.reply_to_sender_name) {
@@ -8415,9 +9681,15 @@
             contentHTML = `<div class="msg-text">${escapeHtml(msg.message)}</div>`;
         }
 
+        // Continue the previous sender's run, or start a new one
+        const prevMsg = container.lastElementChild;
+        const continuesRun = !!prevMsg && prevMsg.classList.contains('msg') && prevMsg.dataset.sender === msg.sender_email;
+        if (continuesRun) prevMsg.classList.remove('grp-last');
+
         const div = document.createElement('div');
-        div.className = `msg ${isMine ? 'msg-mine' : 'msg-other'}`;
+        div.className = `msg ${isMine ? 'msg-mine' : 'msg-other'}${continuesRun ? '' : ' grp-first'} grp-last`;
         div.setAttribute('data-msg-id', msg.id);
+        div.dataset.sender = msg.sender_email;
         div.innerHTML = `
             <div class="msg-avatar" onclick="openProfile('${escapeHtml(msg.sender_email)}')" style="cursor:pointer">
                 ${avatarInner}
@@ -8721,7 +9993,7 @@
             return `
                 <div class="role-item">
                     <div class="role-color-dot" style="background:${escapeHtml(r.color)}"></div>
-                    <div class="role-name">${escapeHtml(r.name)}${permBadges.length ? ' <span style="font-size:0.55rem;color:var(--text-ghost)">(' + permBadges.join(', ') + ')</span>' : ''}</div>
+                    <div class="role-name">${escapeHtml(r.name)}${permBadges.length ? ' <span style="font-size:0.72rem;color:var(--text-ghost)">(' + permBadges.join(', ') + ')</span>' : ''}</div>
                     ${canEditRoles ? `
                         <div class="role-actions">
                             <button class="role-action-btn" onclick="openEditRoleModal('${r.id}')" title="Edit"><i class="fas fa-pen"></i></button>
@@ -8779,7 +10051,7 @@
         container.innerHTML = serverMembers.map(m => {
             const role = serverRoles.find(r => r.id === m.role_id);
             const avatarUrl = avatarCache[m.user_email];
-            const displayName = displayNameCache[m.user_email] || usernameCache[m.user_email] || m.user_email;
+            const displayName = nicknameFor(m.user_email) || displayNameCache[m.user_email] || usernameCache[m.user_email] || m.user_email;
             const initials = getInitials(displayName);
             const avatarInner = avatarUrl
                 ? `<img src="${avatarUrl}" alt="">`
