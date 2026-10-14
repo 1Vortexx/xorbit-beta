@@ -3,275 +3,826 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ultraviolet Browser UI</title>
+<title>ORBIX Browser Mockup</title>
+<!--
+  Working mockup for the new ORBIX browser UI (the X-ORBIT Ultraviolet proxy browser).
+  Nothing here talks to the proxy: tabs, loading and the page states are simulated so
+  the design can be worked on. Use the Mockup panel (bottom right) to switch states.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 <style>
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  font-family: "Times New Roman", Times, serif;
-}
+  :root {
+    --ink:      #070a12;
+    --panel:    #0f1420;
+    --raised:   #182031;
+    --raised-2: #212b40;
+    --line:     rgba(150, 170, 220, 0.14);
+    --line-2:   rgba(150, 170, 220, 0.24);
+    --text:     #e8ecf6;
+    --muted:    #8a93a8;
+    --faint:    #5c6478;
+    --orbit:    #6ea8ff;
+    --orbit-dim: rgba(110, 168, 255, 0.16);
+    --danger:   #ff6b6b;
+    --ok:       #4ade80;
+    --r-tab: 10px;
+    --r-field: 999px;
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
 
-body {
-  background: #000;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100vh;
-}
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* MAIN CONTAINER */
-.browser {
-  width: 1000px;
-  height: 620px;
-  background: #0b0b0f;
-  border-radius: 20px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid #1a1a22;
-}
+  html, body { height: 100%; }
+  body {
+    background: var(--ink);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--orbit); outline-offset: 2px; }
 
-/* TOP BAR (MINIMAL TABS) */
-.topbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px;
-  background: #0e0e13;
-  border-bottom: 1px solid #1a1a22;
-}
+  .browser { display: flex; flex-direction: column; height: 100vh; }
 
-.tab {
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: #15151d;
-  color: #777;
-  font-size: 13px;
-  transition: 0.2s;
-}
+  /* ── Tab strip ─────────────────────────────────────── */
+  .tabstrip {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    padding: 8px 8px 0;
+    background: var(--panel);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabstrip::-webkit-scrollbar { display: none; }
 
-.tab.active {
-  background: #1c1c26;
-  color: #fff;
-}
+  .tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 1 210px;
+    min-width: 0;
+    height: 34px;
+    padding: 0 8px 0 12px;
+    border: none;
+    border-radius: var(--r-tab) var(--r-tab) 0 0;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    text-align: left;
+  }
+  .tab:hover { background: rgba(255, 255, 255, 0.04); color: var(--text); }
+  .tab.active { background: var(--raised); color: var(--text); }
 
-.tab.add {
-  background: transparent;
-  color: #666;
-  font-weight: bold;
-}
+  .tab-icon {
+    flex-shrink: 0;
+    width: 16px; height: 16px;
+    display: grid; place-items: center;
+    border-radius: 4px;
+    background: var(--raised-2);
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .tab-icon.new { background: none; color: var(--orbit); font-size: 11px; }
+  .tab-icon.loading {
+    background: none;
+    border: 2px solid var(--line-2);
+    border-top-color: var(--orbit);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  .tab-icon.blocked { background: none; color: var(--danger); font-size: 11px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
-/* NAVBAR */
-.navbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px;
-  background: #0b0b0f;
-  border-bottom: 1px solid #1a1a22;
-}
+  .tab-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+  .tab-close {
+    flex-shrink: 0;
+    width: 20px; height: 20px;
+    display: grid; place-items: center;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: var(--faint);
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .tab-close:hover { background: rgba(255, 255, 255, 0.08); color: var(--text); }
 
-.navbar button {
-  background: #15151d;
-  border: none;
-  color: #aaa;
-  padding: 6px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-}
+  .tab-add {
+    flex-shrink: 0;
+    width: 30px; height: 30px;
+    margin: 0 0 2px 4px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .tab-add:hover { background: rgba(255, 255, 255, 0.06); color: var(--text); }
 
-.navbar button:hover {
-  background: #1c1c26;
-  color: white;
-}
+  /* ── Toolbar ───────────────────────────────────────── */
+  .toolbar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 10px;
+    background: var(--raised);
+    border-bottom: 1px solid var(--line);
+  }
+  .tool {
+    width: 32px; height: 32px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .tool:hover:not(:disabled) { background: rgba(255, 255, 255, 0.06); color: var(--text); }
+  .tool:disabled { opacity: 0.35; cursor: default; }
 
-.navbar input {
-  flex: 1;
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: none;
-  outline: none;
-  background: #15151d;
-  color: white;
-  font-size: 14px;
-}
+  .address {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    height: 36px;
+    margin: 0 6px;
+    padding: 0 6px 0 14px;
+    border: 1px solid transparent;
+    border-radius: var(--r-field);
+    background: var(--panel);
+  }
+  .address:focus-within { border-color: var(--orbit); }
+  .address-shield { color: var(--ok); font-size: 12px; flex-shrink: 0; }
+  .address-shield.blocked { color: var(--danger); }
+  .address-shield.offline { color: var(--muted); }
+  .address input {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    border: none;
+    background: none;
+    outline: none;
+    font-size: 13.5px;
+  }
+  .address input::placeholder { color: var(--faint); }
+  .address-badge {
+    flex-shrink: 0;
+    padding: 3px 10px;
+    border-radius: var(--r-field);
+    background: var(--orbit-dim);
+    color: var(--orbit);
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+  .address-badge.blocked { background: rgba(255, 107, 107, 0.14); color: var(--danger); }
+  .address-badge.offline { background: rgba(255, 255, 255, 0.06); color: var(--muted); }
 
-/* WEBVIEW */
-.webview {
-  flex: 1;
-  background: #000;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
+  /* Page-load progress: the one line that moves */
+  .progress {
+    position: absolute;
+    left: 0; bottom: -1px;
+    height: 2px;
+    width: 0;
+    background: var(--orbit);
+    box-shadow: 0 0 10px var(--orbit);
+    opacity: 0;
+    transition: width 0.4s var(--ease), opacity 0.3s ease;
+  }
+  .progress.on { opacity: 1; }
 
-.placeholder {
-  color: #555;
-  font-size: 16px;
-}
+  /* Menu */
+  .menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 10px;
+    z-index: 20;
+    width: 240px;
+    padding: 6px;
+    background: var(--raised);
+    border: 1px solid var(--line-2);
+    border-radius: 12px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+    display: none;
+  }
+  .menu.show { display: block; }
+  .menu button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .menu button:hover { background: rgba(255, 255, 255, 0.06); }
+  .menu button i { width: 16px; color: var(--muted); }
+  .menu hr { border: none; border-top: 1px solid var(--line); margin: 6px 4px; }
+  .menu-label { padding: 6px 10px 4px; font-size: 11.5px; color: var(--faint); }
+  .menu button.picked i { color: var(--orbit); }
 
-/* LANDING PAGE */
-.landing {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  text-align: center;
-}
+  /* ── Page area ─────────────────────────────────────── */
+  .page { position: relative; flex: 1; min-height: 0; overflow: hidden; background: var(--ink); }
+  .view { position: absolute; inset: 0; display: none; }
+  .view.show { display: flex; }
 
-.logo {
-  position: relative;
-  width: 80px;
-  height: 80px;
-}
+  /* New tab: the search sits at the centre of an orbit, quick links ride the ring */
+  .newtab { align-items: center; justify-content: center; }
+  .orbit-field { position: relative; width: min(860px, 92vw); aspect-ratio: 2.2 / 1; }
+  .orbit-field svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .orbit-ring { fill: none; stroke: var(--line-2); stroke-width: 1; }
+  .orbit-ring.inner { stroke: var(--line); stroke-dasharray: 2 7; }
 
-.planet {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  background: transparent;
-}
+  .core {
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(440px, 70%);
+    text-align: center;
+  }
+  .clock { font-size: clamp(40px, 7vw, 64px); font-weight: 300; letter-spacing: -0.04em; line-height: 1; }
+  .date { margin: 8px 0 22px; color: var(--muted); font-size: 13.5px; }
+  .search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 48px;
+    padding: 0 8px 0 18px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-field);
+    background: var(--panel);
+    box-shadow: 0 0 0 6px rgba(110, 168, 255, 0.05), 0 20px 50px rgba(0, 0, 0, 0.45);
+  }
+  .search:focus-within { border-color: var(--orbit); }
+  .search i { color: var(--muted); }
+  .search input { flex: 1; min-width: 0; height: 100%; border: none; background: none; outline: none; font-size: 15px; }
+  .search input::placeholder { color: var(--faint); }
+  .search button {
+    height: 34px;
+    padding: 0 16px;
+    border: none;
+    border-radius: var(--r-field);
+    background: var(--orbit);
+    color: #06101f;
+    font-weight: 600;
+    cursor: pointer;
+  }
 
-.ring {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 130%;
-  height: 40%;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  transform: translate(-50%, -50%) rotate(25deg);
-}
+  .moon {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .moon-body {
+    width: 46px; height: 46px;
+    display: grid; place-items: center;
+    border: 1px solid var(--line-2);
+    border-radius: 50%;
+    background: var(--panel);
+    color: var(--text);
+    font-size: 17px;
+    transition: border-color 0.15s ease, transform 0.15s var(--ease);
+  }
+  .moon:hover { color: var(--text); }
+  .moon:hover .moon-body { border-color: var(--orbit); transform: scale(1.08); }
 
-.ring::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  transform: scale(0.75);
-}
+  /* Site view: stands in for the proxied page */
+  .site { flex-direction: column; overflow-y: auto; background: #f4f6fb; color: #1d2333; }
+  .site-head { display: flex; align-items: center; gap: 12px; padding: 18px 28px; background: #fff; border-bottom: 1px solid #e3e7f0; }
+  .site-logo { width: 28px; height: 28px; border-radius: 7px; background: #1d2333; color: #fff; display: grid; place-items: center; font-weight: 700; }
+  .site-name { font-weight: 600; }
+  .site-body { width: min(760px, 92%); margin: 32px auto; display: grid; gap: 14px; }
+  .bar { height: 14px; border-radius: 7px; background: #dfe4ee; }
+  .bar.title { height: 26px; width: 60%; background: #c9d1e1; }
+  .bar.short { width: 45%; }
+  .bar.mid { width: 75%; }
+  .site-note { margin-top: 10px; font-size: 13px; color: #6a7388; }
 
-.title {
-  font-size: 22px;
-  font-weight: 600;
-  color: #fff;
-}
+  /* Loading, blocked and offline share a centred message layout */
+  .notice { align-items: center; justify-content: center; text-align: center; padding: 24px; }
+  .notice-inner { width: min(420px, 100%); }
+  .notice-mark {
+    width: 64px; height: 64px;
+    margin: 0 auto 18px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    border: 1px solid var(--line-2);
+    font-size: 24px;
+    color: var(--muted);
+  }
+  .notice-mark.blocked { border-color: rgba(255, 107, 107, 0.4); color: var(--danger); background: rgba(255, 107, 107, 0.08); }
+  .notice h1 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .notice p { color: var(--muted); line-height: 1.6; margin-bottom: 18px; }
+  .notice .host { color: var(--text); font-weight: 500; }
+  .notice-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    height: 36px;
+    padding: 0 16px;
+    border: 1px solid var(--line-2);
+    border-radius: var(--r-field);
+    background: var(--raised);
+    cursor: pointer;
+  }
+  .btn:hover { border-color: var(--orbit); }
+  .btn.primary { background: var(--orbit); border-color: var(--orbit); color: #06101f; font-weight: 600; }
 
-.subtitle {
-  font-size: 14px;
-  color: #777;
-}
+  .loader-orbit { position: relative; width: 64px; height: 64px; margin: 0 auto 18px; }
+  .loader-orbit::before { content: ""; position: absolute; inset: 0; border: 1px solid var(--line-2); border-radius: 50%; }
+  .loader-orbit::after {
+    content: "";
+    position: absolute;
+    top: -4px; left: 50%;
+    width: 8px; height: 8px;
+    margin-left: -4px;
+    border-radius: 50%;
+    background: var(--orbit);
+    box-shadow: 0 0 12px var(--orbit);
+    transform-origin: 4px 36px;
+    animation: spin 1.2s linear infinite;
+  }
 
-.clock {
-  font-size: 32px;
-  font-weight: 600;
-  color: #fff;
-  letter-spacing: 1px;
-}
+  /* ── Status bar ────────────────────────────────────── */
+  .statusbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 6px 14px;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); display: inline-block; margin-right: 6px; }
+  .status-dot.off { background: var(--danger); }
+  .statusbar .spacer { flex: 1; }
 
-.searchbox {
-  width: 420px;
-  max-width: 90%;
-  padding: 12px 16px;
-  border-radius: 999px;
-  border: none;
-  outline: none;
-  background: #15151d;
-  color: white;
-  font-size: 14px;
-}
+  /* ── Mockup panel (not part of the design) ─────────── */
+  .mock {
+    position: fixed;
+    right: 14px; bottom: 40px;
+    z-index: 50;
+    font-size: 12.5px;
+  }
+  .mock-toggle {
+    height: 32px;
+    padding: 0 14px;
+    border: 1px dashed rgba(255, 200, 80, 0.6);
+    border-radius: var(--r-field);
+    background: rgba(30, 24, 8, 0.9);
+    color: #ffd27a;
+    cursor: pointer;
+  }
+  .mock-panel {
+    display: none;
+    position: absolute;
+    right: 0; bottom: 40px;
+    width: 230px;
+    padding: 12px;
+    background: rgba(30, 24, 8, 0.96);
+    border: 1px dashed rgba(255, 200, 80, 0.6);
+    border-radius: 12px;
+    color: #ffe6b0;
+  }
+  .mock.open .mock-panel { display: block; }
+  .mock-panel p { margin-bottom: 8px; line-height: 1.45; color: #d9c08a; }
+  .mock-panel button {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    padding: 7px 10px;
+    border: 1px solid rgba(255, 200, 80, 0.25);
+    border-radius: 8px;
+    background: none;
+    color: #ffe6b0;
+    text-align: left;
+    cursor: pointer;
+  }
+  .mock-panel button:hover { background: rgba(255, 200, 80, 0.1); }
 
-.quick-links {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.quick-link {
-  padding: 8px 14px;
-  background: #15151d;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #aaa;
-  cursor: pointer;
-}
-
-.quick-link:hover {
-  background: #1c1c26;
-  color: #fff;
-}
-
-/* BOTTOM BAR */
-.bottombar {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 14px;
-  font-size: 12px;
-  color: #666;
-  background: #0e0e13;
-  border-top: 1px solid #1a1a22;
-}
+  @media (max-width: 640px) {
+    .orbit-field { aspect-ratio: auto; height: 100%; }
+    .orbit-field svg { display: none; }
+    .core { position: static; transform: none; width: 100%; margin-top: 18vh; }
+    .moon { position: static; transform: none; }
+    .moons-wrap { display: flex; justify-content: center; gap: 18px; flex-wrap: wrap; margin-top: 28px; }
+    .newtab { align-items: flex-start; padding: 0 16px; }
+    .address-badge { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
 </style>
 </head>
-
 <body>
 
 <div class="browser">
+  <div class="tabstrip" id="tabstrip" role="tablist"></div>
 
-  <div class="topbar">
-    <div class="tab active">New Tab</div>
-    <div class="tab">Tab 1</div>
-    <div class="tab">Tab 2</div>
-    <div class="tab add">+</div>
-  </div>
+  <div class="toolbar">
+    <button class="tool" id="backBtn" title="Back" aria-label="Back"><i class="fas fa-arrow-left"></i></button>
+    <button class="tool" id="fwdBtn" title="Forward" aria-label="Forward"><i class="fas fa-arrow-right"></i></button>
+    <button class="tool" id="reloadBtn" title="Reload" aria-label="Reload"><i class="fas fa-rotate-right"></i></button>
+    <button class="tool" id="homeBtn" title="New tab page" aria-label="Home"><i class="fas fa-house"></i></button>
 
-  <div class="navbar">
-    <button>🏠</button>
-    <button>⟳</button>
-    <input type="text" placeholder="Search DuckDuckGo or enter URL..." />
-    <button>⋯</button>
-  </div>
+    <form class="address" id="addressForm" autocomplete="off">
+      <i class="fas fa-shield-halved address-shield" id="addressShield" title="Going through the X-ORBIT proxy"></i>
+      <input id="addressInput" placeholder="Search or enter a web address" spellcheck="false" aria-label="Address">
+      <span class="address-badge" id="addressBadge">Proxied</span>
+    </form>
 
-  <div class="webview">
-    <div class="landing">
-      <div class="logo">
-        <div class="planet"></div>
-        <div class="ring"></div>
-      </div>
-      <div class="title">ORBIX</div>
-      <div class="subtitle">Private. Fast. Clean.</div>
-      <div class="clock" id="clock">--:--</div>
-      <input class="searchbox" placeholder="Search the web or enter a URL..." />
+    <button class="tool" id="menuBtn" title="Menu" aria-label="Menu"><i class="fas fa-ellipsis-vertical"></i></button>
+    <div class="progress" id="progress"></div>
 
-      <div class="quick-links">
-        <div class="quick-link">YouTube</div>
-        <div class="quick-link">DuckDuckGo</div>
-        <div class="quick-link">Discord</div>
-        <div class="quick-link">GitHub</div>
-      </div>
+    <div class="menu" id="menu" role="menu">
+      <button onclick="newTab()"><i class="fas fa-plus"></i>New tab</button>
+      <button onclick="reloadTab()"><i class="fas fa-rotate-right"></i>Reload</button>
+      <hr>
+      <div class="menu-label">Search with</div>
+      <button data-engine="duckduckgo"><i class="fas fa-check"></i>DuckDuckGo</button>
+      <button data-engine="google"><i class="fas fa-check"></i>Google</button>
+      <button data-engine="bing"><i class="fas fa-check"></i>Bing</button>
     </div>
   </div>
 
-  <div class="bottombar">
-    <span>Status: Connected</span>
-    <span>12:45</span>
-  </div>
+  <main class="page">
+    <!-- New tab -->
+    <section class="view newtab" id="viewNewtab">
+      <div class="orbit-field">
+        <svg viewBox="0 0 1000 455" preserveAspectRatio="none" aria-hidden="true">
+          <ellipse class="orbit-ring" cx="500" cy="227" rx="490" ry="215"/>
+          <ellipse class="orbit-ring inner" cx="500" cy="227" rx="380" ry="160"/>
+        </svg>
+        <div class="core">
+          <div class="clock" id="clock">--:--</div>
+          <div class="date" id="date"></div>
+          <form class="search" id="searchForm" autocomplete="off">
+            <i class="fas fa-magnifying-glass"></i>
+            <input id="searchInput" placeholder="Search the web or type an address" spellcheck="false" aria-label="Search">
+            <button type="submit">Go</button>
+          </form>
+        </div>
+        <div class="moons-wrap" id="moons"></div>
+      </div>
+    </section>
 
+    <!-- Loading -->
+    <section class="view notice" id="viewLoading">
+      <div class="notice-inner">
+        <div class="loader-orbit"></div>
+        <h1>Opening <span class="host" data-host></span></h1>
+        <p>Connecting through the X-ORBIT proxy.</p>
+      </div>
+    </section>
+
+    <!-- A proxied site (placeholder content) -->
+    <section class="view site" id="viewSite">
+      <div class="site-head">
+        <div class="site-logo" data-host-initial></div>
+        <div class="site-name" data-host></div>
+      </div>
+      <div class="site-body">
+        <div class="bar title"></div>
+        <div class="bar"></div>
+        <div class="bar mid"></div>
+        <div class="bar short"></div>
+        <div class="bar"></div>
+        <div class="bar mid"></div>
+        <p class="site-note">Placeholder for the proxied page. In the real browser this area is the Ultraviolet iframe.</p>
+      </div>
+    </section>
+
+    <!-- Blocked by the content filter -->
+    <section class="view notice" id="viewBlocked">
+      <div class="notice-inner">
+        <div class="notice-mark blocked"><i class="fas fa-ban"></i></div>
+        <h1>This site is blocked</h1>
+        <p><span class="host" data-host></span> is on X-ORBIT's list of adult and graphic sites, so the proxy won't open it.</p>
+        <div class="notice-actions">
+          <button class="btn primary" onclick="goBack()">Go back</button>
+          <button class="btn" onclick="goHome()">New tab page</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Proxy unreachable -->
+    <section class="view notice" id="viewOffline">
+      <div class="notice-inner">
+        <div class="notice-mark"><i class="fas fa-satellite-dish"></i></div>
+        <h1>Can't reach the proxy</h1>
+        <p>uv.xorbit.org isn't responding, so <span class="host" data-host></span> couldn't load. Check your internet connection, then try again.</p>
+        <div class="notice-actions">
+          <button class="btn primary" onclick="reloadTab()">Try again</button>
+          <button class="btn" onclick="goHome()">New tab page</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="statusbar">
+    <span><span class="status-dot" id="statusDot"></span><span id="statusText">Connected to uv.xorbit.org</span></span>
+    <span class="spacer"></span>
+    <span><i class="fas fa-filter"></i> Content filter on</span>
+  </footer>
+</div>
+
+<!-- Mockup controls: not part of the design -->
+<div class="mock" id="mock">
+  <div class="mock-panel">
+    <p>Mockup only. Switch the current tab between states to design each one.</p>
+    <button data-state="newtab">New tab</button>
+    <button data-state="loading">Loading</button>
+    <button data-state="site">Site</button>
+    <button data-state="blocked">Blocked</button>
+    <button data-state="offline">Can't reach proxy</button>
+  </div>
+  <button class="mock-toggle" id="mockToggle">Mockup</button>
 </div>
 
 <script>
-function updateClock() {
-  const now = new Date();
-  const hours = now.getHours().toString().padStart(2, '0');
-  const minutes = now.getMinutes().toString().padStart(2, '0');
-  document.getElementById('clock').textContent = `${hours}:${minutes}`;
-}
-setInterval(updateClock, 1000);
-updateClock();
+  // ── Demo data ──────────────────────────────────────────
+  const QUICK_LINKS = [
+    { name: 'YouTube',    url: 'https://youtube.com',    icon: 'fab fa-youtube' },
+    { name: 'Wikipedia',  url: 'https://wikipedia.org',  icon: 'fab fa-wikipedia-w' },
+    { name: 'GitHub',     url: 'https://github.com',     icon: 'fab fa-github' },
+    { name: 'Spotify',    url: 'https://spotify.com',    icon: 'fab fa-spotify' },
+    { name: 'Reddit',     url: 'https://reddit.com',     icon: 'fab fa-reddit-alien' },
+    { name: 'Discord',    url: 'https://discord.com',    icon: 'fab fa-discord' },
+  ];
+  // Stand-ins for the server's blocklist, so the blocked state can be reached by typing
+  const DEMO_BLOCKED = ['blocked.example', 'badsite.example'];
+  const ENGINES = {
+    duckduckgo: q => 'https://duckduckgo.com/?q=' + encodeURIComponent(q),
+    google:     q => 'https://www.google.com/search?q=' + encodeURIComponent(q),
+    bing:       q => 'https://www.bing.com/search?q=' + encodeURIComponent(q),
+  };
+  let engine = 'duckduckgo';
+
+  // Each tab: { id, state, url, history: [url|null], index }
+  let tabs = [];
+  let activeId = null;
+  let nextId = 1;
+  let loadTimer = null;
+
+  const $ = id => document.getElementById(id);
+  const activeTab = () => tabs.find(t => t.id === activeId);
+
+  function hostOf(url) {
+    try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return url; }
+  }
+
+  // Text from the address bar → a URL (search when it isn't an address)
+  function toUrl(text) {
+    const s = text.trim();
+    if (!s) return null;
+    if (/^https?:\/\//i.test(s)) return s;
+    if (/^[^\s]+\.[a-z]{2,}(\/.*)?$/i.test(s)) return 'https://' + s;
+    return ENGINES[engine](s);
+  }
+
+  // ── Tabs ───────────────────────────────────────────────
+  function newTab() {
+    const tab = { id: nextId++, state: 'newtab', url: null, history: [null], index: 0 };
+    tabs.push(tab);
+    activeId = tab.id;
+    closeMenu();
+    render();
+    $('searchInput').focus();
+  }
+
+  function closeTab(id) {
+    const i = tabs.findIndex(t => t.id === id);
+    if (i < 0) return;
+    tabs.splice(i, 1);
+    if (!tabs.length) { newTab(); return; }
+    if (activeId === id) activeId = tabs[Math.max(0, i - 1)].id;
+    render();
+  }
+
+  function tabTitle(tab) {
+    if (tab.state === 'newtab') return 'New tab';
+    if (tab.state === 'blocked') return 'Blocked';
+    if (tab.state === 'offline') return "Can't reach proxy";
+    return hostOf(tab.url);
+  }
+
+  function tabIcon(tab) {
+    if (tab.state === 'newtab')  return '<span class="tab-icon new"><i class="fas fa-circle-notch"></i></span>';
+    if (tab.state === 'loading') return '<span class="tab-icon loading"></span>';
+    if (tab.state === 'blocked') return '<span class="tab-icon blocked"><i class="fas fa-ban"></i></span>';
+    return `<span class="tab-icon">${hostOf(tab.url).charAt(0).toUpperCase()}</span>`;
+  }
+
+  function renderTabs() {
+    const strip = $('tabstrip');
+    strip.innerHTML = '';
+    tabs.forEach(tab => {
+      const el = document.createElement('div');
+      el.className = 'tab' + (tab.id === activeId ? ' active' : '');
+      el.setAttribute('role', 'tab');
+      el.tabIndex = 0;
+      el.innerHTML = `${tabIcon(tab)}<span class="tab-title"></span>
+        <button class="tab-close" aria-label="Close tab"><i class="fas fa-xmark"></i></button>`;
+      el.querySelector('.tab-title').textContent = tabTitle(tab);
+      el.addEventListener('click', e => {
+        if (e.target.closest('.tab-close')) { closeTab(tab.id); return; }
+        activeId = tab.id;
+        $('progress').classList.toggle('on', tab.state === 'loading');
+        render();
+      });
+      strip.appendChild(el);
+    });
+    const add = document.createElement('button');
+    add.className = 'tab-add';
+    add.title = 'New tab';
+    add.setAttribute('aria-label', 'New tab');
+    add.innerHTML = '<i class="fas fa-plus"></i>';
+    add.onclick = newTab;
+    strip.appendChild(add);
+  }
+
+  // ── Page states ────────────────────────────────────────
+  function renderPage() {
+    const tab = activeTab();
+    const views = { newtab: 'viewNewtab', loading: 'viewLoading', site: 'viewSite', blocked: 'viewBlocked', offline: 'viewOffline' };
+    Object.values(views).forEach(v => $(v).classList.remove('show'));
+    $(views[tab.state]).classList.add('show');
+
+    const host = tab.url ? hostOf(tab.url) : '';
+    document.querySelectorAll('[data-host]').forEach(el => { el.textContent = host; });
+    document.querySelectorAll('[data-host-initial]').forEach(el => { el.textContent = host.charAt(0).toUpperCase(); });
+
+    // Address bar and shield
+    const input = $('addressInput');
+    if (document.activeElement !== input) input.value = tab.url || '';
+    const shield = $('addressShield');
+    shield.className = 'fas address-shield ' + (tab.state === 'blocked' ? 'fa-ban blocked' : tab.state === 'offline' ? 'fa-plug-circle-xmark offline' : 'fa-shield-halved');
+    const badge = $('addressBadge');
+    badge.textContent = tab.state === 'blocked' ? 'Blocked' : tab.state === 'offline' ? 'Offline' : 'Proxied';
+    badge.className = 'address-badge' + (tab.state === 'blocked' || tab.state === 'offline' ? ' ' + tab.state : '');
+
+    // Status bar
+    const offline = tab.state === 'offline';
+    $('statusDot').classList.toggle('off', offline);
+    $('statusText').textContent = offline ? "Can't reach uv.xorbit.org" : 'Connected to uv.xorbit.org';
+
+    $('backBtn').disabled = tab.index <= 0;
+    $('fwdBtn').disabled = tab.index >= tab.history.length - 1;
+    $('reloadBtn').disabled = tab.state === 'newtab';
+  }
+
+  function render() { renderTabs(); renderPage(); }
+
+  // Simulated load: progress line, then the site (or blocked) view
+  function load(url, { push = true } = {}) {
+    const tab = activeTab();
+    clearTimeout(loadTimer);
+    if (push) {
+      tab.history = tab.history.slice(0, tab.index + 1);
+      tab.history.push(url);
+      tab.index = tab.history.length - 1;
+    }
+    tab.url = url;
+    if (!url) { tab.state = 'newtab'; render(); return; }
+
+    if (DEMO_BLOCKED.includes(hostOf(url))) { tab.state = 'blocked'; render(); return; }
+
+    tab.state = 'loading';
+    render();
+    const bar = $('progress');
+    bar.classList.add('on');
+    bar.style.width = '0';
+    requestAnimationFrame(() => { bar.style.width = '70%'; });
+    loadTimer = setTimeout(() => {
+      bar.style.width = '100%';
+      setTimeout(() => { bar.classList.remove('on'); bar.style.width = '0'; }, 350);
+      if (tab.url === url && tab.state === 'loading') { tab.state = 'site'; render(); }
+    }, 1100);
+  }
+
+  function goBack() {
+    const tab = activeTab();
+    if (tab.index <= 0) { goHome(); return; }
+    tab.index--;
+    load(tab.history[tab.index], { push: false });
+  }
+  function goForward() {
+    const tab = activeTab();
+    if (tab.index >= tab.history.length - 1) return;
+    tab.index++;
+    load(tab.history[tab.index], { push: false });
+  }
+  function goHome() { load(null); }
+  function reloadTab() {
+    closeMenu();
+    const tab = activeTab();
+    if (tab.url) load(tab.url, { push: false });
+  }
+
+  // ── Quick links on the orbit ───────────────────────────
+  function placeMoons() {
+    const wrap = $('moons');
+    wrap.innerHTML = '';
+    const narrow = window.matchMedia('(max-width: 640px)').matches;
+    QUICK_LINKS.forEach((link, i) => {
+      const moon = document.createElement('button');
+      moon.className = 'moon';
+      moon.innerHTML = `<span class="moon-body"><i class="${link.icon}"></i></span><span></span>`;
+      moon.lastElementChild.textContent = link.name;
+      moon.onclick = () => load(link.url);
+      if (!narrow) {
+        // Spread along the outer ellipse, avoiding the very top and bottom where the clock and search sit
+        const angles = [200, 160, 125, 55, 20, 340];
+        const a = angles[i % angles.length] * Math.PI / 180;
+        moon.style.left = (50 + 49 * Math.cos(a)) + '%';
+        moon.style.top  = (50 - 47.3 * Math.sin(a)) + '%';
+      }
+      wrap.appendChild(moon);
+    });
+  }
+
+  // ── Clock ──────────────────────────────────────────────
+  function tick() {
+    const now = new Date();
+    $('clock').textContent = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    $('date').textContent = now.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+  }
+
+  // ── Menu ───────────────────────────────────────────────
+  function closeMenu() { $('menu').classList.remove('show'); }
+  function markEngine() {
+    document.querySelectorAll('[data-engine]').forEach(b => b.classList.toggle('picked', b.dataset.engine === engine));
+    document.querySelectorAll('[data-engine] i').forEach(i => { i.style.visibility = i.parentElement.dataset.engine === engine ? 'visible' : 'hidden'; });
+  }
+
+  // ── Wiring ─────────────────────────────────────────────
+  $('addressForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const url = toUrl($('addressInput').value);
+    if (url) { $('addressInput').blur(); load(url); }
+  });
+  $('searchForm').addEventListener('submit', e => {
+    e.preventDefault();
+    const url = toUrl($('searchInput').value);
+    if (url) { $('searchInput').value = ''; load(url); }
+  });
+  $('backBtn').onclick = goBack;
+  $('fwdBtn').onclick = goForward;
+  $('reloadBtn').onclick = reloadTab;
+  $('homeBtn').onclick = goHome;
+  $('menuBtn').onclick = e => { e.stopPropagation(); $('menu').classList.toggle('show'); };
+  document.querySelectorAll('[data-engine]').forEach(b => b.addEventListener('click', () => { engine = b.dataset.engine; markEngine(); closeMenu(); }));
+  document.addEventListener('click', e => { if (!e.target.closest('.menu')) closeMenu(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeMenu();
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 't') { e.preventDefault(); newTab(); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'l') { e.preventDefault(); $('addressInput').select(); }
+  });
+
+  // Mockup panel: force the current tab into a state
+  $('mockToggle').onclick = () => $('mock').classList.toggle('open');
+  document.querySelectorAll('[data-state]').forEach(b => b.addEventListener('click', () => {
+    const tab = activeTab();
+    clearTimeout(loadTimer);
+    $('progress').classList.remove('on');
+    tab.state = b.dataset.state;
+    if (tab.state === 'newtab') tab.url = null;
+    else if (!tab.url) tab.url = tab.state === 'blocked' ? 'https://blocked.example' : 'https://wikipedia.org';
+    render();
+  }));
+
+  window.addEventListener('resize', placeMoons);
+
+  // Start with a new tab and one site already open, so tabs are visible
+  newTab();
+  load('https://wikipedia.org');
+  clearTimeout(loadTimer);
+  $('progress').classList.remove('on');
+  activeTab().state = 'site';
+  newTab();
+  placeMoons();
+  markEngine();
+  tick();
+  setInterval(tick, 15000);
 </script>
 </body>
 </html>

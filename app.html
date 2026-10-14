@@ -3097,15 +3097,6 @@
         </div>
         <div
           class="desktop-icon"
-          data-app="Music"
-          data-src="spotify-player.html"
-          data-icon="fa-solid fa-music"
-        >
-          <i class="fa-solid fa-music"></i>
-          <span>Music</span>
-        </div>
-        <div
-          class="desktop-icon"
           data-app="Jitter"
           data-src="jittery.html"
           data-icon="fas fa-comment-dots"
@@ -3286,15 +3277,6 @@
       >
         <i class="fas fa-cog"></i>
         <div class="tooltip">Settings</div>
-      </div>
-      <div
-        class="dock-item"
-        data-app="Music"
-        data-src="spotify-player.html"
-        data-icon="fa-solid fa-music"
-      >
-        <i class="fa-solid fa-music"></i>
-        <div class="tooltip">Music</div>
       </div>
       <div
         class="dock-item"
@@ -3956,16 +3938,7 @@
           description:
             "Jitter is X-ORBIT's messaging app: direct messages, group chats and servers with your friends.",
           highlightTitle: "Sharing Apps",
-          highlightText: "Right-click (two-finger click) any app and choose Share with Jitter to send it to a friend.",
-        },
-        {
-          icon: "fas fa-music",
-          title: "Music",
-          target: '.desktop-icon[data-app="Music"]',
-          description:
-            "Music plays in its own window, so it keeps going while you use other apps.",
-          highlightTitle: "More Apps",
-          highlightText: "The other icons work the same way. Open any of them to see what it does.",
+          highlightText: "Right-click (two-finger click) any app and choose Share with Jitter to send it to a friend. The other icons open the same way.",
         },
         {
           icon: "fas fa-folder",
@@ -4545,15 +4518,73 @@
           .update({
             is_online:    online,
             last_seen:    new Date().toISOString(),
-            current_page: online ? "index" : null,
+            current_page: online ? currentPage() : null,
           })
           .eq("email", currentUser.email)
           .then(() => {});
+        _lastPage = online ? currentPage() : null;
       }
+
+      // ── Current page ──────────────────────────────────────────────
+      // clients.current_page says what you're on, and Jitter reads it for both
+      // your Online/Away dot and, with Status set to All, a phrase like
+      // "Sketching with Ember". The desktop owns this column; it's rewritten
+      // whenever a different window comes to the front.
+      //   Status All:     the front window's name ("ember", "browser", …), "jittery"
+      //                   for Jitter, "index" for the bare desktop
+      //   Status Minimal: just "online" (in Jitter) or "away" (anywhere else)
+      //   Tab hidden:     "away"
+      let _statusDetail = "all";
+      let _lastPage;
+      let _pageDebounce = null;
+
+      function pageSlug(title) {
+        return title.toLowerCase().replace(/&/g, " ").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      }
+
+      function currentPage() {
+        if (document.hidden) return "away";
+        let title = null;
+        const win = document.querySelector("#desktop .window.active");
+        if (win) for (const [t, id] of activeWindows) if (id === win.id) title = t;
+        const inJitter = title === "Jitter";
+        if (_statusDetail === "minimal") return inJitter ? "online" : "away";
+        if (!title) return "index";
+        return inJitter ? "jittery" : pageSlug(title);
+      }
+
+      // Writes only when it changed, unless forced
+      function publishPage(force = false) {
+        if (!currentUser.email || !supabaseClient) return;
+        const page = currentPage();
+        if (!force && page === _lastPage) return;
+        _lastPage = page;
+        supabaseClient.from("clients")
+          .update({ current_page: page, is_online: true, last_seen: new Date().toISOString() })
+          .eq("email", currentUser.email).then(() => {});
+      }
+
+      function schedulePublishPage() {
+        clearTimeout(_pageDebounce);
+        _pageDebounce = setTimeout(() => publishPage(false), 1000);
+      }
+
+      async function loadStatusDetail() {
+        try {
+          const { data, error } = await supabaseClient.from("clients")
+            .select("status_detail").eq("email", currentUser.email).single();
+          if (!error && data && data.status_detail === "minimal") _statusDetail = "minimal";
+        } catch (e) {}
+      }
+
+      document.addEventListener("visibilitychange", schedulePublishPage);
+      // Closing a window or clicking the bare desktop changes the front window too
+      setInterval(() => publishPage(false), 4000);
 
       function startIndexPresence() {
         if (!currentUser.email) return;
         _setIndexPresence(true);
+        loadStatusDetail().then(() => publishPage(true));
         if (_presenceInterval) clearInterval(_presenceInterval);
         _presenceInterval = setInterval(() => {
           if (currentUser.email) _setIndexPresence(true);
@@ -4699,6 +4730,9 @@
           // Update preview in settings
           updateWallpaperPreview(imageData);
 
+          // Uploads the image so other devices can use it, then syncs
+          schedulePushToCloud();
+
           // Clear the file input
           event.target.value = "";
         };
@@ -4709,6 +4743,7 @@
         settings.customWallpaper = url;
         localStorage.setItem("xorbit-settings", JSON.stringify(settings));
         applyWallpaper(url);
+        schedulePushToCloud();
         const preview = document.getElementById("wallpaperPreview");
         if (preview) { preview.src = url; preview.style.display = "block"; }
       }
@@ -4720,6 +4755,7 @@
         settings.customWallpaper = null;
         localStorage.setItem("xorbit-settings", JSON.stringify(settings));
         applyWallpaper(null);
+        schedulePushToCloud();
 
         // Hide preview
         const preview = document.getElementById("wallpaperPreview");
@@ -4832,6 +4868,47 @@
         }
       }
 
+      // An uploaded wallpaper starts life as a data: URL, which is far too big to keep
+      // in the settings row. Store the image once per account and sync its address
+      // instead. Returns false if it couldn't be stored (it then stays on this device).
+      const WALLPAPER_MAX_BYTES = 8 * 1024 * 1024;
+      let _syncUserId = null;
+
+      async function uploadWallpaperForSync() {
+        const current = settings.customWallpaper;
+        if (!current || !current.startsWith("data:")) return true;
+        try {
+          const blob = await (await fetch(current)).blob();
+          if (blob.size > WALLPAPER_MAX_BYTES) return false;
+
+          if (!_syncUserId) {
+            const { data } = await supabaseClient.from("clients").select("id").eq("email", currentUser.email).single();
+            _syncUserId = data && data.id;
+          }
+          if (!_syncUserId) return false;
+
+          const path = `${_syncUserId}/wallpaper`;
+          const { error } = await supabaseClient.storage.from("banners")
+            .upload(path, blob, { upsert: true, contentType: blob.type || "image/png" });
+          if (error) throw error;
+
+          const { data: { publicUrl } } = supabaseClient.storage.from("banners").getPublicUrl(path);
+          // The wallpaper may have been changed while this was uploading
+          if (settings.customWallpaper !== current) return true;
+          settings.customWallpaper = `${publicUrl}?t=${Date.now()}`;
+          localStorage.setItem("xorbit-settings", JSON.stringify(settings));
+          return true;
+        } catch (e) {
+          console.warn("[CloudSync] Wallpaper upload failed:", e);
+          return false;
+        }
+      }
+
+      function setWallpaperSyncNote(stored) {
+        const note = document.getElementById("cloudSyncWallpaperNote");
+        if (note) note.style.display = stored ? "none" : "block";
+      }
+
       async function pushSettingsToCloud(manual = false) {
         const email = currentUser.email;
         if (!email) return;
@@ -4839,8 +4916,13 @@
 
         if (manual) updateCloudSyncUI("syncing");
         try {
-          // Strip customWallpaper (can be huge) before storing
-          const toSave = { ...settings, customWallpaper: null };
+          const wallpaperStored = await uploadWallpaperForSync();
+          setWallpaperSyncNote(wallpaperStored);
+
+          // Every desktop setting goes up. wallpaperSynced tells other devices the
+          // wallpaper value is real (older builds always sent null).
+          const toSave = { ...settings, wallpaperSynced: wallpaperStored };
+          if (!wallpaperStored) toSave.customWallpaper = null;
           const { error } = await supabaseClient
             .from("clients")
             .update({ settings: toSave })
@@ -4871,12 +4953,20 @@
             return false;
           }
 
-          // Merge cloud settings, preserving local customWallpaper
-          const wallpaper = settings.customWallpaper;
-          settings = { ...settings, ...data.settings, customWallpaper: wallpaper };
+          // Take everything from the cloud. The wallpaper only comes across when the
+          // device that pushed it could store it; otherwise this device keeps its own.
+          const localWallpaper = settings.customWallpaper;
+          const cloud = data.settings;
+          const wallpaper = cloud.wallpaperSynced ? (cloud.customWallpaper || null) : localWallpaper;
+          settings = { ...settings, ...cloud, customWallpaper: wallpaper };
+          delete settings.wallpaperSynced;
           localStorage.setItem("xorbit-settings", JSON.stringify(settings));
           loadTheme(settings.theme);
           applySettings();
+          if (wallpaper !== localWallpaper) {
+            applyWallpaper(wallpaper);
+            if (wallpaper) updateWallpaperPreview(wallpaper);
+          }
           updateCloudSyncUI("ok");
 
           // Refresh the sync interval in case it changed
@@ -5085,7 +5175,7 @@
         liteApps: true,      // tell apps to use their own lighter mode
       };
       // Apps that are never put to sleep: music keeps playing, live games stay connected
-      const PERF_NEVER_SLEEP = ["spotify-player.html", "X-MUSIC.html", "cadence.html", "hangman.html"];
+      const PERF_NEVER_SLEEP = ["cadence.html", "hangman.html"];
 
       let perf = (() => {
         try { return Object.assign({}, PERF_DEFAULTS, JSON.parse(localStorage.getItem(PERF_KEY) || "{}")); }
@@ -5498,6 +5588,10 @@
         } else if (event.data && event.data.type === "open-hangman") {
           // Jitter's "Join Game" button on a Hangman invite
           openHangmanInvite(event.data.code);
+        } else if (event.data && event.data.type === "jitter-status-mode") {
+          // Jitter's Status setting changed
+          _statusDetail = event.data.mode === "minimal" ? "minimal" : "all";
+          publishPage(true);
         } else if (event.data && event.data.type === "open-shared-app") {
           // Jitter's "Open" button on an app someone shared
           openSharedApp(String(event.data.app || ""));
@@ -5953,6 +6047,7 @@
         // Save settings
         localStorage.setItem("xorbit-settings", JSON.stringify(settings));
         applySettings();
+        schedulePushToCloud();
 
         // Visual feedback on button
         const buttons = document.querySelectorAll(".tutorial-config-btn");
@@ -6641,6 +6736,7 @@
           windowEl.classList.add("active");
           windowEl.style.zIndex = ++zIndexCounter;
           windowEl.dataset.lastActive = Date.now();
+          schedulePublishPage();
           wakeWindow(windowEl);   // no-op unless Performance Mode put it to sleep
         }
       }
@@ -7833,7 +7929,7 @@
         <div class="settings-section" id="cloudsync-section">
           <div class="settings-header">
             <h1><i class="fas fa-cloud"></i> <span class="settings-section-title-text">Cloud Sync</span></h1>
-            <p class="settings-section-desc">Sync your settings across every device using your account</p>
+            <p class="settings-section-desc">Sync every desktop setting across your devices using your account</p>
           </div>
           <button class="settings-back-btn" data-back="cloudsync"><i class="fas fa-chevron-left"></i> Cloud Sync</button>
           <div class="settings-subcat-index" id="cloudsync-index"></div>
@@ -7857,6 +7953,21 @@
                   <i class="fas fa-cloud-upload-alt"></i> Push to Cloud
                 </button>
               </div>
+            </div>
+          </div>
+
+          <div class="settings-subsection" data-sub-id="sync-contents" data-sub-icon="fas fa-list-check" data-sub-desc="Which settings follow you to other devices">
+            <div class="settings-subsection-title">What Syncs</div>
+            <div class="setting-card">
+              <div class="setting-card-header">
+                <div class="setting-card-title">
+                  <div class="setting-card-icon"><i class="fas fa-list-check"></i></div>
+                  <div><div class="setting-card-label">Synced Settings</div></div>
+                </div>
+              </div>
+              <div class="setting-card-desc">Every setting in this app: theme, wallpaper (presets and your own uploads), transparency, animations, background opacity, menu bar options, window options, fullscreen launch and startup windows. Changes upload a few seconds after you make them.</div>
+              <div class="setting-card-desc" style="margin-top:8px;">Kept on each device: Performance Mode, which is tuned to the device, and where your desktop icons and folders sit.</div>
+              <div class="setting-card-desc" id="cloudSyncWallpaperNote" style="display:none;margin-top:8px;color:#fbbf24;">Your uploaded wallpaper couldn't be stored for syncing (it may be over 8 MB), so it stays on this device.</div>
             </div>
           </div>
 
@@ -10522,8 +10633,8 @@
       const IS_BETA_BUILD = true;
       // Exposed so the login page (auth.html, loaded in an iframe) can read the build channel
       window.IS_BETA_BUILD = IS_BETA_BUILD;
-      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.4.0-beta" : "v6.4.0";
-      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.4.0 Beta" : "X-ORBIT Desktop v6.4.0 Sahara";
+      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.4.1-beta" : "v6.4.1";
+      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.4.1 Beta" : "X-ORBIT Desktop v6.4.1 Sahara";
       // Short label for UI chips, e.g. "v6.2.4 Sahara"
       const CURRENT_VERSION_LABEL = CURRENT_VERSION_NAME.replace("X-ORBIT Desktop ", "");
       const UPDATE_CHECK_TABLE = IS_BETA_BUILD ? "update_check_beta" : "update_check";
@@ -11163,6 +11274,7 @@
             if (backup.settings.customWallpaper) {
               applyWallpaper(backup.settings.customWallpaper);
             }
+            schedulePushToCloud();
 
             xModal.alert("Your settings and wallpaper have been applied successfully.", { title: "Backup Restored", icon: '<i class="fas fa-check-circle" style="color:var(--success)"></i>' });
           } catch(err) {
@@ -11501,6 +11613,27 @@
     <script>
       // ── What's New – version changelog data ──
       const WHATSNEW_CHANGELOG = [
+        {
+          version: "v6.4.1",
+          name: "Sahara",
+          date: "October 14, 2026",
+          sections: [
+            { type: "added", items: [
+              "Message privacy in Jitter: messages and previews stay blurred until you hover over them",
+              "Message filter in Jitter: blur or block messages with swearing. With Block, the sender sees Not Received, and group chats note that some members may not receive it",
+              "A Status setting in Jitter: All shows friends what you\u2019re doing, like Sketching with Ember or Surfing ORBIX; Minimal shows only Online or Away",
+              "Cloud Sync now covers every desktop setting, including your wallpaper"
+            ]},
+            { type: "changed", items: [
+              "ORBIX, the browser, has a new design with an orbit-style new tab page and per-tab pages that don\u2019t reload when you switch",
+              "Jitter\u2019s sidebar is titled Jitter",
+              "The Music app has been removed"
+            ]},
+            { type: "fixed", items: [
+              "Jitter statuses flickering between Online and Away"
+            ]}
+          ]
+        },
         {
           version: "v6.4.0",
           name: "Sahara",
@@ -12225,6 +12358,9 @@
       let userFolders = [];
       try { savedLayout = JSON.parse(localStorage.getItem(LAYOUT_KEY)  || '{}'); } catch(_) {}
       try { userFolders = JSON.parse(localStorage.getItem(FOLDERS_KEY) || '[]'); } catch(_) {}
+      // The Music (Spotify) app was removed; drop it from folders saved before that
+      const REMOVED_APPS = ['spotify-player.html', 'X-MUSIC.html'];
+      userFolders.forEach(f => { if (Array.isArray(f.apps)) f.apps = f.apps.filter(a => !REMOVED_APPS.includes(a.src)); });
 
       const desktop        = document.getElementById('desktop');
       const iconsContainer = desktop.querySelector('.desktop-icons');

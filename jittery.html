@@ -4220,6 +4220,105 @@
         }
         .profile-nickname-input:focus { border-color: var(--accent); }
 
+        /* ─── Message privacy: content stays blurred until the pointer is on it ─── */
+        body.message-privacy .message .message-bubble,
+        body.message-privacy .message .msg-image-bubble,
+        body.message-privacy .msg .msg-text,
+        body.message-privacy .msg .msg-image,
+        body.message-privacy .conv-preview,
+        body.message-privacy .reply-bar-preview,
+        body.message-privacy .reply-ref-preview {
+            transition: filter 0.12s ease;
+        }
+        body.message-privacy .message:not(:hover) .message-bubble,
+        body.message-privacy .message:not(:hover) .msg-image-bubble,
+        body.message-privacy .msg:not(:hover) .msg-text,
+        body.message-privacy .msg:not(:hover) .msg-image,
+        body.message-privacy .msg:not(:hover) .reply-ref-preview,
+        body.message-privacy .conv-item:not(:hover) .conv-preview,
+        body.message-privacy .reply-bar:not(:hover) .reply-bar-preview {
+            filter: blur(7px);
+        }
+        /* a blurred tail just smears, so drop it until the bubble is revealed */
+        body.message-privacy .message:not(:hover) .message-bubble::before,
+        body.message-privacy .message:not(:hover) .message-bubble::after,
+        body.message-privacy .msg:not(:hover) .msg-text::before,
+        body.message-privacy .msg:not(:hover) .msg-text::after { display: none; }
+
+        /* ─── Message filter ─── */
+        /* Blur mode: stays blurred on hover (a tag explains why) until clicked */
+        .profanity-wrap { position: relative; cursor: pointer; }
+        .profanity-wrap > .message-bubble,
+        .profanity-wrap > .msg-text { filter: blur(7px) !important; user-select: none; }
+        .profanity-wrap > .message-bubble::before,
+        .profanity-wrap > .message-bubble::after,
+        .profanity-wrap > .msg-text::before,
+        .profanity-wrap > .msg-text::after { display: none !important; }
+        .profanity-tag {
+            position: absolute;
+            left: 0;
+            bottom: calc(100% + 6px);
+            z-index: 5;
+            width: max-content;
+            max-width: 250px;
+            padding: 7px 10px;
+            background: var(--surface-3);
+            border: 1px solid rgba(255,159,10,0.5);
+            border-radius: var(--r-sm);
+            box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+            color: var(--text);
+            font-size: 0.75rem;
+            line-height: 1.4;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.14s ease;
+        }
+        .profanity-tag i { color: var(--away); margin-right: 4px; }
+        .profanity-tag b { display: block; margin-bottom: 1px; }
+        .profanity-wrap:hover .profanity-tag { opacity: 1; }
+
+        /* Block mode: a placeholder instead of the message */
+        .message .message-bubble.profanity-blocked,
+        .msg .msg-text.profanity-blocked {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--surface);
+            border: 1px dashed var(--border-hi);
+            color: var(--text-muted);
+            font-size: 0.88rem;
+            font-style: italic;
+            white-space: normal;
+        }
+        .profanity-blocked::before,
+        .profanity-blocked::after { display: none !important; }
+        .profanity-blocked .msg-info-btn { font-style: normal; color: var(--text-muted); }
+
+        .filter-note {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            margin-top: 2px;
+            padding: 0 2px;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+            font-weight: 500;
+        }
+        .filter-note > i { color: var(--away); }
+        .filter-note .msg-info-btn { color: var(--text-muted); }
+
+        .settings-select {
+            flex-shrink: 0;
+            padding: 6px 10px;
+            background: var(--surface-3);
+            border: 1px solid var(--border-hi);
+            border-radius: var(--r-sm);
+            color: var(--text);
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+        }
+
         /* ─── Settings ─── */
         .settings-body { overflow-y: auto; flex: 1; min-height: 0; padding: 4px 16px 16px; }
         .settings-section-label {
@@ -4494,7 +4593,7 @@
 
             <!-- Logo + Compose + Collapse toggle -->
             <div class="sidebar-header">
-                <div class="logo">X-<span>ORBIT</span></div>
+                <div class="logo">Jitter</div>
                 <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
                     <button class="compose-btn" onclick="openNewDMModal()" title="New Message">
                         <i class="fas fa-edit"></i>
@@ -4945,6 +5044,17 @@
             <div class="settings-section-label">Privacy</div>
             <div class="settings-group">
                 <div class="settings-row">
+                    <i class="fas fa-signal"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Status</span>
+                        <span class="settings-row-desc">All shows friends what you're doing on the desktop, like "Sketching with Ember". Minimal shows only Online or Away.</span>
+                    </span>
+                    <select class="settings-select" id="settingsStatusDetail" onchange="setStatusDetail(this.value)">
+                        <option value="all">All</option>
+                        <option value="minimal">Minimal</option>
+                    </select>
+                </div>
+                <div class="settings-row">
                     <i class="fas fa-user-plus"></i>
                     <span class="settings-row-main">
                         <span class="settings-row-label">Accept friend requests</span>
@@ -5000,6 +5110,29 @@
 
             <div class="settings-section-label">Chat</div>
             <div class="settings-group">
+                <div class="settings-row">
+                    <i class="fas fa-user-secret"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Message privacy</span>
+                        <span class="settings-row-desc">Blur messages and previews until you hover over them. Saved on this device.</span>
+                    </span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="chatMessagePrivacy" onchange="setMessagePrivacy(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <i class="fas fa-filter"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Message filter</span>
+                        <span class="settings-row-desc">Checks messages you receive for swearing. Blur hides them until you click; Block replaces them and tells the sender it wasn't received.</span>
+                    </span>
+                    <select class="settings-select" id="chatMessageFilter" onchange="setMessageFilter(this.value)">
+                        <option value="off">Off</option>
+                        <option value="blur">Blur</option>
+                        <option value="block">Block</option>
+                    </select>
+                </div>
                 <div class="settings-row">
                     <i class="fas fa-image"></i>
                     <span class="settings-row-main">
@@ -5891,6 +6024,12 @@
         // Pre-load servers list (but don't switch tab)
         loadUserServers();
 
+        // The message filter mode follows the account; pick up a change made on another device
+        delete messageFilterCache[currentUser.email];
+        messageFilterFor(currentUser.email, true).then(mode => {
+            if (mode && mode !== myMessageFilter) applyMessageFilter(mode);
+        });
+
         // Presence poll: re-fetch last_seen + current_page from DB every 20s so
         // dots stay accurate even when Realtime drops events, then re-render.
         setInterval(async () => {
@@ -5976,7 +6115,7 @@
                     <div class="${avatarClass}">${avatarContent}</div>
                     <div class="conv-details">
                         <div class="conv-name">${escHtml(otherName)}</div>
-                        <div class="conv-preview">${isMessageRequest(conv) ? '<span class="conv-request-tag">Request</span>' : ''}${escHtml(conv.last_message_preview || 'No messages yet')}</div>
+                        <div class="conv-preview">${isMessageRequest(conv) ? '<span class="conv-request-tag">Request</span>' : ''}${escHtml(filteredPreview(conv.last_message_preview) || 'No messages yet')}</div>
                     </div>
                     <div class="conv-meta">
                         <div class="conv-time">${conv.last_message_at ? fmtTime(conv.last_message_at) : ''}</div>
@@ -6086,6 +6225,9 @@
                 .order('created_at', { ascending: true });
 
             if (error) throw error;
+            const filterConv = conversations.find(c => c.id === convId);
+            activeOtherFilter = filterConv && !filterConv.is_group
+                ? await messageFilterFor(getOtherEmail(filterConv)) : 'off';
             const all = [...(data || []), ...undeliveredFor(convId)]
                 .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
             renderMessages(all, keepScroll);
@@ -6141,10 +6283,16 @@
             const chipClass = isSaved ? 'saved-chip' : (expiryMs !== null && expiryMs < 86400000 * 2 ? 'expiring' : '');
             const chipIcon  = isSaved ? 'fa-check' : 'fa-clock';
             const chipText  = isSaved ? 'Saved locally' : expiry;
+            // Message filter: how this message looks to me, and whether mine reached them
+            const profane     = !isImage && !msg.undelivered && hasProfanity(msg.message);
+            const filterView  = !isMine && profane && !revealedProfanity.has(msg.id) ? myMessageFilter : 'off';
+            const notReceived = isMine && profane && activeOtherFilter === 'block';
+            const groupNote   = isMine && profane && container.classList.contains('is-group');
+
             const replyQuote = msg.reply_to_id
                 ? `<div class="msg-reply-quote">
                     <span class="msg-reply-quote-name">${escHtml(msg.reply_to_sender_name || '')}</span>
-                    <span class="msg-reply-quote-text">${escHtml(msg.reply_to_preview || '')}</span>
+                    <span class="msg-reply-quote-text">${escHtml(filteredPreview(msg.reply_to_preview || ''))}</span>
                    </div>`
                 : '';
 
@@ -6179,6 +6327,10 @@
                 ? hangmanInviteCard(hangmanInviteCode(msg.message), senderDisplay, isMine)
                 : sharedAppName(msg.message)
                 ? sharedAppCard(sharedAppName(msg.message), senderDisplay, isMine)
+                : filterView === 'block'
+                ? profanityBlockedHTML('message-bubble')
+                : filterView === 'blur'
+                ? profanityBlurHTML(msg.id, `<div class="message-bubble">${replyQuote}${escHtml(msg.message)}</div>`)
                 : `<div class="message-bubble">${replyQuote}${escHtml(msg.message)}</div>`;
             const viaDesktop = msg.sent_via === 'desktop';
             const desktopBanner = viaDesktop
@@ -6192,7 +6344,7 @@
                 : '';
 
             html += `
-                <div class="message ${isMine ? 'mine' : 'theirs'}${runClass}${viaDesktop ? ' desktop-reply' : ''}${msg.undelivered ? ' undelivered' : ''}" data-created-at="${msg.created_at}" data-via="${viaDesktop ? 'desktop' : ''}">
+                <div class="message ${isMine ? 'mine' : 'theirs'}${runClass}${viaDesktop ? ' desktop-reply' : ''}${msg.undelivered ? ' undelivered' : ''}${notReceived ? ' not-received' : ''}" data-created-at="${msg.created_at}" data-via="${viaDesktop ? 'desktop' : ''}">
                     <div class="msg-avatar" onclick="openProfile('${escAttr(msg.sender_email)}')">${avatarHTML(senderDisplay, msg.sender_email)}</div>
                     <div class="msg-content">
                         <div class="message-header">${escHtml(senderDisplay)}</div>
@@ -6202,7 +6354,7 @@
                             ${reactionsHTML(msg)}
                             <div class="msg-meta">${replyBtn}${reactBtn}${infoBtn}<div class="message-time">${fmtTime(msg.created_at)}</div></div>
                         </div>
-                        ${msg.undelivered ? undeliveredReceipt(msg.id) : ''}
+                        ${msg.undelivered ? undeliveredReceipt(msg.id) : ''}${notReceived ? notReceivedReceipt() : ''}${groupNote ? GROUP_FILTER_NOTE : ''}
                     </div>
                 </div>
             `;
@@ -6958,12 +7110,14 @@
     /* ── VERSION ─────────────────────────────────────────
        Shown under your name in the sidebar so you can tell which build is loaded.
        Bump it with every change to this file: date as YYMMDD, then a counter for that day. */
-    const JITTER_VERSION = '261012-8';
+    const JITTER_VERSION = '261014-2';
     document.getElementById('jitterVersion').textContent = 'Jitter v' + JITTER_VERSION;
 
     /* ── SETTINGS ─────────────────────────────────────── */
     function openSettingsModal() {
         document.getElementById('chatHideImages').checked = hideChatImages;
+        document.getElementById('chatMessagePrivacy').checked = messagePrivacy;
+        document.getElementById('chatMessageFilter').value = myMessageFilter;
         document.getElementById('settingsVersion').textContent = 'Jitter v' + JITTER_VERSION;
         // Always re-read the saved value rather than trusting the cache
         delete msgRequestPref[currentUser.email];
@@ -6971,6 +7125,7 @@
             document.getElementById('privacyMessageRequests').checked = on;
         });
         loadPrivacyToggles();
+        loadStatusDetail();
         document.getElementById('settingsModal').classList.add('active');
     }
 
@@ -7095,6 +7250,142 @@
         if (conv.is_group) { showToast('Nicknames are for people, not groups.'); return; }
         await openProfile(getOtherEmail(conv));
         document.getElementById('profileNicknameInput').focus();
+    }
+
+    /* ── MESSAGE FILTER ──────────────────────────────────
+       Checks incoming text for profanity. The mode is the reader's choice and is
+       saved on their account (clients.message_filter, see supabase/message-filter.sql)
+       so a sender's Jitter can tell them when a message was blocked:
+         blur  – blurred until clicked, with a warning tag on hover
+         block – replaced by a placeholder; the sender sees Not Received */
+    const PROFANITY_ROOTS = [
+        'fuck', 'motherfuck', 'shit', 'bullshit', 'dipshit', 'bitch', 'ass', 'asshole', 'dumbass',
+        'jackass', 'bastard', 'damn', 'goddamn', 'dick', 'dickhead', 'cock', 'pussy', 'cunt', 'piss',
+        'slut', 'whore', 'prick', 'twat', 'wanker', 'crap', 'douche', 'douchebag', 'fag', 'faggot',
+        'retard', 'nigger', 'nigga', 'wtf', 'stfu',
+    ];
+    // Whole words only (so "class" and "cockpit" pass), stretched letters allowed ("shiiit"),
+    // common endings allowed ("fucking", "bitches", "shitty")
+    const PROFANITY_RE = new RegExp(
+        '(?<![a-z])(?:' + PROFANITY_ROOTS.map(w => w.split('').map(c => c + '+').join('')).join('|') +
+        ')(?:s|es|ed|er|ers|ing|in|y|ty)?(?![a-z])'
+    );
+    const LEET = { '@': 'a', '4': 'a', '$': 's', '5': 's', '0': 'o', '1': 'i', '3': 'e', '7': 't' };
+
+    function hasProfanity(text) {
+        if (!text || typeof text !== 'string' || text.startsWith('[IMG]:')) return false;
+        // Undo simple letter swaps ("sh1t", "a$$"), but leave plain numbers like "455" alone
+        const normalized = text.toLowerCase().split(/\s+/).map(word =>
+            /[a-z]/.test(word) ? word.replace(/[@4$50137]/g, ch => LEET[ch]).replace(/!(?=[a-z])/g, 'i') : word
+        ).join(' ');
+        return PROFANITY_RE.test(normalized);
+    }
+
+    let myMessageFilter = 'off';
+    try {
+        const savedFilter = localStorage.getItem('jittery_message_filter');
+        if (savedFilter === 'blur' || savedFilter === 'block') myMessageFilter = savedFilter;
+    } catch { /* ignore */ }
+    let activeOtherFilter = 'off';          // filter mode of the person in the open 1:1 chat
+    const revealedProfanity = new Set();    // message ids clicked open this session
+    const messageFilterCache = {};          // email -> { mode, at }
+
+    // Someone's saved mode. With `strict`, resolves null when it couldn't be read
+    // (so a failed lookup never overrides the local choice); otherwise 'off'.
+    async function messageFilterFor(email, strict = false) {
+        const cached = messageFilterCache[email];
+        if (cached && Date.now() - cached.at < 30000) return cached.mode;
+        try {
+            const { data, error } = await sb.from('clients').select('message_filter').eq('email', email).maybeSingle();
+            if (error || !data) return strict ? null : 'off';
+            const mode = data.message_filter === 'blur' || data.message_filter === 'block' ? data.message_filter : 'off';
+            messageFilterCache[email] = { mode, at: Date.now() };
+            return mode;
+        } catch { return strict ? null : 'off'; }
+    }
+
+    // Text shown in previews and reply quotes when the filter is on
+    function filteredPreview(text) {
+        return myMessageFilter !== 'off' && hasProfanity(text) ? 'Filtered message' : text;
+    }
+
+    function profanityBlurHTML(msgId, bubbleHTML) {
+        return `<div class="profanity-wrap" onclick="revealProfanity(this, '${escAttr(msgId)}')">
+            ${bubbleHTML}
+            <div class="profanity-tag"><b><i class="fas fa-triangle-exclamation"></i>Profanity detected</b>We recommend leaving this hidden. Click to show it anyway.</div>
+        </div>`;
+    }
+
+    function profanityBlockedHTML(bubbleClass) {
+        const tip = 'Your message filter is set to Block, so messages with swearing are hidden. To change it, open Settings (the gear in the bottom left), then Chat, then Message filter.';
+        return `<div class="${bubbleClass} profanity-blocked">
+            <i class="fas fa-ban"></i> This message contains profanity
+            <button class="msg-info-btn" type="button" data-tip="${tip}" aria-label="Why is this message hidden?"><i class="fas fa-circle-info"></i></button>
+        </div>`;
+    }
+
+    function revealProfanity(wrapEl, msgId) {
+        revealedProfanity.add(msgId);
+        const tag = wrapEl.querySelector('.profanity-tag');
+        if (tag) tag.remove();
+        wrapEl.classList.remove('profanity-wrap');
+        wrapEl.removeAttribute('onclick');
+    }
+
+    // Under one of my own messages when the other person's filter blocked it
+    function notReceivedReceipt() {
+        const conv = conversations.find(c => c.id === activeConvId);
+        const name = conv ? getOtherName(conv) : 'They';
+        const tip  = `${name} has their message filter set to block swearing, and this message contains some, so it's hidden from them. It was sent, but they can't read it unless they turn the filter off.`;
+        return `<div class="undelivered-receipt">
+            <span class="undelivered-retry" style="cursor:default"><i class="fas fa-circle-exclamation"></i> Not Received</span>
+            <button class="msg-info-btn" type="button" data-tip="${escHtml(tip).replace(/"/g, '&quot;')}" aria-label="Why wasn't this received?"><i class="fas fa-circle-info"></i></button>
+        </div>`;
+    }
+
+    // Under one of my own messages in a group: it went out, but members choose their own filter
+    const GROUP_FILTER_NOTE = `<div class="filter-note">
+        <i class="fas fa-circle-info"></i> Sent, but some members may not receive it
+        <button class="msg-info-btn" type="button" data-tip="This message contains swearing. It was sent to the group, but anyone with their message filter on will see it blurred or blocked." aria-label="Why might some members not receive this?"><i class="fas fa-circle-question"></i></button>
+    </div>`;
+
+    // Applies a mode on this device and redraws what's on screen
+    function applyMessageFilter(mode) {
+        myMessageFilter = mode;
+        try { localStorage.setItem('jittery_message_filter', mode); } catch { /* ignore */ }
+        revealedProfanity.clear();
+        const select = document.getElementById('chatMessageFilter');
+        if (select) select.value = mode;
+        renderConversations(conversations);
+        if (activeConvId) loadMessages(activeConvId, true);
+        else if (activeChannelId) loadChannelMessages(activeChannelId);
+    }
+
+    async function setMessageFilter(mode) {
+        if (mode !== 'blur' && mode !== 'block') mode = 'off';
+        applyMessageFilter(mode);
+        const { error } = await sb.from('clients').update({ message_filter: mode }).eq('id', currentUser.id);
+        if (error) {
+            console.error('Message filter setting error:', error);
+            showToast('Filter set on this device, but it could not be saved to your account.', 6000);
+            return;
+        }
+        messageFilterCache[currentUser.email] = { mode, at: Date.now() };
+        showToast(mode === 'off' ? 'Message filter off.' : mode === 'blur' ? 'Messages with swearing will be blurred.' : 'Messages with swearing will be blocked.');
+    }
+
+    /* ── MESSAGE PRIVACY (per-device setting) ────────────
+       Blurs message text, images and list previews until hovered. Pure CSS, driven
+       by a class on <body>, so it covers messages however they get drawn. */
+    let messagePrivacy = false;
+    try { messagePrivacy = localStorage.getItem('jittery_message_privacy') === '1'; } catch { /* ignore */ }
+    document.body.classList.toggle('message-privacy', messagePrivacy);
+
+    function setMessagePrivacy(on) {
+        messagePrivacy = on;
+        try { localStorage.setItem('jittery_message_privacy', on ? '1' : '0'); } catch { /* ignore */ }
+        document.body.classList.toggle('message-privacy', on);
+        showToast(on ? 'Messages are blurred until you hover over them.' : 'Message privacy off.');
     }
 
     /* ── HIDE IMAGES IN CHAT (per-device setting) ────── */
@@ -8004,7 +8295,7 @@
 
         const container = document.getElementById('messagesContainer');
         if (!container) return;
-        const myMsgs = container.querySelectorAll('.message.mine:not(.undelivered)');
+        const myMsgs = container.querySelectorAll('.message.mine:not(.undelivered):not(.not-received)');
         if (myMsgs.length === 0) return;
 
         const lastMine = myMsgs[myMsgs.length - 1];
@@ -8333,7 +8624,7 @@
         tagsEl.style.display = tags.length ? 'flex' : 'none';
         const profileSt   = effectiveStatus(profile.email);
         const lastSeenTxt = profileSt === 'offline' ? fmtLastSeen(profile.last_seen) : null;
-        const statusLabel = profileSt === 'online' ? 'Online' : (profileSt === 'away' ? 'Away' : (lastSeenTxt || 'Offline'));
+        const statusLabel = escHtml(statusLabelFor(profileSt, profile.email, lastSeenTxt));
         document.getElementById('profileStatusRow').innerHTML =
             `<span class="status-tag ${profileSt}"><i class="fas fa-circle"></i>${statusLabel}</span>`;
         const profileAvatarEl = document.getElementById('profileModalAvatar');
@@ -8647,7 +8938,8 @@
     function setOnlineStatus(online) {
         if (!currentUser) return;
         sb.from('clients')
-            .update({ is_online: online, last_seen: new Date().toISOString(), current_page: online ? 'jittery' : null })
+            // current_page is written by the desktop (it knows which window is in front)
+            .update({ is_online: online, last_seen: new Date().toISOString() })
             .eq('id', currentUser.id)
             .then(() => {});
     }
@@ -8704,7 +8996,7 @@
             if (shownEmail === email) {
                 const pSt         = effectiveStatus(email);
                 const lastSeenTxt = pSt === 'offline' ? fmtLastSeen(profileCache[email]?.last_seen) : null;
-                const statusLabel = pSt === 'online' ? 'Online' : (pSt === 'away' ? 'Away' : (lastSeenTxt || 'Offline'));
+                const statusLabel = escHtml(statusLabelFor(pSt, email, lastSeenTxt));
                 document.getElementById('profileStatusRow').innerHTML =
                     `<span class="status-tag ${pSt}"><i class="fas fa-circle"></i>${statusLabel}</span>`;
                 const profileAvatarEl = document.getElementById('profileModalAvatar');
@@ -9044,9 +9336,9 @@
         if (blockedByEmails.has(email)) return 'offline';
         if (!isRecentlySeen(lastSeenCache[email])) return 'offline';
         const pg = pageCache[email];
-        if (pg === 'jittery') return 'online';
-        if (pg === 'index')   return 'away';
-        return 'online'; // recently seen, page unknown — treat as online
+        if (pg === 'jittery' || pg === 'online') return 'online';
+        if (pg) return 'away';   // somewhere else on X-ORBIT
+        return 'online';         // recently seen, page unknown — treat as online
     }
 
     // Returns true only if the user is online AND has not blocked us
@@ -9055,10 +9347,72 @@
     }
 
     // Builds the small status tag for the chat header
+    /* ── ACTIVITY STATUS ─────────────────────────────────
+       The desktop keeps clients.current_page set to the window in front (see
+       currentPage in app.html). With someone's Status set to All it's an app name,
+       shown here as a phrase in place of Online / Away; with Minimal it's only
+       "online" or "away", so there's nothing more to show. */
+    const PAGE_LABELS = {
+        'index':              'Perusing the desktop',
+        'jittery':            'Chatting on Jitter',
+        'browser':            'Surfing ORBIX',
+        'ember':              'Sketching with Ember',
+        'cadence':            'Making music in Cadence',
+        'settings':           'Tweaking settings',
+        'hangman':            'Playing Hangman',
+        'minecraft':          'Playing Minecraft',
+        'block-blast':        'Playing Block Blast',
+        'dino-run':           'Playing Dino Run',
+        'web-dashers':        'Playing Web Dashers',
+        'file-manager':       'Organising files',
+        'changelog':          'Reading the changelog',
+        'help-support':       'Getting help',
+        'support':            'Getting help',
+        'manage-account':     'Managing their account',
+        'terms-of-service':   'Reading the terms',
+        'privacy-policy':     'Reading the privacy policy',
+        'welcome-to-x-orbit': 'Getting started',
+    };
+
+    function activityFor(email) {
+        const pg = pageCache[email];
+        if (!pg || pg === 'online' || pg === 'away') return null;
+        if (PAGE_LABELS[pg]) return PAGE_LABELS[pg];
+        // An app without its own phrase: "web-dashers" → "Using Web Dashers"
+        return 'Using ' + pg.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+
+    // Online / Away / last seen, with the activity in place of Online or Away
+    function statusLabelFor(st, email, lastSeenText) {
+        const activity = st !== 'offline' ? activityFor(email) : null;
+        if (activity) return activity;
+        return st === 'online' ? 'Online' : st === 'away' ? 'Away' : (lastSeenText || 'Offline');
+    }
+
+    async function loadStatusDetail() {
+        const select = document.getElementById('settingsStatusDetail');
+        try {
+            const { data, error } = await sb.from('clients').select('status_detail').eq('id', currentUser.id).single();
+            if (!error && data) select.value = data.status_detail === 'minimal' ? 'minimal' : 'all';
+        } catch { /* keep the default */ }
+    }
+
+    async function setStatusDetail(mode) {
+        mode = mode === 'minimal' ? 'minimal' : 'all';
+        const { error } = await sb.from('clients').update({ status_detail: mode }).eq('id', currentUser.id);
+        if (error) {
+            console.error('Status setting error:', error);
+            document.getElementById('settingsStatusDetail').value = mode === 'all' ? 'minimal' : 'all';
+            showToast('Could not save that setting.');
+            return;
+        }
+        // The desktop is what publishes the activity, so tell it straight away
+        try { window.parent.postMessage({ type: 'jitter-status-mode', mode }, '*'); } catch { /* not inside the desktop */ }
+        showToast(mode === 'all' ? 'Friends can see what you\'re doing.' : 'Friends see only Online or Away.');
+    }
+
     function headerStatusTagHTML(st, email) {
-        const label = st === 'online' ? 'Online'
-                    : st === 'away'   ? 'Away'
-                    : fmtLastSeen(lastSeenCache[email]) || 'Offline';
+        const label = escHtml(statusLabelFor(st, email, fmtLastSeen(lastSeenCache[email])));
         return `<span class="status-tag ${st}"><i class="fas fa-circle"></i>${label}</span>`;
     }
 
@@ -9667,7 +10021,7 @@
                 <div class="reply-ref">
                     <i class="fas fa-reply"></i>
                     <span class="reply-ref-name">${escapeHtml(msg.reply_to_sender_name)}</span>
-                    <span class="reply-ref-preview">${escapeHtml(msg.reply_to_preview || '')}</span>
+                    <span class="reply-ref-preview">${escapeHtml(filteredPreview(msg.reply_to_preview || ''))}</span>
                 </div>`;
         }
 
@@ -9678,7 +10032,11 @@
             const hidden = isImageHidden(url);
             contentHTML = `<div class="msg-image-wrap${hidden ? ' img-hidden' : ''}">${hidden ? IMAGE_REVEAL_BTN : ''}<img class="msg-image" ${hidden ? 'data-src' : 'src'}="${escapeHtml(url)}" alt="Image" onclick="openLightbox('${escapeHtml(url)}')" onerror="this.style.opacity='0.3'"></div>`;
         } else {
-            contentHTML = `<div class="msg-text">${escapeHtml(msg.message)}</div>`;
+            const filterView = !isMine && hasProfanity(msg.message) && !revealedProfanity.has(msg.id) ? myMessageFilter : 'off';
+            const textHTML   = `<div class="msg-text">${escapeHtml(msg.message)}</div>`;
+            contentHTML = filterView === 'block' ? profanityBlockedHTML('msg-text')
+                        : filterView === 'blur'  ? profanityBlurHTML(msg.id, textHTML)
+                        : textHTML;
         }
 
         // Continue the previous sender's run, or start a new one
