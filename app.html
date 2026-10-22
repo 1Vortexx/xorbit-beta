@@ -879,6 +879,8 @@
       }
       .nm-dot-update  { background: var(--text); }
       .nm-dot-message { background: var(--accent); box-shadow: 0 0 8px var(--accent-line); }
+      .nm-dot-outage   { background: var(--warn); }
+      .nm-dot-resolved { background: var(--success); }
       .nm-body { flex: 1; min-width: 0; }
       .nm-title {
         font-size: 12.5px;
@@ -911,6 +913,8 @@
       }
       .nm-badge-update  { border-color: var(--hairline-2); color: var(--text-3); }
       .nm-badge-message { border-color: var(--accent-line); color: var(--accent); }
+      .nm-badge-outage   { border-color: rgba(255, 176, 46, 0.35); color: var(--warn); }
+      .nm-badge-resolved { border-color: rgba(61, 220, 132, 0.35); color: var(--success); }
       .nm-empty {
         text-align: center;
         padding: 40px 16px 34px;
@@ -2363,6 +2367,24 @@
       }
       .desktop-update-badge-later:hover { background: var(--surface-active); color: var(--text); }
 
+      /* ── Outage toast (reuses the update badge layout) ── */
+      .desktop-outage-badge { width: 340px; max-width: calc(100vw - 32px); transition: top var(--t-slow) var(--ease); }
+      .desktop-outage-badge .desktop-update-badge-label::before { background: var(--warn); box-shadow: 0 0 8px rgba(255, 176, 46, 0.45); }
+      .desktop-outage-badge.critical .desktop-update-badge-label::before { background: var(--danger); box-shadow: 0 0 8px var(--danger-line); }
+      .desktop-outage-badge .desktop-update-badge-title { white-space: normal; }
+      .desktop-outage-badge .desktop-update-badge-text {
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .outage-badge-meta { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11px; color: var(--text-3); }
+      .desktop-outage-badge.resolved { border-color: rgba(61, 220, 132, 0.35); }
+      .desktop-outage-badge.resolved .desktop-update-badge-label { color: var(--success); }
+      .desktop-outage-badge.resolved .desktop-update-badge-label::before { background: var(--success); box-shadow: 0 0 8px rgba(61, 220, 132, 0.45); }
+      .desktop-outage-badge.resolved .outage-badge-meta { color: var(--success); }
+      .desktop-outage-badge.resolved .desktop-update-badge-actions { display: none; }
+
       /* ── Direct message toast ── */
       @keyframes toastIn {
         0%   { opacity: 0; transform: translateX(32px) scale(0.94); }
@@ -3196,6 +3218,24 @@
         <button class="desktop-update-badge-later" onclick="hideDesktopUpdateBadge(event)">Later</button>
       </div>
     </div>
+    <!-- Outage Notification Badge - filled by checkOutages() -->
+    <div class="desktop-update-badge desktop-outage-badge" id="desktopOutageBadge">
+      <div class="desktop-update-badge-header">
+        <span class="desktop-update-badge-label" id="outageBadgeLabel">Service Outage</span>
+        <button class="desktop-update-badge-close" onclick="hideOutageBadge()" title="Close">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="desktop-update-badge-body">
+        <div class="desktop-update-badge-title" id="outageBadgeTitle"></div>
+        <div class="desktop-update-badge-text" id="outageBadgeText"></div>
+        <div class="outage-badge-meta" id="outageBadgeMeta"></div>
+      </div>
+      <div class="desktop-update-badge-actions">
+        <button class="desktop-update-badge-install" onclick="openOutageStatusPage()">View Status</button>
+        <button class="desktop-update-badge-later" onclick="muteOutageBadge()">Hide until resolved</button>
+      </div>
+    </div>
     <div class="dock">
       <div
         class="dock-item"
@@ -3686,9 +3726,11 @@
         }
 
         container.innerHTML = list.map((n, i) => {
-          const dotClass   = n.type === 'update' ? 'nm-dot-update' : 'nm-dot-message';
-          const badgeClass = n.type === 'update' ? 'nm-badge-update' : 'nm-badge-message';
-          const label      = n.type === 'update' ? 'Update' : 'Message';
+          const [dotClass, badgeClass, label] = ({
+            update:   ['nm-dot-update',   'nm-badge-update',   'Update'],
+            outage:   ['nm-dot-outage',   'nm-badge-outage',   'Outage'],
+            resolved: ['nm-dot-resolved', 'nm-badge-resolved', 'Resolved'],
+          })[n.type] || ['nm-dot-message', 'nm-badge-message', 'Message'];
           const canReply   = n.type === 'message' && n.meta && n.meta.convId && currentUser.email;
           const replyUI = canReply ? `
               <div class="nm-actions">
@@ -3817,6 +3859,129 @@
           localStorage.setItem(NC_KEY, JSON.stringify(list));
         } catch (e) {}
         updateNotifBellCount();
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
+      // ── Outage notifications ──────────────────────────────────────────────
+      // Active rows in the `incidents` table (what status.xorbit.org shows) are tracked in the
+      // xorbit_outages cookie as [{ id, t: title, m: muted }]. Every time the desktop opens, a
+      // tracked incident that is no longer active gets a green "resolved" toast and is dropped
+      // from the cookie; active ones get a toast unless muted with "Hide until resolved".
+      const OUTAGE_COOKIE   = "xorbit_outages";
+      const STATUS_PAGE_URL = "https://status.xorbit.org";
+      let _outageQueue = [];      // toasts waiting for the visible one to close
+      let _outageShownIds = [];   // incident ids in the visible toast
+      let _outageAutoHide = null;
+
+      function getOutageCookie() {
+        const match = document.cookie.match(/(?:^|;\s*)xorbit_outages=([^;]*)/);
+        if (!match) return [];
+        try {
+          const list = JSON.parse(decodeURIComponent(match[1]));
+          return Array.isArray(list) ? list : [];
+        } catch { return []; }
+      }
+
+      function setOutageCookie(list) {
+        if (!list.length) {
+          document.cookie = OUTAGE_COOKIE + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;SameSite=Lax";
+          return;
+        }
+        const d = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000);
+        document.cookie = OUTAGE_COOKIE + "=" + encodeURIComponent(JSON.stringify(list)) + ";expires=" + d.toUTCString() + ";path=/;SameSite=Lax";
+      }
+
+      async function checkOutages() {
+        if (!supabaseClient) initSupabaseClient();
+        if (!supabaseClient) return;
+        try {
+          const { data: active, error } = await supabaseClient
+            .from("incidents")
+            .select("id, title, description, status, severity, created_at, updated_at")
+            .eq("is_active", true)
+            .neq("status", "resolved")
+            .order("created_at", { ascending: false });
+          if (error) throw error;
+
+          const tracked  = getOutageCookie();
+          const activeIds = new Set(active.map(i => i.id));
+          const resolved = tracked.filter(t => !activeIds.has(t.id));
+          const next = active.map(i => {
+            const prev = tracked.find(t => t.id === i.id);
+            if (!prev) saveNotificationToCenter("outage", i.title, i.description || "");
+            return { id: i.id, t: String(i.title || "").slice(0, 80), m: !!(prev && prev.m) };
+          });
+          setOutageCookie(next);
+
+          resolved.forEach(r => saveNotificationToCenter("resolved", "Resolved: " + r.t, "This issue has been resolved."));
+          _outageQueue = [];
+          if (resolved.length) _outageQueue.push({ kind: "resolved", items: resolved });
+          const unmuted = active.filter(i => !next.find(n => n.id === i.id).m);
+          if (unmuted.length) _outageQueue.push({ kind: "active", items: unmuted });
+          showNextOutageToast();
+        } catch (e) {
+          console.warn("[Outages] Check failed:", e);
+        }
+      }
+
+      function showNextOutageToast() {
+        const toast = _outageQueue.shift();
+        if (!toast) return;
+        const badge = document.getElementById("desktopOutageBadge");
+        if (!badge) return;
+        const first = toast.items[0];
+        const more  = toast.items.length > 1 ? ` (+${toast.items.length - 1} more)` : "";
+        const label = document.getElementById("outageBadgeLabel");
+        const title = document.getElementById("outageBadgeTitle");
+        const text  = document.getElementById("outageBadgeText");
+        const meta  = document.getElementById("outageBadgeMeta");
+        clearTimeout(_outageAutoHide);
+
+        if (toast.kind === "resolved") {
+          badge.className   = "desktop-update-badge desktop-outage-badge resolved";
+          label.textContent = toast.items.length > 1 ? "Issues Resolved" : "Issue Resolved";
+          title.textContent = first.t + more;
+          text.textContent  = "This has been fixed and everything is back to normal.";
+          meta.innerHTML    = '<i class="fas fa-circle-check"></i> Resolved';
+          _outageShownIds   = [];
+          _outageAutoHide   = setTimeout(hideOutageBadge, 10000);
+        } else {
+          const critical = toast.items.some(i => i.severity === "critical");
+          badge.className   = "desktop-update-badge desktop-outage-badge" + (critical ? " critical" : "");
+          label.textContent = toast.items.length > 1 ? "Service Outages" : "Service Outage";
+          title.textContent = first.title + more;
+          text.textContent  = first.description || "";
+          const status  = first.status ? first.status.charAt(0).toUpperCase() + first.status.slice(1) : "";
+          const updated = _notifRelTime(new Date(first.updated_at || first.created_at).getTime());
+          meta.innerHTML    = `<i class="far fa-clock"></i> ${_escHtml(status ? status + " · " : "")}Last updated ${_escHtml(updated === "Just now" ? "just now" : updated)}`;
+          _outageShownIds   = toast.items.map(i => i.id);
+        }
+
+        void badge.offsetWidth;
+        badge.classList.add("show");
+        repositionDMBadge();
+        _updateNotifSound.currentTime = 0;
+        _updateNotifSound.play().catch(() => {});
+      }
+
+      function hideOutageBadge() {
+        clearTimeout(_outageAutoHide);
+        const badge = document.getElementById("desktopOutageBadge");
+        if (!badge || !badge.classList.contains("show")) return;
+        badge.classList.remove("show");
+        repositionDMBadge();
+        setTimeout(showNextOutageToast, 400);
+      }
+
+      // "Hide until resolved": stays muted in the cookie until the incident is resolved
+      function muteOutageBadge() {
+        setOutageCookie(getOutageCookie().map(t => _outageShownIds.includes(t.id) ? { ...t, m: true } : t));
+        hideOutageBadge();
+      }
+
+      function openOutageStatusPage() {
+        window.open(STATUS_PAGE_URL, "_blank", "noopener");
+        hideOutageBadge();
       }
       // ─────────────────────────────────────────────────────────────────────
 
@@ -4493,12 +4658,15 @@
         });
       }
 
+      // Stacks the top-right toasts: outage, then software update, then DM
       function repositionDMBadge() {
-        const badge = document.getElementById("desktopDMBadge");
-        if (!badge) return;
-        const updateBadge = document.getElementById("desktopUpdateBadge");
-        const updateVisible = updateBadge && updateBadge.classList.contains("show");
-        badge.style.top = updateVisible ? "160px" : "48px";
+        let top = 48;
+        ["desktopOutageBadge", "desktopUpdateBadge", "desktopDMBadge"].forEach(id => {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.style.top = top + "px";
+          if (el.classList.contains("show")) top += el.offsetHeight + 10;
+        });
       }
 
       function openDMApp() {
@@ -5654,6 +5822,7 @@
         }, 1500);
         startAutomaticUpdateChecking();
         updateNotifBellCount();
+        setTimeout(checkOutages, 2500);
       }
 
       // Open startup window based on settings
@@ -10633,8 +10802,8 @@
       const IS_BETA_BUILD = true;
       // Exposed so the login page (auth.html, loaded in an iframe) can read the build channel
       window.IS_BETA_BUILD = IS_BETA_BUILD;
-      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.4.1-beta" : "v6.4.1";
-      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.4.1 Beta" : "X-ORBIT Desktop v6.4.1 Sahara";
+      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.4.2-beta" : "v6.4.2";
+      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.4.2 Beta" : "X-ORBIT Desktop v6.4.2 Sahara";
       // Short label for UI chips, e.g. "v6.2.4 Sahara"
       const CURRENT_VERSION_LABEL = CURRENT_VERSION_NAME.replace("X-ORBIT Desktop ", "");
       const UPDATE_CHECK_TABLE = IS_BETA_BUILD ? "update_check_beta" : "update_check";
@@ -11613,6 +11782,21 @@
     <script>
       // ── What's New – version changelog data ──
       const WHATSNEW_CHANGELOG = [
+        {
+          version: "v6.4.2",
+          name: "Sahara",
+          date: "October 22, 2026",
+          sections: [
+            { type: "added", items: [
+              "Outage alerts: when an X-ORBIT service is down, the desktop tells you when you open it, with a link to the status page and an option to hide the alert until it\u2019s fixed",
+              "A green notification when an outage you were alerted about has been resolved"
+            ]},
+            { type: "changed", items: [
+              "The status page has a new design that matches the desktop, and no longer shows uptime percentages",
+              "ORBIX shows a notice in the browser and can\u2019t be opened while our hosting provider has an outage"
+            ]}
+          ]
+        },
         {
           version: "v6.4.1",
           name: "Sahara",
