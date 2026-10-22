@@ -4,501 +4,459 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>X-ORBIT Status</title>
-    <link rel="icon" href="../assets/favicon.png" type="image/png" />
+    <link rel="icon" href="https://xorbit.org/assets/favicon.png" type="image/png" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <script src="https://unpkg.com/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
     <style>
       *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
+      /* Same tokens as the X-ORBIT Desktop shell (app.html) */
       :root {
-        --bg:      #000;
-        --surface: #0a0a0a;
-        --border:  rgba(255,255,255,0.08);
-        --accent:  #4f8aff;
-        --accent2: #7aaaff;
-        --text:    #fff;
-        --text-2:  rgba(255,255,255,0.5);
-        --text-3:  rgba(255,255,255,0.25);
-        --green:   #22c55e;
-        --yellow:  #f59e0b;
-        --red:     #ef4444;
-        --blue:    #4f8aff;
-        --orange:  #f97316;
-        --sidebar: 280px;
-      }
+        color-scheme: dark;
+        --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+        --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
 
-      html, body { height: 100%; }
+        --bg: #050506;
+        --bg-glow-1: rgba(90, 110, 160, 0.16);
+        --bg-glow-2: rgba(60, 60, 80, 0.14);
+
+        --glass-rgb: 14, 14, 17;
+        --surface-window: rgba(var(--glass-rgb), 0.80);
+        --surface-titlebar: rgba(255, 255, 255, 0.025);
+        --surface-raised: rgba(255, 255, 255, 0.04);
+        --surface-hover: rgba(255, 255, 255, 0.07);
+
+        --hairline: rgba(255, 255, 255, 0.08);
+        --hairline-2: rgba(255, 255, 255, 0.13);
+
+        --text: #f4f4f6;
+        --text-2: rgba(255, 255, 255, 0.62);
+        --text-3: rgba(255, 255, 255, 0.38);
+        --text-4: rgba(255, 255, 255, 0.22);
+
+        --accent: #5c9dff;
+        --accent-soft: rgba(92, 157, 255, 0.14);
+        --accent-line: rgba(92, 157, 255, 0.35);
+        --danger: #ff5f5f;
+        --danger-soft: rgba(255, 95, 95, 0.12);
+        --danger-line: rgba(255, 95, 95, 0.30);
+        --success: #3ddc84;
+        --success-soft: rgba(61, 220, 132, 0.12);
+        --success-line: rgba(61, 220, 132, 0.28);
+        --warn: #ffb02e;
+        --warn-soft: rgba(255, 176, 46, 0.12);
+        --warn-line: rgba(255, 176, 46, 0.30);
+        --orange: #ff8a3d;
+        --orange-soft: rgba(255, 138, 61, 0.12);
+        --orange-line: rgba(255, 138, 61, 0.30);
+
+        --r-xs: 5px;
+        --r-sm: 8px;
+        --r-md: 11px;
+        --r-lg: 14px;
+
+        --blur: 36px;
+        --shadow-window: 0 24px 70px rgba(0, 0, 0, 0.55), 0 2px 10px rgba(0, 0, 0, 0.30);
+        --ease: cubic-bezier(0.22, 1, 0.36, 1);
+        --menubar-h: 40px;
+      }
 
       body {
-        font-family: "Inter", sans-serif;
-        background: var(--bg);
+        font-family: var(--font-ui);
+        background-color: var(--bg);
+        background-image:
+          radial-gradient(1200px 600px at 50% 118%, var(--bg-glow-1), transparent 62%),
+          radial-gradient(900px 500px at 8% -10%, var(--bg-glow-2), transparent 60%);
+        background-attachment: fixed;
         color: var(--text);
-        display: flex;
         min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        font-feature-settings: "cv11", "ss01";
+      }
+      body::before {
+        content: "";
+        position: fixed; inset: 0;
+        pointer-events: none;
+        background: radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.45) 100%);
       }
 
+      a { color: inherit; }
 
-      /* ── Sidebar ─────────────────────────────────────── */
-      .sidebar {
-        position: fixed;
-        top: 0; left: 0; bottom: 0;
-        width: var(--sidebar);
-        z-index: 10;
-        display: flex;
-        flex-direction: column;
-        border-right: 1px solid var(--border);
-        background: rgba(11,8,20,0.9);
-        backdrop-filter: blur(24px);
-        padding: 2rem 1.5rem;
-        overflow-y: auto;
-      }
-
-      .sb-brand {
-        font-size: 0.95rem;
-        font-weight: 900;
-        letter-spacing: 3px;
-        text-decoration: none;
-        color: var(--text);
-        display: block;
-        margin-bottom: 0.25rem;
-      }
-      .sb-brand span { color: var(--accent); }
-
-      .sb-tagline {
-        font-size: 0.65rem;
-        font-weight: 600;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        color: var(--text-3);
-        margin-bottom: 2rem;
-      }
-
-      /* Overall pill */
-      .sb-status-pill {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 12px 14px;
-        border-radius: 8px;
-        background: rgba(52,211,153,0.08);
-        border: 1px solid rgba(52,211,153,0.2);
-        margin-bottom: 2rem;
-        transition: all 0.3s;
-      }
-      .sb-status-pill.degraded    { background: rgba(251,191,36,0.08);  border-color: rgba(251,191,36,0.2); }
-      .sb-status-pill.outage      { background: rgba(248,113,113,0.08); border-color: rgba(248,113,113,0.2); }
-      .sb-status-pill.maintenance { background: rgba(96,165,250,0.08);  border-color: rgba(96,165,250,0.2); }
-      .sb-status-pill.shutdown    { background: rgba(249,115,22,0.08);  border-color: rgba(249,115,22,0.2); }
-      .sb-status-pill.unknown     { background: rgba(112,112,138,0.08); border-color: var(--border); }
-
-      .sb-dot {
-        width: 9px; height: 9px; border-radius: 50%;
-        background: var(--green);
-        box-shadow: 0 0 8px var(--green);
-        flex-shrink: 0;
-        animation: blink 2s ease-in-out infinite;
-      }
-      .sb-status-pill.degraded    .sb-dot { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
-      .sb-status-pill.outage      .sb-dot { background: var(--red);    box-shadow: 0 0 8px var(--red); }
-      .sb-status-pill.maintenance .sb-dot { background: var(--blue);   box-shadow: 0 0 8px var(--blue); }
-      .sb-status-pill.shutdown    .sb-dot { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
-      .sb-status-pill.unknown     .sb-dot { background: var(--text-3); box-shadow: none; animation: none; }
-
-      @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
-
-      .sb-pill-text { }
-      .sb-pill-title { font-size: 0.8rem; font-weight: 700; color: var(--green); line-height: 1.2; }
-      .sb-status-pill.degraded    .sb-pill-title { color: var(--yellow); }
-      .sb-status-pill.outage      .sb-pill-title { color: var(--red); }
-      .sb-status-pill.maintenance .sb-pill-title { color: var(--blue); }
-      .sb-status-pill.shutdown    .sb-pill-title { color: var(--orange); }
-      .sb-status-pill.unknown     .sb-pill-title { color: var(--text-3); }
-      .sb-pill-sub { font-size: 0.68rem; color: var(--text-3); margin-top: 1px; }
-
-      /* Uptime stats in sidebar */
-      .sb-section-label {
-        font-size: 0.62rem;
-        font-weight: 700;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-        color: var(--text-3);
-        margin-bottom: 0.75rem;
-      }
-
-      .sb-uptime-list {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        margin-bottom: 2rem;
-      }
-
-      .sb-uptime-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-      }
-
-      .sb-uptime-period { font-size: 0.78rem; color: var(--text-3); }
-
-      .sb-uptime-bar-wrap {
-        flex: 1;
-        height: 3px;
-        background: rgba(255,255,255,0.07);
-        border-radius: 2px;
-        margin: 0 10px;
-        overflow: hidden;
-      }
-
-      .sb-uptime-bar {
-        height: 100%;
-        border-radius: 2px;
-        background: var(--green);
-        transition: width 0.6s ease;
-      }
-
-      .sb-uptime-val { font-size: 0.75rem; font-weight: 700; color: var(--text-2); min-width: 42px; text-align: right; }
-
-      /* Nav links */
-      .sb-nav {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        margin-bottom: auto;
-      }
-
-      .sb-nav-link {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 8px 10px;
-        border-radius: 8px;
-        font-size: 0.8rem;
-        font-weight: 500;
-        color: var(--text-3);
-        text-decoration: none;
-        transition: all 0.15s;
-      }
-      .sb-nav-link i { width: 14px; text-align: center; }
-      .sb-nav-link:hover { background: rgba(255,255,255,0.05); color: var(--text); }
-
-      .sb-footer {
-        margin-top: 2rem;
-        padding-top: 1.5rem;
-        border-top: 1px solid var(--border);
-        font-size: 0.68rem;
-        color: var(--text-3);
-        line-height: 1.8;
-      }
-
-      /* ── Main ────────────────────────────────────────── */
-      .main {
-        position: relative;
-        z-index: 1;
-        margin-left: var(--sidebar);
-        flex: 1;
-        min-height: 100vh;
-        padding: 3rem 3rem 5rem;
-        max-width: calc(100vw - var(--sidebar));
-      }
-
-      /* ── Page header ─────────────────────────────────── */
-      .page-header {
-        margin-bottom: 3rem;
-        padding-bottom: 2rem;
-        border-bottom: 1px solid var(--border);
-      }
-
-      .page-header h1 {
-        font-size: 1.8rem;
-        font-weight: 800;
-        letter-spacing: -0.5px;
-        margin-bottom: 4px;
-      }
-
-      .page-header p { font-size: 0.85rem; color: var(--text-3); }
-
-      .page-meta {
-        margin-top: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 1.5rem;
-        font-size: 0.72rem;
-        color: var(--text-3);
-      }
-
-      .page-meta span { display: flex; align-items: center; gap: 5px; }
-
-      /* ── Incident alert ──────────────────────────────── */
-      .incident-alert {
-        display: none;
-        padding: 1rem 1.25rem;
-        border-radius: 8px;
-        border: 1px solid rgba(251,191,36,0.25);
-        border-left: 3px solid var(--yellow);
-        background: rgba(251,191,36,0.06);
-        margin-bottom: 2rem;
-        font-size: 0.83rem;
-      }
-      .incident-alert.show { display: block; }
-      .incident-alert.critical { border-color: rgba(248,113,113,0.25); border-left-color: var(--red); background: rgba(248,113,113,0.06); }
-      .alert-title { font-weight: 700; color: var(--yellow); margin-bottom: 3px; display: flex; align-items: center; gap: 7px; }
-      .incident-alert.critical .alert-title { color: var(--red); }
-      .alert-body { color: var(--text-2); line-height: 1.5; }
-
-      /* ── Section ─────────────────────────────────────── */
-      .section { margin-bottom: 3rem; }
-
-      .section-label {
-        font-size: 0.62rem;
-        font-weight: 700;
-        letter-spacing: 2.5px;
-        text-transform: uppercase;
-        color: var(--text-3);
-        margin-bottom: 1rem;
-      }
-
-      /* ── Services ────────────────────────────────────── */
-      .services-list {
-        display: flex;
-        flex-direction: column;
-        gap: 1px;
-        border-radius: 12px;
-        overflow: hidden;
-        border: 1px solid var(--border);
-        background: var(--border);
-      }
-
-      .service-block { background: var(--surface); backdrop-filter: blur(20px); }
-      .service-block:first-child { border-radius: 12px 12px 0 0; }
-      .service-block:last-child  { border-radius: 0 0 12px 12px; }
-      .service-block:only-child  { border-radius: 12px; }
-
-      .service-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 1rem 1.25rem;
-        gap: 1rem;
-        transition: background 0.15s;
-      }
-      .service-row:hover { background: rgba(30,24,50,0.6); }
-
-      .service-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
-
-      .service-ico {
-        width: 34px; height: 34px;
-        border-radius: 8px;
-        background: rgba(124,106,247,0.1);
-        display: flex; align-items: center; justify-content: center;
-        color: var(--accent2);
-        font-size: 0.85rem;
-        flex-shrink: 0;
-      }
-
-      .service-name { font-size: 0.88rem; font-weight: 600; }
-      .service-desc { font-size: 0.73rem; color: var(--text-3); margin-top: 1px; }
-
-      .service-badge {
-        display: flex; align-items: center; gap: 5px;
-        padding: 4px 10px;
-        border-radius: 50px;
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.5px;
-        white-space: nowrap;
-        flex-shrink: 0;
-      }
-      .service-badge.operational  { background: rgba(52,211,153,0.1);  color: var(--green);  border: 1px solid rgba(52,211,153,0.18); }
-      .service-badge.degraded     { background: rgba(251,191,36,0.1);  color: var(--yellow); border: 1px solid rgba(251,191,36,0.18); }
-      .service-badge.outage       { background: rgba(248,113,113,0.1); color: var(--red);    border: 1px solid rgba(248,113,113,0.18); }
-      .service-badge.maintenance  { background: rgba(96,165,250,0.1);  color: var(--blue);   border: 1px solid rgba(96,165,250,0.18); }
-      .service-badge.shutdown     { background: rgba(249,115,22,0.1);  color: var(--orange); border: 1px solid rgba(249,115,22,0.18); }
-      .service-badge.unknown      { background: rgba(112,112,138,0.1); color: var(--text-3); border: 1px solid rgba(112,112,138,0.18); }
-      .badge-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-      .service-badge.operational .badge-dot { animation: blink 2s ease-in-out infinite; }
-
-      .service-components {
-        padding: 0 1.25rem 0.75rem 3.5rem;
-        display: flex; flex-direction: column; gap: 3px;
-      }
-
-      .comp-row {
+      /* ── Menu bar ─────────────────────────────────────── */
+      .menu-bar {
+        position: sticky; top: 0; z-index: 10;
+        height: var(--menubar-h);
         display: flex; align-items: center; justify-content: space-between;
-        padding: 5px 10px;
-        border-radius: 6px;
-        background: rgba(255,255,255,0.02);
-        font-size: 0.75rem;
+        padding: 0 16px;
+        background: rgba(8, 8, 10, 0.72);
+        backdrop-filter: blur(40px) saturate(1.5);
+        -webkit-backdrop-filter: blur(40px) saturate(1.5);
+        border-bottom: 1px solid var(--hairline);
+        font-size: 12.5px;
+        font-weight: 500;
       }
+      .brand {
+        display: flex; align-items: center; gap: 8px;
+        text-decoration: none;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+      .brand img { width: 18px; height: 18px; border-radius: 4px; }
+      .brand span { color: var(--text-3); font-weight: 500; }
+      .menu-links { display: flex; align-items: center; gap: 2px; }
+      .menu-link {
+        display: flex; align-items: center; gap: 6px;
+        height: 26px; padding: 0 10px;
+        border-radius: var(--r-xs);
+        color: var(--text-2);
+        text-decoration: none;
+        transition: background 120ms ease, color 120ms ease;
+      }
+      .menu-link:hover { background: var(--surface-hover); color: var(--text); }
+      .menu-link i { font-size: 11px; }
+
+      /* ── Layout ───────────────────────────────────────── */
+      .main {
+        position: relative; z-index: 1;
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 40px 20px 64px;
+      }
+
+      .glass {
+        background: var(--surface-window);
+        backdrop-filter: blur(var(--blur)) saturate(1.5);
+        -webkit-backdrop-filter: blur(var(--blur)) saturate(1.5);
+        border: 1px solid var(--hairline-2);
+        border-radius: var(--r-lg);
+        box-shadow: var(--shadow-window), 0 0 0 1px rgba(0, 0, 0, 0.35);
+        overflow: hidden;
+        animation: rise 360ms var(--ease) both;
+      }
+      @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+      .section { margin-top: 28px; }
+      .section-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-3);
+        margin: 0 4px 10px;
+      }
+
+      /* ── Overall status ───────────────────────────────── */
+      .overall {
+        display: flex; align-items: center; gap: 16px;
+        padding: 22px 22px;
+      }
+      .overall-icon {
+        width: 44px; height: 44px; flex-shrink: 0;
+        border-radius: var(--r-md);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 18px;
+        color: var(--success);
+        background: var(--success-soft);
+        border: 1px solid var(--success-line);
+      }
+      .overall-title { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+      .overall-sub { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+      .overall-meta {
+        display: flex; flex-wrap: wrap; gap: 4px 16px;
+        padding: 10px 22px;
+        border-top: 1px solid var(--hairline);
+        background: var(--surface-titlebar);
+        font-size: 11.5px;
+        color: var(--text-3);
+      }
+      .overall-meta span { display: flex; align-items: center; gap: 6px; }
+
+      .overall.degraded    .overall-icon { color: var(--warn);   background: var(--warn-soft);   border-color: var(--warn-line); }
+      .overall.outage      .overall-icon { color: var(--danger); background: var(--danger-soft); border-color: var(--danger-line); }
+      .overall.maintenance .overall-icon { color: var(--accent); background: var(--accent-soft); border-color: var(--accent-line); }
+      .overall.shutdown    .overall-icon { color: var(--orange); background: var(--orange-soft); border-color: var(--orange-line); }
+      .overall.unknown     .overall-icon { color: var(--text-3); background: var(--surface-raised); border-color: var(--hairline-2); }
+
+      /* ── Notices ──────────────────────────────────────── */
+      .notice {
+        display: none;
+        margin-top: 16px;
+        border-color: var(--warn-line);
+      }
+      .notice.show { display: block; }
+      .notice.critical { border-color: var(--danger-line); }
+      .notice-head {
+        display: flex; align-items: flex-start; gap: 12px;
+        padding: 16px 18px;
+      }
+      .notice-ico {
+        width: 28px; height: 28px; flex-shrink: 0;
+        border-radius: var(--r-sm);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 12px;
+        color: var(--warn); background: var(--warn-soft);
+      }
+      .notice.critical .notice-ico { color: var(--danger); background: var(--danger-soft); }
+      .notice-title { font-size: 14px; font-weight: 600; line-height: 1.35; }
+      .notice-body { font-size: 13px; color: var(--text-2); line-height: 1.55; margin-top: 4px; }
+      .notice-body a { color: var(--accent); }
+      .notice-time { font-size: 11.5px; color: var(--text-3); margin-top: 8px; }
+
+      .affected {
+        border-top: 1px solid var(--hairline);
+        background: var(--surface-titlebar);
+        padding: 12px 18px 14px;
+      }
+      .affected-label {
+        font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+        color: var(--text-3);
+        margin-bottom: 8px;
+      }
+      .affected-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+      .affected-item {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 9px 12px;
+        border-radius: var(--r-sm);
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline);
+      }
+      .affected-name { font-size: 13px; font-weight: 600; }
+      .affected-desc { font-size: 11.5px; color: var(--text-3); margin-top: 1px; }
+      .affected-desc code { font-family: var(--font-mono); font-size: 11px; color: var(--text-2); }
+
+      /* ── Status badges ────────────────────────────────── */
+      .badge {
+        display: inline-flex; align-items: center; gap: 6px;
+        height: 22px; padding: 0 9px;
+        border-radius: 999px;
+        font-size: 11px; font-weight: 600;
+        white-space: nowrap; flex-shrink: 0;
+        border: 1px solid transparent;
+      }
+      .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+      .badge.operational { color: var(--success); background: var(--success-soft); border-color: var(--success-line); }
+      .badge.degraded    { color: var(--warn);    background: var(--warn-soft);    border-color: var(--warn-line); }
+      .badge.outage      { color: var(--danger);  background: var(--danger-soft);  border-color: var(--danger-line); }
+      .badge.maintenance { color: var(--accent);  background: var(--accent-soft);  border-color: var(--accent-line); }
+      .badge.shutdown    { color: var(--orange);  background: var(--orange-soft);  border-color: var(--orange-line); }
+      .badge.unknown     { color: var(--text-3);  background: var(--surface-raised); border-color: var(--hairline-2); }
+
+      /* ── Services ─────────────────────────────────────── */
+      .service + .service { border-top: 1px solid var(--hairline); }
+      .service-row {
+        display: flex; align-items: center; justify-content: space-between; gap: 14px;
+        padding: 14px 18px;
+      }
+      .service-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+      .service-ico {
+        width: 32px; height: 32px; flex-shrink: 0;
+        border-radius: var(--r-sm);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 13px;
+        color: var(--text-2);
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline);
+      }
+      .service-name { font-size: 14px; font-weight: 600; }
+      .service-desc { font-size: 12px; color: var(--text-3); margin-top: 1px; }
+
+      .service-issue {
+        margin: -4px 18px 12px 62px;
+        padding: 8px 12px;
+        border-radius: var(--r-sm);
+        font-size: 12.5px; line-height: 1.5;
+        color: var(--text-2);
+        background: var(--warn-soft);
+        border-left: 2px solid var(--warn);
+      }
+      .service-issue.outage      { background: var(--danger-soft); border-left-color: var(--danger); }
+      .service-issue.maintenance { background: var(--accent-soft); border-left-color: var(--accent); }
+      .service-issue.shutdown    { background: var(--orange-soft); border-left-color: var(--orange); }
+
+      .components {
+        margin: -4px 18px 14px 62px;
+        border-radius: var(--r-sm);
+        border: 1px solid var(--hairline);
+        overflow: hidden;
+      }
+      .comp-row {
+        display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        padding: 7px 12px;
+        font-size: 12.5px;
+        background: var(--surface-raised);
+      }
+      .comp-row + .comp-row { border-top: 1px solid var(--hairline); }
       .comp-name { color: var(--text-2); }
-      .comp-status { font-weight: 600; }
-      .comp-status.operational { color: var(--green); }
-      .comp-status.degraded    { color: var(--yellow); }
-      .comp-status.outage      { color: var(--red); }
-      .comp-status.maintenance { color: var(--blue); }
+      .comp-status { font-size: 12px; font-weight: 600; }
+      .comp-status.operational { color: var(--success); }
+      .comp-status.degraded    { color: var(--warn); }
+      .comp-status.outage      { color: var(--danger); }
+      .comp-status.maintenance { color: var(--accent); }
       .comp-status.shutdown    { color: var(--orange); }
       .comp-status.unknown     { color: var(--text-3); }
 
-      .service-issue { padding: 0 1.25rem 0.75rem; }
-      .issue-pill {
-        padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; line-height: 1.5;
-        color: var(--yellow); background: rgba(251,191,36,0.07); border-left: 2px solid var(--yellow);
-      }
-      .issue-pill.outage      { color: var(--red);    background: rgba(248,113,113,0.07); border-left-color: var(--red); }
-      .issue-pill.maintenance { color: var(--blue);   background: rgba(96,165,250,0.07);  border-left-color: var(--blue); }
-      .issue-pill.shutdown    { color: var(--orange); background: rgba(249,115,22,0.07);  border-left-color: var(--orange); }
-
-      /* ── Two-col layout for incidents ────────────────── */
-      .incidents-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-      }
-
-      .incident-card {
-        padding: 1rem 1.1rem;
-        border-radius: 8px;
-        background: var(--surface);
-        backdrop-filter: blur(20px);
-        border: 1px solid var(--border);
-        border-left: 3px solid var(--yellow);
-        transition: opacity 0.2s;
-      }
-      .incident-card.resolved { border-left-color: var(--green); opacity: 0.6; }
-      .incident-card.resolved:hover { opacity: 1; }
-
-      .inc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
-      .inc-title { font-size: 0.85rem; font-weight: 600; line-height: 1.3; }
-
+      /* ── Incidents ────────────────────────────────────── */
+      .incident { padding: 14px 18px; }
+      .incident + .incident { border-top: 1px solid var(--hairline); }
+      .incident.resolved { opacity: 0.6; }
+      .inc-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+      .inc-title { font-size: 14px; font-weight: 600; line-height: 1.35; }
       .inc-badge {
-        font-size: 0.6rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
-        padding: 2px 8px; border-radius: 50px; white-space: nowrap; flex-shrink: 0;
+        font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+        padding: 3px 8px; border-radius: 999px; white-space: nowrap; flex-shrink: 0;
+        color: var(--warn); background: var(--warn-soft);
       }
-      .inc-badge.investigating { background: rgba(251,191,36,0.12); color: var(--yellow); border: 1px solid rgba(251,191,36,0.2); }
-      .inc-badge.resolved      { background: rgba(52,211,153,0.12); color: var(--green);  border: 1px solid rgba(52,211,153,0.2); }
-      .inc-badge.monitoring    { background: rgba(96,165,250,0.12); color: var(--blue);   border: 1px solid rgba(96,165,250,0.2); }
+      .inc-badge.resolved   { color: var(--success); background: var(--success-soft); }
+      .inc-badge.monitoring { color: var(--accent);  background: var(--accent-soft); }
+      .inc-body { font-size: 13px; color: var(--text-2); line-height: 1.55; margin-top: 4px; }
+      .inc-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; color: var(--text-3); margin-top: 8px; }
+      .inc-meta span { display: flex; align-items: center; gap: 5px; }
 
-      .inc-body { font-size: 0.78rem; color: var(--text-2); line-height: 1.5; margin-bottom: 8px; }
-      .inc-meta { font-size: 0.68rem; color: var(--text-3); display: flex; gap: 10px; }
-
-      /* ── Empty / Spinner ─────────────────────────────── */
-      .empty { text-align: center; padding: 2.5rem; color: var(--text-3); font-size: 0.82rem; }
-      .empty i { font-size: 1.3rem; display: block; margin-bottom: 8px; color: var(--green); }
-      .spinner-wrap { display: flex; justify-content: center; padding: 2rem; }
+      /* ── Empty / loading ──────────────────────────────── */
+      .empty { text-align: center; padding: 28px 18px; color: var(--text-3); font-size: 13px; }
+      .empty i { display: block; font-size: 18px; margin-bottom: 8px; color: var(--success); }
+      .spinner-wrap { display: flex; justify-content: center; padding: 28px; }
       .spinner {
-        width: 24px; height: 24px;
-        border: 2px solid rgba(124,106,247,0.2);
+        width: 20px; height: 20px;
+        border: 2px solid var(--accent-soft);
         border-top-color: var(--accent);
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
       }
       @keyframes spin { to { transform: rotate(360deg); } }
 
-      /* ── Mobile ──────────────────────────────────────── */
-      @media (max-width: 768px) {
-        :root { --sidebar: 0px; }
-        .sidebar { display: none; }
-        .main { margin-left: 0; padding: 1.5rem; max-width: 100vw; }
-        .incidents-grid { grid-template-columns: 1fr; }
+      .footer {
+        margin-top: 32px;
+        text-align: center;
+        font-size: 11.5px;
+        color: var(--text-4);
+      }
+
+      /* ── Mobile ───────────────────────────────────────── */
+      @media (max-width: 640px) {
+        .menu-link span { display: none; }
+        .main { padding: 24px 16px 48px; }
+        .overall { padding: 18px 16px; }
+        .overall-meta { padding: 10px 16px; }
+        .overall-title { font-size: 17px; }
+        .service-row { padding: 12px 14px; }
+        .service-issue, .components { margin-left: 14px; margin-right: 14px; }
+        .notice-head, .affected, .incident { padding-left: 14px; padding-right: 14px; }
       }
     </style>
   </head>
   <body>
 
-    <!-- ── Sidebar ──────────────────────────────────────── -->
-    <aside class="sidebar">
-      <a class="sb-brand" href="https://xorbit.org">X-<span>ORBIT</span></a>
-      <div class="sb-tagline">System Status</div>
+    <header class="menu-bar">
+      <a class="brand" href="https://xorbit.org"><img src="https://xorbit.org/assets/favicon.png" alt="" />X-ORBIT <span>Status</span></a>
+      <nav class="menu-links">
+        <a class="menu-link" href="https://xorbit.org"><i class="fas fa-house"></i><span>Home</span></a>
+        <a class="menu-link" href="https://xorbit.org/support"><i class="fas fa-life-ring"></i><span>Support</span></a>
+        <a class="menu-link" href="https://xorbit.org/changelogs"><i class="fas fa-list"></i><span>Changelog</span></a>
+      </nav>
+    </header>
 
-      <div class="sb-status-pill" id="sbPill">
-        <div class="sb-dot"></div>
-        <div class="sb-pill-text">
-          <div class="sb-pill-title" id="sbTitle">All Systems Operational</div>
-          <div class="sb-pill-sub" id="sbSub">No issues detected</div>
-        </div>
-      </div>
-
-      <div class="sb-section-label" style="margin-bottom:0.75rem;">Uptime</div>
-      <div class="sb-uptime-list" id="sbUptimeList">
-        <div class="sb-uptime-row">
-          <span class="sb-uptime-period">24h</span>
-          <div class="sb-uptime-bar-wrap"><div class="sb-uptime-bar" id="bar24h" style="width:0%"></div></div>
-          <span class="sb-uptime-val" id="sbUptime24h">—</span>
-        </div>
-        <div class="sb-uptime-row">
-          <span class="sb-uptime-period">7d</span>
-          <div class="sb-uptime-bar-wrap"><div class="sb-uptime-bar" id="bar7d" style="width:0%"></div></div>
-          <span class="sb-uptime-val" id="sbUptime7d">—</span>
-        </div>
-        <div class="sb-uptime-row">
-          <span class="sb-uptime-period">30d</span>
-          <div class="sb-uptime-bar-wrap"><div class="sb-uptime-bar" id="bar30d" style="width:0%"></div></div>
-          <span class="sb-uptime-val" id="sbUptime30d">—</span>
-        </div>
-        <div class="sb-uptime-row">
-          <span class="sb-uptime-period">90d</span>
-          <div class="sb-uptime-bar-wrap"><div class="sb-uptime-bar" id="bar90d" style="width:0%"></div></div>
-          <span class="sb-uptime-val" id="sbUptime90d">—</span>
-        </div>
-      </div>
-
-      <div class="sb-nav">
-        <a class="sb-nav-link" href="https://xorbit.org"><i class="fas fa-house"></i> Home</a>
-        <a class="sb-nav-link" href="https://xorbit.org/support"><i class="fas fa-life-ring"></i> Support</a>
-        <a class="sb-nav-link" href="https://xorbit.org/changelogs"><i class="fas fa-list-alt"></i> Changelog</a>
-        <a class="sb-nav-link" href="https://xorbit.org/admin/dashboard"><i class="fas fa-shield-halved"></i> Admin</a>
-      </div>
-
-      <div class="sb-footer">
-        &copy; 2025 X-ORBIT<br>
-        Updated <span id="sbUpdated">—</span>
-      </div>
-    </aside>
-
-    <!-- ── Main ─────────────────────────────────────────── -->
     <main class="main">
 
-      <div class="page-header">
-        <h1>System Status</h1>
-        <p>Real-time health monitoring for all X-ORBIT services</p>
-        <div class="page-meta">
-          <span><i class="fas fa-rotate"></i> Auto-refreshes every 30s</span>
-          <span><i class="fas fa-clock"></i> <span id="lastUpdated">—</span></span>
+      <!-- Overall status -->
+      <div class="glass">
+        <div class="overall" id="overall">
+          <div class="overall-icon"><i class="fas fa-check" id="overallIcon"></i></div>
+          <div>
+            <div class="overall-title" id="overallTitle">Checking status…</div>
+            <div class="overall-sub" id="overallSub">Contacting the status database</div>
+          </div>
+        </div>
+        <div class="overall-meta">
+          <span><i class="fas fa-rotate"></i> Refreshes every 30s</span>
+          <span><i class="far fa-clock"></i> Updated <span id="lastUpdated">—</span></span>
         </div>
       </div>
 
-      <!-- Login shutdown banner -->
-      <div class="incident-alert critical" id="loginShutdownAlert" style="display:none;">
-        <div class="alert-title"><i class="fas fa-ban"></i><span>Logins Temporarily Disabled — End of Year Shutdown</span></div>
-        <div class="alert-body">The login system is shut down site-wide as part of our annual end-of-year cost reduction. This is not related to your account. All services will return in August 2026 for the 2026–27 school year. <a href="../blog/yearly-shutdown.html" style="color:inherit;font-weight:600;text-decoration:underline;">Read the blog post</a> for more details.</div>
+      <!-- Hosting provider notice (see PROVIDER_NOTICE in the script) -->
+      <div class="glass notice critical" id="providerNotice">
+        <div class="notice-head">
+          <div class="notice-ico"><i class="fas fa-server"></i></div>
+          <div>
+            <div class="notice-title" id="providerTitle"></div>
+            <div class="notice-body" id="providerBody"></div>
+            <div class="notice-time" id="providerTime"></div>
+          </div>
+        </div>
+        <div class="affected">
+          <div class="affected-label">Affected services</div>
+          <ul class="affected-list" id="providerAffected"></ul>
+        </div>
       </div>
 
-      <!-- Incident alert -->
-      <div class="incident-alert" id="incidentAlert">
-        <div class="alert-title"><i class="fas fa-triangle-exclamation"></i><span id="alertTitle"></span></div>
-        <div class="alert-body" id="alertBody"></div>
+      <!-- Login shutdown notice -->
+      <div class="glass notice critical" id="loginShutdownAlert">
+        <div class="notice-head">
+          <div class="notice-ico"><i class="fas fa-ban"></i></div>
+          <div>
+            <div class="notice-title">Logins Temporarily Disabled: End of Year Shutdown</div>
+            <div class="notice-body">The login system is shut down site-wide as part of our annual end-of-year cost reduction. This is not related to your account. All services will return in August 2026 for the 2026–27 school year. <a href="https://xorbit.org/blog/yearly-shutdown.html">Read the blog post</a> for more details.</div>
+          </div>
+        </div>
       </div>
 
-      <!-- Services -->
+      <!-- Incident banner (from the incidents table) -->
+      <div class="glass notice" id="incidentAlert">
+        <div class="notice-head">
+          <div class="notice-ico"><i class="fas fa-triangle-exclamation"></i></div>
+          <div>
+            <div class="notice-title" id="alertTitle"></div>
+            <div class="notice-body" id="alertBody"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="section">
         <div class="section-label">Services</div>
-        <div class="services-list" id="servicesList">
+        <div class="glass" id="servicesList">
           <div class="spinner-wrap"><div class="spinner"></div></div>
         </div>
       </div>
 
-      <!-- Incidents -->
       <div class="section">
         <div class="section-label">Recent Incidents</div>
-        <div class="incidents-grid" id="incidentsList">
+        <div class="glass" id="incidentsList">
           <div class="spinner-wrap"><div class="spinner"></div></div>
         </div>
       </div>
 
+      <div class="footer">&copy; <span id="year"></span> X-ORBIT</div>
     </main>
 
     <script>
+      // Hosting provider outage. Set active: false once the provider has recovered.
+      // `components` / `services` force those ids to at least the given status on top of the database values.
+      const PROVIDER_NOTICE = {
+        active: true,
+        title: "Outage at our hosting provider",
+        body: "Our hosting provider is having an issue that has taken down the server some X-ORBIT services run on. We're waiting on the provider to restore it, and there's nothing you need to do. Services not listed below, including the X-ORBIT desktop, accounts and messaging, are unaffected.",
+        posted: "2026-10-22T15:40:00Z",
+        affected: [
+          { name: "ORBIX Browser", desc: "Ultraviolet proxy engine · <code>uv.xorbit.org</code>", status: "outage" },
+          { name: "VPS Proxy WebSockets", desc: "Real-time connections used by ORBIX", status: "outage" },
+        ],
+        components: { "proxy-ultraviolet": "outage", "proxy-websockets": "outage" },
+        services:   { "proxy-browser": "degraded", "proxy": "degraded" },
+      };
+
+      // Icons stored in status_info that aren't in Font Awesome Free
+      const ICON_ALIASES = { "fa-browser": "fa-compass" };
+
+      const SEVERITY = { operational: 0, unknown: 1, maintenance: 2, degraded: 3, shutdown: 4, outage: 5 };
+      const worse = (a, b) => (SEVERITY[b] ?? 0) > (SEVERITY[a] ?? 0) ? b : a;
+
       let supabaseClient = null, supabaseAvailable = false;
+
+      function esc(s) {
+        return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+      }
 
       async function initSupabase() {
         try {
@@ -516,6 +474,32 @@
         } catch { return false; }
       }
 
+      function applyProviderNotice(services) {
+        if (!PROVIDER_NOTICE.active) return services;
+        return services.map(s => ({
+          ...s,
+          status: PROVIDER_NOTICE.services[s.service_id] ? worse(s.status, PROVIDER_NOTICE.services[s.service_id]) : s.status,
+          components: (s.components || []).map(c => ({
+            ...c,
+            status: PROVIDER_NOTICE.components[c.component_id] ? worse(c.status, PROVIDER_NOTICE.components[c.component_id]) : c.status,
+          })),
+        }));
+      }
+
+      function renderProviderNotice() {
+        const el = document.getElementById("providerNotice");
+        if (!PROVIDER_NOTICE.active) { el.classList.remove("show"); return; }
+        document.getElementById("providerTitle").textContent = PROVIDER_NOTICE.title;
+        document.getElementById("providerBody").textContent  = PROVIDER_NOTICE.body;
+        document.getElementById("providerTime").textContent  = "Posted " + new Date(PROVIDER_NOTICE.posted).toLocaleString("en-US", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit", timeZone:"America/Denver", timeZoneName:"short" });
+        document.getElementById("providerAffected").innerHTML = PROVIDER_NOTICE.affected.map(a => `
+          <li class="affected-item">
+            <div><div class="affected-name">${a.name}</div><div class="affected-desc">${a.desc}</div></div>
+            <span class="badge ${a.status}">${fmtStatus(a.status)}</span>
+          </li>`).join("");
+        el.classList.add("show");
+      }
+
       async function loadServices() {
         try {
           if (!supabaseAvailable) throw new Error();
@@ -524,87 +508,65 @@
           const { data: components } = await supabaseClient.from("service_components").select("*").order("priority", { ascending: true });
           const compMap = {};
           (components || []).forEach(c => (compMap[c.parent_service_id] = compMap[c.parent_service_id] || []).push(c));
-          const merged = services.map(s => ({ ...s, components: compMap[s.service_id] || [] }));
+          const merged = applyProviderNotice(services.map(s => ({ ...s, components: compMap[s.service_id] || [] })));
           renderServices(merged);
-          updateSidebar(merged);
-          if (merged[0]?.uptime_24h !== undefined) updateUptime(merged);
-          // Check if auth-login is shut down
-          const allComponents = Object.values(compMap).flat();
-          const authLoginComp = allComponents.find(c => c.component_id === "auth-login");
-          const loginShutdownEl = document.getElementById("loginShutdownAlert");
-          if (authLoginComp && authLoginComp.status === "shutdown") {
-            loginShutdownEl.style.display = "block";
-          } else {
-            loginShutdownEl.style.display = "none";
-          }
+          updateOverall(merged);
+          const authLogin = (components || []).find(c => c.component_id === "auth-login");
+          document.getElementById("loginShutdownAlert").classList.toggle("show", authLogin?.status === "shutdown");
         } catch { handleFailure(); }
       }
 
       function handleFailure() {
-        const fallback = [
+        const fallback = applyProviderNotice([
           { service_id:"web",    service_name:"Web Dashboard",  service_description:"Main X-ORBIT interface",          service_icon:"fa-globe",        status:"unknown", components:[] },
-          { service_id:"proxy",  service_name:"Proxy Browser",  service_description:"Rammerhead & Ultraviolet proxies", service_icon:"fa-browser",       status:"unknown", components:[] },
-          { service_id:"auth",   service_name:"Authentication", service_description:"Login and session management",     service_icon:"fa-shield-halved", status:"unknown", components:[] },
-          { service_id:"api",    service_name:"API Services",   service_description:"Backend API and data layer",       service_icon:"fa-code",          status:"unknown", components:[] },
-          { service_id:"support",service_name:"Support Portal", service_description:"Tickets and support center",       service_icon:"fa-life-ring",     status:"unknown", components:[] },
-          { service_id:"db",     service_name:"Database",       service_description:"Supabase PostgreSQL",              service_icon:"fa-database",      status:"outage",  components:[] },
-        ];
+          { service_id:"proxy",  service_name:"Proxy Browser",  service_description:"Rammerhead & ORBIX proxies",      service_icon:"fa-compass",      status:"unknown", components:[] },
+          { service_id:"auth",   service_name:"Authentication", service_description:"Login and session management",    service_icon:"fa-shield-halved", status:"unknown", components:[] },
+          { service_id:"api",    service_name:"API Services",   service_description:"Backend API and data layer",      service_icon:"fa-code",         status:"unknown", components:[] },
+          { service_id:"support",service_name:"Support Portal", service_description:"Tickets and support center",      service_icon:"fa-life-ring",    status:"unknown", components:[] },
+          { service_id:"db",     service_name:"Database",       service_description:"Supabase PostgreSQL",             service_icon:"fa-database",     status:"outage",  components:[] },
+        ]);
         renderServices(fallback);
-        updateSidebar(fallback);
-        const a = document.getElementById("incidentAlert");
-        document.getElementById("alertTitle").textContent = "Database Connection Issue";
-        document.getElementById("alertBody").textContent  = "Unable to connect to the status database. Service information may be unavailable.";
-        a.classList.add("show","critical");
+        updateOverall(fallback);
+        document.getElementById("alertTitle").textContent = "Status database unreachable";
+        document.getElementById("alertBody").textContent  = "We couldn't reach the status database, so live service information may be missing.";
+        document.getElementById("incidentAlert").classList.add("show", "critical");
+        document.getElementById("incidentsList").innerHTML = `<div class="empty"><i class="fas fa-triangle-exclamation" style="color:var(--text-3)"></i>Unable to load incidents</div>`;
       }
 
       function renderServices(services) {
         document.getElementById("servicesList").innerHTML = services.map(s => {
-          const issue = s.issue_description && s.status !== 'operational'
-            ? `<div class="service-issue"><div class="issue-pill ${s.status}">${s.issue_description}</div></div>` : '';
+          const issue = s.issue_description && s.status !== "operational"
+            ? `<div class="service-issue ${esc(s.status)}">${esc(s.issue_description)}</div>` : "";
           const comps = s.components?.length
-            ? `<div class="service-components">${s.components.map(c =>
-                `<div class="comp-row"><span class="comp-name">${c.component_name}</span><span class="comp-status ${c.status}">${fmtStatus(c.status)}</span></div>`
-              ).join('')}</div>` : '';
-          return `<div class="service-block">
+            ? `<div class="components">${s.components.map(c =>
+                `<div class="comp-row"><span class="comp-name">${esc(c.component_name)}</span><span class="comp-status ${esc(c.status)}">${fmtStatus(c.status)}</span></div>`
+              ).join("")}</div>` : "";
+          return `<div class="service">
             <div class="service-row">
               <div class="service-left">
-                <div class="service-ico"><i class="fas ${s.service_icon}"></i></div>
-                <div><div class="service-name">${s.service_name}</div><div class="service-desc">${s.service_description}</div></div>
+                <div class="service-ico"><i class="fas ${esc(ICON_ALIASES[s.service_icon] || s.service_icon)}"></i></div>
+                <div><div class="service-name">${esc(s.service_name)}</div><div class="service-desc">${esc(s.service_description)}</div></div>
               </div>
-              <div class="service-badge ${s.status}"><span class="badge-dot"></span>${fmtStatus(s.status)}</div>
+              <span class="badge ${esc(s.status)}">${fmtStatus(s.status)}</span>
             </div>${issue}${comps}</div>`;
-        }).join('');
+        }).join("");
       }
 
-      function updateSidebar(services) {
-        const pill  = document.getElementById("sbPill");
-        const title = document.getElementById("sbTitle");
-        const sub   = document.getElementById("sbSub");
-        const hasOutage   = services.some(s => s.status === "outage");
-        const hasMaint    = services.some(s => s.status === "maintenance");
-        const hasDeg      = services.some(s => s.status === "degraded");
-        const hasUnk      = services.some(s => s.status === "unknown");
-        const hasShutdown = services.some(s => s.status === "shutdown") ||
-          services.some(s => s.components?.some(c => c.status === "shutdown"));
-        if (hasOutage)      { pill.className="sb-status-pill outage";      title.textContent="Service Disruption";     sub.textContent="One or more services are down."; }
-        else if (hasShutdown){ pill.className="sb-status-pill shutdown";   title.textContent="Partial Shutdown";       sub.textContent="Some features are disabled."; }
-        else if (hasMaint)  { pill.className="sb-status-pill maintenance"; title.textContent="Scheduled Maintenance";  sub.textContent="Maintenance in progress."; }
-        else if (hasDeg)    { pill.className="sb-status-pill degraded";    title.textContent="Degraded Performance";   sub.textContent="Some services are slow."; }
-        else if (hasUnk)    { pill.className="sb-status-pill unknown";     title.textContent="Status Unknown";         sub.textContent="Unable to reach database."; }
-        else                { pill.className="sb-status-pill";             title.textContent="All Systems Operational";sub.textContent="No issues detected."; }
-      }
+      function updateOverall(services) {
+        const box = document.getElementById("overall");
+        const icon = document.getElementById("overallIcon");
+        const title = document.getElementById("overallTitle");
+        const sub = document.getElementById("overallSub");
+        const all = services.flatMap(s => [s.status, ...(s.components || []).map(c => c.status)]);
+        const set = (cls, ico, t, st) => { box.className = "overall " + cls; icon.className = "fas " + ico; title.textContent = t; sub.textContent = st; };
 
-      function updateUptime(services) {
-        const avg = key => services.reduce((s, r) => s + (r[key] || 100), 0) / services.length;
-        const set = (id, barId, key) => {
-          const v = avg(key);
-          document.getElementById(id).textContent = v.toFixed(2) + "%";
-          document.getElementById(barId).style.width = Math.min(v, 100) + "%";
-        };
-        set("sbUptime24h","bar24h","uptime_24h");
-        set("sbUptime7d", "bar7d", "uptime_7d");
-        set("sbUptime30d","bar30d","uptime_30d");
-        set("sbUptime90d","bar90d","uptime_90d");
+        if (services.some(s => s.status === "outage"))          set("outage",      "fa-xmark",                "Service Disruption",      "One or more services are down.");
+        else if (PROVIDER_NOTICE.active || all.includes("outage")) set("outage",   "fa-triangle-exclamation", "Partial Outage",          "Some services are down due to a hosting provider issue.");
+        else if (all.includes("shutdown"))                      set("shutdown",    "fa-power-off",            "Partial Shutdown",        "Some features are disabled.");
+        else if (all.includes("maintenance"))                   set("maintenance", "fa-wrench",               "Scheduled Maintenance",   "Maintenance in progress.");
+        else if (all.includes("degraded"))                      set("degraded",    "fa-gauge-simple",         "Degraded Performance",    "Some services are slow.");
+        else if (all.includes("unknown"))                       set("unknown",     "fa-question",             "Status Unknown",          "Unable to reach the status database.");
+        else                                                    set("",            "fa-check",                "All Systems Operational", "No issues detected.");
       }
 
       async function loadIncidents() {
@@ -614,60 +576,60 @@
           const { data: incidents, error } = await supabaseClient.from("incidents").select("*").eq("is_active", true).order("created_at", { ascending: false }).limit(10);
           if (error) throw error;
           if (!incidents?.length) {
-            list.innerHTML = `<div class="empty" style="grid-column:1/-1"><i class="fas fa-circle-check"></i>No recent incidents</div>`;
+            list.innerHTML = `<div class="empty"><i class="fas fa-circle-check"></i>No recent incidents</div>`;
             return;
           }
           const banner = incidents.find(i => i.show_banner);
           if (banner) {
             document.getElementById("alertTitle").textContent = banner.title;
             document.getElementById("alertBody").textContent  = banner.description;
-            if (banner.severity === "critical") document.getElementById("incidentAlert").classList.add("critical");
+            document.getElementById("incidentAlert").classList.toggle("critical", banner.severity === "critical");
             document.getElementById("incidentAlert").classList.add("show");
           }
           list.innerHTML = incidents.map(i => `
-            <div class="incident-card ${i.status === 'resolved' ? 'resolved' : ''}">
+            <div class="incident ${i.status === "resolved" ? "resolved" : ""}">
               <div class="inc-top">
-                <div class="inc-title">${i.title}</div>
-                <div class="inc-badge ${i.status}">${i.status}</div>
+                <div class="inc-title">${esc(i.title)}</div>
+                <span class="inc-badge ${esc(i.status)}">${esc(i.status)}</span>
               </div>
-              <div class="inc-body">${i.description}</div>
+              <div class="inc-body">${esc(i.description)}</div>
               <div class="inc-meta">
-                <span><i class="fas fa-server"></i> ${i.affected_services === 'all' ? 'All Services' : i.affected_services}</span>
+                <span><i class="fas fa-server"></i> ${i.affected_services === "all" ? "All Services" : esc(i.affected_services)}</span>
                 <span><i class="far fa-clock"></i> ${fmtDate(i.created_at)}</span>
               </div>
-            </div>`).join('');
+            </div>`).join("");
         } catch {
-          list.innerHTML = `<div class="empty" style="grid-column:1/-1"><i class="fas fa-triangle-exclamation" style="color:var(--text-3)"></i>Unable to load incidents</div>`;
+          list.innerHTML = `<div class="empty"><i class="fas fa-triangle-exclamation" style="color:var(--text-3)"></i>Unable to load incidents</div>`;
         }
       }
 
       function fmtStatus(s) {
-        return {operational:"Operational",degraded:"Degraded",outage:"Outage",maintenance:"Maintenance",shutdown:"Shutdown",unknown:"Unknown"}[s]||"Unknown";
+        return { operational:"Operational", degraded:"Degraded", outage:"Outage", maintenance:"Maintenance", shutdown:"Shutdown", unknown:"Unknown" }[s] || "Unknown";
       }
 
       function fmtDate(d) {
         const diff = Date.now() - new Date(d);
-        const m = Math.floor(diff/60000), h = Math.floor(diff/3600000), day = Math.floor(diff/86400000);
+        const m = Math.floor(diff / 60000), h = Math.floor(diff / 3600000), day = Math.floor(diff / 86400000);
         if (m < 60) return `${m}m ago`;
         if (h < 24) return `${h}h ago`;
         return `${day}d ago`;
       }
 
       function updateTime() {
-        const t = new Date().toLocaleString("en-US", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit", timeZone:"America/Denver", timeZoneName:"short" });
-        document.getElementById("lastUpdated").textContent = t;
-        document.getElementById("sbUpdated").textContent = new Date().toLocaleTimeString("en-US", { hour:"numeric", minute:"2-digit", timeZone:"America/Denver" });
+        document.getElementById("lastUpdated").textContent = new Date().toLocaleString("en-US", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit", timeZone:"America/Denver", timeZoneName:"short" });
+      }
+
+      async function refresh() {
+        if (supabaseAvailable) { await loadServices(); await loadIncidents(); }
+        updateTime();
       }
 
       async function init() {
-        const ok = await initSupabase();
-        if (ok) { await loadServices(); await loadIncidents(); }
-        else handleFailure();
-        updateTime();
-        setInterval(async () => {
-          if (supabaseAvailable) { await loadServices(); await loadIncidents(); }
-          updateTime();
-        }, 30000);
+        document.getElementById("year").textContent = new Date().getFullYear();
+        renderProviderNotice();
+        if (await initSupabase()) await refresh();
+        else { handleFailure(); updateTime(); }
+        setInterval(refresh, 30000);
       }
 
       document.readyState === "loading" ? document.addEventListener("DOMContentLoaded", init) : init();

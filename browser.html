@@ -236,6 +236,41 @@
         50%       { opacity: 1;   transform: scale(1.3); }
       }
 
+      /* ─── Service notice (provider outage) ───────────────────── */
+      .service-notice {
+        display: none;
+        width: 100%;
+        max-width: 480px;
+        margin-bottom: 18px;
+        padding: 14px 16px;
+        border: 1px solid rgba(255,95,95,0.28);
+        border-left: 2px solid #ff5f5f;
+        background: rgba(255,95,95,0.05);
+        opacity: 0;
+        animation: fadeUp 0.4s ease 0.25s forwards;
+      }
+      .service-notice.show { display: block; }
+      .service-notice-title {
+        display: flex; align-items: center; gap: 8px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: #ff8a8a;
+        margin-bottom: 6px;
+      }
+      .service-notice-body {
+        font-size: 11px;
+        line-height: 1.6;
+        color: rgba(255,255,255,0.5);
+      }
+      .service-notice-body a { color: rgba(255,255,255,0.75); }
+      .card-tag.outage-tag {
+        color: #ff8a8a;
+        border-color: rgba(255,95,95,0.4);
+        background: rgba(255,95,95,0.07);
+      }
+
       /* ─── Free timer pill ────────────────────────────────────── */
       #freeTimer {
         display: none;
@@ -719,6 +754,15 @@
         <div class="landing-sub">Choose your proxy engine</div>
       </div>
 
+      <div class="service-notice" id="serviceNotice">
+        <div class="service-notice-title"><i class="fa-solid fa-triangle-exclamation"></i> ORBIX is temporarily unavailable</div>
+        <div class="service-notice-body">
+          Our hosting provider is having an outage that has taken down the server ORBIX runs on.
+          This isn't something on your end, and we'll bring ORBIX back as soon as the provider recovers.
+          Follow updates on <a href="https://status.xorbit.org" target="_blank" rel="noopener">status.xorbit.org</a>.
+        </div>
+      </div>
+
       <div class="cards">
 
         <button class="card card-1 deprecated" id="rammerheadCard" onclick="selectBrowser('rammerhead')">
@@ -842,6 +886,9 @@
 
       const FREE_ORBIX_DAILY = 3600;
 
+      // Set to false once the hosting provider outage (Oct 2026) is over and uv.xorbit.org is back up
+      const ORBIX_OUTAGE = true;
+
       const BROWSER_URLS = {
         rammerhead: "https://browser.xorbit.org",
         orbix:      "https://uv.xorbit.org",
@@ -928,8 +975,19 @@
           setOrbixFallback("standard");
         } finally {
           authResolved = true;
+          applyOrbixOutage();
           if (orbixClickPending) handleOrbixClick();
         }
+      }
+
+      function applyOrbixOutage() {
+        if (!ORBIX_OUTAGE) return;
+        document.getElementById("serviceNotice").classList.add("show");
+        document.getElementById("orbixCard").classList.add("locked");
+        document.getElementById("orbixDesc").textContent = "Unavailable · hosting provider outage";
+        const tag = document.getElementById("orbixTag");
+        tag.textContent = "Outage";
+        tag.className   = "card-tag outage-tag";
       }
 
       function setOrbixFallback(reason) {
@@ -1024,6 +1082,7 @@
 
       function handleOrbixClick() {
         orbixClickPending = false;
+        if (ORBIX_OUTAGE) return;
 
         if (userIsPremium || (userIsStandard && freeSecsLeft > 0)) {
           runOrbixBoot();
