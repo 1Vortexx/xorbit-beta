@@ -4789,6 +4789,42 @@
            --app-h follows the visible viewport so the keyboard never covers the composer.
         ════════════════════════════════════════════════ */
         .mobile-back-btn { display: none; }
+        .ios-only { display: none !important; }
+        html.ios-app .ios-only { display: flex !important; }
+
+        /* Privacy screen: two gradient layers (left/right, top/bottom) driven by --ps-* from tilt */
+        #privacyScreen {
+            position: fixed;
+            inset: 0;
+            z-index: 100000;
+            pointer-events: none;
+            display: none;
+            --ps-l: 0; --ps-r: 0; --ps-t: 0; --ps-b: 0;
+            /* Each edge: solid dark up to (amount × 100%) of the screen, then an 18% fade.
+               Opacity ramps faster than coverage so a small tilt already hides text. */
+            --ps-la: min(0.98, calc(var(--ps-l) * 1.8));
+            --ps-ra: min(0.98, calc(var(--ps-r) * 1.8));
+            --ps-ta: min(0.98, calc(var(--ps-t) * 1.8));
+            --ps-ba: min(0.98, calc(var(--ps-b) * 1.8));
+            background:
+                linear-gradient(to right,
+                    rgba(0,0,0,var(--ps-la)) 0%,
+                    rgba(0,0,0,var(--ps-la)) calc(var(--ps-l) * 100%),
+                    rgba(0,0,0,0) calc(var(--ps-l) * 100% + 18%)),
+                linear-gradient(to left,
+                    rgba(0,0,0,var(--ps-ra)) 0%,
+                    rgba(0,0,0,var(--ps-ra)) calc(var(--ps-r) * 100%),
+                    rgba(0,0,0,0) calc(var(--ps-r) * 100% + 18%)),
+                linear-gradient(to bottom,
+                    rgba(0,0,0,var(--ps-ta)) 0%,
+                    rgba(0,0,0,var(--ps-ta)) calc(var(--ps-t) * 100%),
+                    rgba(0,0,0,0) calc(var(--ps-t) * 100% + 18%)),
+                linear-gradient(to top,
+                    rgba(0,0,0,var(--ps-ba)) 0%,
+                    rgba(0,0,0,var(--ps-ba)) calc(var(--ps-b) * 100%),
+                    rgba(0,0,0,0) calc(var(--ps-b) * 100% + 18%));
+        }
+        #privacyScreen.on { display: block; }
         html.ios-app, html.ios-app body { height: var(--app-h, 100dvh); overscroll-behavior: none; }
         html.ios-app body { position: fixed; inset: 0; width: 100%; -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
         html.ios-app input, html.ios-app textarea, html.ios-app select { font-size: 16px !important; } /* stops iOS zooming in on focus */
@@ -5474,6 +5510,17 @@
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
+                <div class="settings-row ios-only">
+                    <i class="fas fa-mobile-screen"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Privacy screen</span>
+                        <span class="settings-row-desc">Darkens the screen when the phone tilts away from how you're holding it, so people beside you can't read it</span>
+                    </span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="privacyScreenToggle" onchange="setPrivacyScreen(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
                 <button class="settings-row" type="button" onclick="closeSettingsModal(); openBlockedModal()">
                     <i class="fas fa-ban"></i>
                     <span class="settings-row-main">
@@ -6054,6 +6101,9 @@
     </div>
     <div class="call-stage-controls" id="callStageActions"></div>
 </div>
+
+<!-- Privacy screen (iOS app): darkens the edges that tilt away -->
+<div id="privacyScreen" aria-hidden="true"></div>
 
 <div id="toast"></div>
 
@@ -6731,6 +6781,100 @@
             if (t.clientX - swipeX > 80 && Math.abs(t.clientY - swipeY) < 60) mobileBack();
             swipeX = null;
         }, { passive: true });
+    }
+
+    /* ── Privacy screen (iOS app) ──
+       Learns how the phone is normally held (a slow-moving baseline of the tilt angles)
+       and darkens whichever edge tilts away from it: from PS_DEAD° it starts creeping in,
+       by PS_FULL° that whole side is dark. Needs motion permission, which iOS only grants
+       from a tap; on later launches the first tap anywhere asks again if needed. */
+    const PRIVACY_SCREEN_KEY = 'jittery_privacy_screen';
+    const PS_DEAD = 8, PS_FULL = 30, PS_BASELINE_RATE = 0.004, PS_SMOOTH = 0.25;
+    let psBase = null;       // { fb, lr } the "facing you" angles
+    let psCur  = { l: 0, r: 0, t: 0, b: 0 };
+    let psListening = false;
+
+    function privacyScreenOn() {
+        try { return localStorage.getItem(PRIVACY_SCREEN_KEY) === '1'; } catch (_) { return false; }
+    }
+
+    async function setPrivacyScreen(on) {
+        const toggle = document.getElementById('privacyScreenToggle');
+        if (on && !(await startPrivacyScreen())) {
+            showToast('Motion access is needed for the privacy screen. Allow it in the prompt, or reinstall Jitter if you said no.', 4500);
+            if (toggle) toggle.checked = false;
+            return;
+        }
+        try { localStorage.setItem(PRIVACY_SCREEN_KEY, on ? '1' : '0'); } catch (_) {}
+        if (!on) stopPrivacyScreen();
+        else showToast('Privacy screen on: hold the phone the way you normally do');
+    }
+
+    async function startPrivacyScreen() {
+        if (typeof DeviceOrientationEvent === 'undefined') return false;
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+            try {
+                if (await DeviceOrientationEvent.requestPermission() !== 'granted') return false;
+            } catch (_) { return false; } // not called from a tap
+        }
+        if (!psListening) {
+            window.addEventListener('deviceorientation', onPrivacyTilt);
+            psListening = true;
+        }
+        psBase = null; // re-learn from the next reading
+        document.getElementById('privacyScreen').classList.add('on');
+        return true;
+    }
+
+    function stopPrivacyScreen() {
+        window.removeEventListener('deviceorientation', onPrivacyTilt);
+        psListening = false;
+        psBase = null;
+        psCur = { l: 0, r: 0, t: 0, b: 0 };
+        applyPrivacyShade();
+        document.getElementById('privacyScreen').classList.remove('on');
+    }
+
+    function onPrivacyTilt(e) {
+        if (e.beta == null || e.gamma == null) return;
+        // Work in screen axes, so landscape still darkens the right edges
+        const angle = (screen.orientation && screen.orientation.angle) || window.orientation || 0;
+        let fb = e.beta, lr = e.gamma; // front/back, left/right
+        if (angle === 90)  { fb = -e.gamma; lr = e.beta; }
+        if (angle === -90 || angle === 270) { fb = e.gamma; lr = -e.beta; }
+
+        if (!psBase) psBase = { fb, lr };
+        // Drift slowly toward the current angle, so a new posture becomes the baseline
+        psBase.fb += (fb - psBase.fb) * PS_BASELINE_RATE;
+        psBase.lr += (lr - psBase.lr) * PS_BASELINE_RATE;
+
+        const amount = d => Math.min(1, Math.max(0, (Math.abs(d) - PS_DEAD) / (PS_FULL - PS_DEAD)));
+        const dLR = lr - psBase.lr, dFB = fb - psBase.fb;
+        const target = {
+            r: dLR > 0 ? amount(dLR) : 0, // right edge dips away
+            l: dLR < 0 ? amount(dLR) : 0,
+            t: dFB < 0 ? amount(dFB) : 0, // top tips away (phone laid back)
+            b: dFB > 0 ? amount(dFB) : 0,
+        };
+        for (const k in target) psCur[k] += (target[k] - psCur[k]) * PS_SMOOTH;
+        applyPrivacyShade();
+    }
+
+    function applyPrivacyShade() {
+        const el = document.getElementById('privacyScreen');
+        if (!el) return;
+        for (const k of ['l', 'r', 't', 'b']) el.style.setProperty('--ps-' + k, psCur[k].toFixed(3));
+    }
+
+    if (window.JITTER_IOS_APP) {
+        // Turned on in an earlier session: start it, asking again on the first tap if iOS wants a gesture
+        window.addEventListener('load', () => {
+            if (!privacyScreenOn()) return;
+            startPrivacyScreen().then(ok => {
+                if (ok) return;
+                document.addEventListener('touchend', () => startPrivacyScreen(), { once: true });
+            });
+        });
     }
 
     function hideChatArea() {
@@ -7680,7 +7824,7 @@
     /* ── VERSION ─────────────────────────────────────────
        Shown under your name in the sidebar so you can tell which build is loaded.
        Bump it with every change to this file: date as YYMMDD, then a counter for that day. */
-    const JITTER_VERSION = '261027-10';
+    const JITTER_VERSION = '261027-11';
     document.getElementById('jitterVersion').textContent = 'Jitter v' + JITTER_VERSION;
 
     /* ── SETTINGS ─────────────────────────────────────── */
@@ -7690,6 +7834,8 @@
         document.getElementById('chatMessageFilter').value = myMessageFilter;
         document.getElementById('settingsVersion').textContent = 'Jitter v' + JITTER_VERSION;
         refreshCallDeviceSelects();
+        const psToggle = document.getElementById('privacyScreenToggle');
+        if (psToggle) psToggle.checked = privacyScreenOn();
         // Always re-read the saved value rather than trusting the cache
         delete msgRequestPref[currentUser.email];
         acceptsMessageRequests(currentUser.email).then(on => {
