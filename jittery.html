@@ -5511,6 +5511,13 @@
                     </label>
                 </div>
                 <div class="settings-row ios-only">
+                    <i class="fas fa-mobile-button"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">This iPhone</span>
+                        <span class="settings-row-desc" id="deviceInfoText">—</span>
+                    </span>
+                </div>
+                <div class="settings-row ios-only">
                     <i class="fas fa-mobile-screen"></i>
                     <span class="settings-row-main">
                         <span class="settings-row-label">Privacy screen</span>
@@ -6783,6 +6790,79 @@
         }, { passive: true });
     }
 
+    /* ── Device detection (iOS app) ──
+       Safari never names the iPhone model, so this works it out:
+       1. Safe-area inset: the app draws under the status bar (viewport-fit=cover), so iOS
+          reports how much space the top cutout takes. Portrait top / landscape side inset:
+          Dynamic Island ≈ 59–62px, notch 44–50px, home button 20px (top) / 0 (sides).
+       2. Screen size in points, which maps to a group of models. Used when the inset isn't
+          available; Display Zoom makes a phone report a smaller size, so it's the backup. */
+    const IPHONE_SCREENS = {
+        '320x568': { name: '4″ (SE 1st gen)',                                        cutout: 'button' },
+        '375x667': { name: '4.7″ (6, 7, 8, SE 2nd/3rd gen)',                         cutout: 'button' },
+        '414x736': { name: '5.5″ Plus (6–8 Plus)',                                   cutout: 'button' },
+        '375x812': { name: '5.4″/5.8″ (X, XS, 11 Pro, 12 mini, 13 mini)',           cutout: 'notch' },
+        '414x896': { name: '6.1″/6.5″ (XR, 11, XS Max, 11 Pro Max)',                cutout: 'notch' },
+        '390x844': { name: '6.1″ (12, 12 Pro, 13, 13 Pro, 14, 16e)',                cutout: 'notch' },
+        '428x926': { name: '6.7″ (12 Pro Max, 13 Pro Max, 14 Plus)',                cutout: 'notch' },
+        '393x852': { name: '6.1″ (14 Pro, 15, 15 Pro, 16)',                         cutout: 'island' },
+        '430x932': { name: '6.7″ (14 Pro Max, 15 Plus, 15 Pro Max, 16 Plus)',       cutout: 'island' },
+        '402x874': { name: '6.3″ (16 Pro, 17, 17 Pro)',                             cutout: 'island' },
+        '440x956': { name: '6.9″ (16 Pro Max, 17 Pro Max)',                         cutout: 'island' },
+        '420x912': { name: 'iPhone Air',                                            cutout: 'island' },
+    };
+
+    function safeAreaInsets() {
+        const probe = document.createElement('div');
+        probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;' +
+            'padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
+        document.body.appendChild(probe);
+        const cs = getComputedStyle(probe);
+        const insets = { top: parseFloat(cs.paddingTop) || 0, right: parseFloat(cs.paddingRight) || 0,
+                         bottom: parseFloat(cs.paddingBottom) || 0, left: parseFloat(cs.paddingLeft) || 0 };
+        probe.remove();
+        return insets;
+    }
+
+    function detectDevice() {
+        const ua = navigator.userAgent;
+        const isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        const os = (ua.match(/OS (\d+)_(\d+)(?:_(\d+))?/) || []).slice(1).filter(Boolean).join('.') || null;
+        const w = Math.min(screen.width, screen.height), h = Math.max(screen.width, screen.height);
+        const group = isIPad ? null : IPHONE_SCREENS[`${w}x${h}`] || null;
+
+        // The cutout sits on the top edge in portrait and on a side in landscape
+        const ins = safeAreaInsets();
+        const cutoutInset = Math.max(ins.top, ins.left, ins.right);
+        let cutout = null, method = null;
+        if (!isIPad && cutoutInset > 0) {
+            cutout = cutoutInset >= 51 ? 'island' : cutoutInset >= 40 ? 'notch' : 'button';
+            method = 'inset';
+        } else if (group) {
+            cutout = group.cutout;
+            method = 'screen';
+        }
+        return { device: isIPad ? 'iPad' : 'iPhone', os, screen: `${w}×${h} @${devicePixelRatio}x`, group: group && group.name,
+                 cutout, dynamicIsland: cutout === 'island', method, insetTop: ins.top };
+    }
+
+    function describeDevice(d) {
+        const cut = { island: 'Dynamic Island', notch: 'Notch', button: 'Home button' }[d.cutout] || 'Unknown screen';
+        return [d.device + (d.os ? ' · iOS ' + d.os : ''), cut, d.group].filter(Boolean).join(' · ');
+    }
+
+    if (window.JITTER_IOS_APP) {
+        // html.has-dynamic-island for CSS; rechecked on rotation since insets move to the sides
+        const markDevice = () => {
+            const d = detectDevice();
+            window.JITTER_DEVICE = d;
+            document.documentElement.classList.toggle('has-dynamic-island', d.dynamicIsland);
+            document.documentElement.classList.toggle('has-notch', d.cutout === 'notch');
+        };
+        window.addEventListener('load', markDevice);
+        window.addEventListener('orientationchange', () => setTimeout(markDevice, 300));
+    }
+
     /* ── Privacy screen (iOS app) ──
        Learns how the phone is normally held (a slow-moving baseline of the tilt angles)
        and darkens whichever edge tilts away from it: from PS_DEAD° it starts creeping in,
@@ -7824,7 +7904,7 @@
     /* ── VERSION ─────────────────────────────────────────
        Shown under your name in the sidebar so you can tell which build is loaded.
        Bump it with every change to this file: date as YYMMDD, then a counter for that day. */
-    const JITTER_VERSION = '261027-11';
+    const JITTER_VERSION = '261027-12';
     document.getElementById('jitterVersion').textContent = 'Jitter v' + JITTER_VERSION;
 
     /* ── SETTINGS ─────────────────────────────────────── */
@@ -7836,6 +7916,7 @@
         refreshCallDeviceSelects();
         const psToggle = document.getElementById('privacyScreenToggle');
         if (psToggle) psToggle.checked = privacyScreenOn();
+        if (window.JITTER_IOS_APP) document.getElementById('deviceInfoText').textContent = describeDevice(detectDevice());
         // Always re-read the saved value rather than trusting the cache
         delete msgRequestPref[currentUser.email];
         acceptsMessageRequests(currentUser.email).then(on => {
