@@ -4788,6 +4788,53 @@
            One pane at a time: the list, or the open chat with a back button.
            --app-h follows the visible viewport so the keyboard never covers the composer.
         ════════════════════════════════════════════════ */
+        /* Update prompt (see VERSION CHECK) */
+        .update-prompt {
+            position: fixed;
+            top: 14px;
+            left: 50%;
+            z-index: 99000;
+            width: min(460px, calc(100% - 24px));
+            display: none;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 14px 16px;
+            transform: translateX(-50%);
+            background: var(--surface);
+            border: 1px solid var(--accent);
+            border-radius: var(--r-lg);
+            box-shadow: 0 16px 48px rgba(0,0,0,0.6);
+        }
+        .update-prompt.show { display: flex; animation: updatePromptIn 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+        @keyframes updatePromptIn { from { opacity: 0; transform: translate(-50%, -12px); } }
+        .update-prompt-icon {
+            width: 36px; height: 36px;
+            flex-shrink: 0;
+            display: grid; place-items: center;
+            border-radius: 50%;
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+        .update-prompt-body { flex: 1; min-width: 180px; }
+        .update-prompt-title { font-weight: 700; font-size: 0.9rem; }
+        .update-prompt-text { font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; margin-top: 2px; }
+        .update-prompt-text b { white-space: nowrap; color: var(--text-dim); font-weight: 600; }
+        .update-prompt-actions { display: flex; gap: 8px; margin-left: auto; }
+        .update-prompt-actions button {
+            padding: 8px 14px;
+            border: none;
+            border-radius: var(--r-sm);
+            font: inherit;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .update-prompt-later { background: var(--surface-3); color: var(--text); }
+        .update-prompt-go { background: var(--accent); color: #fff; }
+        .update-prompt-go:disabled { opacity: 0.6; cursor: default; }
+        html.ios-app .update-prompt { top: calc(8px + env(safe-area-inset-top)); }
+
         .mobile-back-btn { display: none; }
         .ios-only { display: none !important; }
         html.ios-app .ios-only { display: flex !important; }
@@ -6107,6 +6154,19 @@
         </div></div>
     </div>
     <div class="call-stage-controls" id="callStageActions"></div>
+</div>
+
+<!-- Shown when a newer Jitter has been pushed than the one running -->
+<div id="updatePrompt" class="update-prompt" role="alertdialog" aria-labelledby="updatePromptTitle">
+    <div class="update-prompt-icon"><i class="fas fa-arrows-rotate"></i></div>
+    <div class="update-prompt-body">
+        <div class="update-prompt-title" id="updatePromptTitle">Jitter has been updated</div>
+        <div class="update-prompt-text" id="updatePromptText"></div>
+    </div>
+    <div class="update-prompt-actions">
+        <button type="button" class="update-prompt-later" onclick="dismissUpdatePrompt()">Later</button>
+        <button type="button" class="update-prompt-go" id="updatePromptGo" onclick="hardRefreshJitter()">Refresh now</button>
+    </div>
 </div>
 
 <!-- Privacy screen (iOS app): darkens the edges that tilt away -->
@@ -7904,8 +7964,106 @@
     /* ── VERSION ─────────────────────────────────────────
        Shown under your name in the sidebar so you can tell which build is loaded.
        Bump it with every change to this file: date as YYMMDD, then a counter for that day. */
-    const JITTER_VERSION = '261027-12';
+    const JITTER_VERSION = '261027-14';
     document.getElementById('jitterVersion').textContent = 'Jitter v' + JITTER_VERSION;
+
+    /* ── VERSION CHECK ───────────────────────────────────
+       The jitter_version table (supabase/jitter-version.sql) holds the version each site
+       should be on: channel 'beta' for beta.xorbit.org (and local previews), 'public' for
+       xorbit.org. If it's NEWER than the running JITTER_VERSION, a prompt offers a hard
+       refresh: clear the page's caches and cookies, then reload from a new URL (?_v=…)
+       so the browser can't serve its old copy. localStorage is kept (login and settings).
+       Newer-only, so a row that hasn't been updated yet never sends people backwards.
+       Checked on load, every 5 minutes, on returning to the app, and live via Realtime. */
+    const VERSION_CHECK_EVERY_MS = 5 * 60 * 1000;
+    const JITTER_CHANNEL = location.hostname === 'xorbit.org' || location.hostname === 'www.xorbit.org' ? 'public' : 'beta';
+    let latestJitterVersion = null;
+    let updatePromptDismissed = null; // version the user said "Later" to
+    let updatePromptTimer = null;
+
+    // "261027-13" → [261027, 13], so 261027-13 is newer than 261027-9
+    function jitterVersionNewer(a, b) {
+        const pa = String(a).split('-').map(Number), pb = String(b).split('-').map(Number);
+        if (pa.some(isNaN) || pb.some(isNaN)) return false;
+        return pa[0] !== pb[0] ? pa[0] > pb[0] : (pa[1] || 0) > (pb[1] || 0);
+    }
+
+    function onJitterVersion(version) {
+        if (!version || !jitterVersionNewer(version, JITTER_VERSION)) return;
+        latestJitterVersion = version;
+        // Just hard-refreshed for this version but still got the old file: the push hasn't
+        // finished deploying. Wait a few minutes instead of prompting in a loop.
+        if (new URLSearchParams(location.search).get('_v') === version && !updatePromptTimer) {
+            updatePromptDismissed = version;
+            updatePromptTimer = setTimeout(() => { updatePromptDismissed = null; updatePromptTimer = null; maybeShowUpdatePrompt(); }, 3 * 60 * 1000);
+            return;
+        }
+        maybeShowUpdatePrompt();
+    }
+
+    async function checkJitterVersion() {
+        try {
+            const { data, error } = await sb.from('jitter_version').select('version').eq('channel', JITTER_CHANNEL).maybeSingle();
+            if (!error && data) onJitterVersion(data.version);
+        } catch (_) { /* offline: try again next time */ }
+    }
+
+    function maybeShowUpdatePrompt() {
+        if (!latestJitterVersion || latestJitterVersion === updatePromptDismissed) return;
+        // Never interrupt a call; endCall() calls this again
+        if (typeof call !== 'undefined' && call) return;
+        document.getElementById('updatePromptText').innerHTML =
+            `You're on <b>v${escHtml(JITTER_VERSION)}</b>. Refresh to get <b>v${escHtml(latestJitterVersion)}</b>.`;
+        document.getElementById('updatePrompt').classList.add('show');
+    }
+
+    function dismissUpdatePrompt() {
+        updatePromptDismissed = latestJitterVersion;
+        document.getElementById('updatePrompt').classList.remove('show');
+        // Ask again in 30 minutes if they still haven't refreshed
+        clearTimeout(updatePromptTimer);
+        updatePromptTimer = setTimeout(() => { updatePromptDismissed = null; updatePromptTimer = null; maybeShowUpdatePrompt(); }, 30 * 60 * 1000);
+    }
+
+    async function hardRefreshJitter() {
+        const btn = document.getElementById('updatePromptGo');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing…';
+
+        // Cache Storage (anything a service worker or the page cached)
+        try {
+            if (window.caches) await Promise.all((await caches.keys()).map(k => caches.delete(k)));
+        } catch (_) {}
+        // Cookies, on this path, the root, and the parent domain
+        try {
+            const host = location.hostname;
+            const domains = ['', host, '.' + host, '.' + host.split('.').slice(-2).join('.')];
+            document.cookie.split(';').forEach(c => {
+                const name = c.split('=')[0].trim();
+                if (!name) return;
+                domains.forEach(d => ['/', location.pathname].forEach(path => {
+                    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${path}` + (d ? `; domain=${d}` : '');
+                }));
+            });
+        } catch (_) {}
+        try { sessionStorage.clear(); } catch (_) {}
+
+        // A URL the browser has never cached forces a fresh download. Inside the desktop this
+        // navigates only the Jitter iframe; its src attribute stays "jittery.html", so the
+        // desktop's lookups and the sign-in handshake keep working.
+        const url = new URL(location.href);
+        url.searchParams.set('_v', latestJitterVersion || Date.now());
+        location.replace(url.toString());
+    }
+
+    setTimeout(checkJitterVersion, 3000);
+    setInterval(checkJitterVersion, VERSION_CHECK_EVERY_MS);
+    sb.channel('jitter_version_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'jitter_version', filter: `channel=eq.${JITTER_CHANNEL}` },
+            ({ new: row }) => onJitterVersion(row && row.version))
+        .subscribe();
+    // Coming back to the tab, or reopening the iPhone app from the background
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) checkJitterVersion(); });
 
     /* ── SETTINGS ─────────────────────────────────────── */
     function openSettingsModal() {
@@ -9397,6 +9555,7 @@
         audio.srcObject = null;
         c.endedAt = Date.now();
         finishCallLog(c);
+        setTimeout(maybeShowUpdatePrompt, 1500); // an update found during the call
 
         renderCallOverlay();
         updateCallButton();
