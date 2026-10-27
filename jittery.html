@@ -4,6 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>X-ORBIT Direct Messages</title>
+    <script>
+        /* iOS app mode: the Home Screen app installed from /jitter/ opens jittery.html?app=ios.
+           It signs in on its own (no desktop), uses the phone layout (html.ios-app), and only
+           runs as an installed Home Screen app; anything else goes back to /jitter/ for the
+           install instructions. localhost skips that check so it can be previewed. */
+        window.JITTER_IOS_APP = new URLSearchParams(location.search).get('app') === 'ios';
+        if (window.JITTER_IOS_APP) {
+            const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            const preview = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            if (!preview && !(isIOS && navigator.standalone)) location.replace('/jitter/');
+            document.documentElement.classList.add('ios-app');
+            document.querySelector('meta[name=viewport]').setAttribute('content',
+                'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover');
+            // Same ban / lockout checks as the desktop
+            document.write('<script src="/assets/device-gate.js"><\/script>');
+        }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -1763,6 +1781,27 @@
         .game-invite-btn:hover { background: var(--accent-hi); box-shadow: 0 0 18px rgba(79,138,255,0.3); }
         .game-invite-btn i { margin-right: 6px; }
         .game-invite-note { font-size: 0.72rem; color: var(--text-muted); text-align: center; }
+
+        /* Call log cards (see callLogState): green while live, red when missed, grey once ended */
+        .call-log.active .game-invite-top { background: linear-gradient(135deg, rgba(48,209,88,0.28), rgba(48,209,88,0.06)); }
+        .call-log.active .game-invite-icon { background: var(--success); }
+        .call-log.active .game-invite-eyebrow { color: var(--success); }
+        .call-log.active .game-invite-top { border-bottom: none; }
+        .call-log.missed .game-invite-top { background: linear-gradient(135deg, rgba(255,69,58,0.24), rgba(255,69,58,0.05)); }
+        .call-log.missed .game-invite-icon { background: var(--error); }
+        .call-log.missed .game-invite-eyebrow { color: var(--error); }
+        .call-log.ended .game-invite-top { background: var(--surface-2); }
+        .call-log.ended .game-invite-icon { background: var(--surface-3); color: var(--text-dim); }
+        .call-log.ended .game-invite-eyebrow { color: var(--text-muted); }
+        .call-log-live {
+            display: inline-block;
+            width: 7px; height: 7px;
+            margin-right: 5px;
+            border-radius: 50%;
+            background: var(--success);
+            vertical-align: 1px;
+            animation: callPulse 1.4s ease-out infinite;
+        }
 
         .message-time {
             font-size: 0.72rem;
@@ -4474,6 +4513,341 @@
         .undelivered-receipt .msg-info-btn { color: var(--error); }
         .undelivered-receipt .msg-info-btn::after { border-color: rgba(255,69,58,0.45); }
         .undelivered-receipt .msg-info-btn::before { border-top-color: rgba(255,69,58,0.45); }
+
+        /* ── AUDIO CALLS ──────────────────────────────── */
+        .chat-call-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid var(--border-hi);
+            background: var(--surface-2);
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: color 0.15s, border-color 0.15s, background 0.15s;
+        }
+        .chat-call-btn:hover { color: var(--success); border-color: var(--success); }
+        .chat-call-btn:disabled { opacity: 0.4; cursor: default; }
+
+        .call-overlay {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 5000;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            min-width: 280px;
+            max-width: calc(100vw - 40px);
+            padding: 12px 14px;
+            background: var(--surface);
+            border: 1px solid var(--border-hi);
+            border-radius: var(--r-lg);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+        }
+        .call-overlay.show { display: flex; }
+        .call-overlay.incoming { border-color: var(--success); }
+        .call-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: var(--surface-3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font);
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .call-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .call-overlay.incoming .call-avatar { animation: callPulse 1.4s ease-out infinite; }
+        @keyframes callPulse {
+            0%   { box-shadow: 0 0 0 0 rgba(48,209,88,0.5); }
+            100% { box-shadow: 0 0 0 12px rgba(48,209,88,0); }
+        }
+        .call-info { flex: 1; min-width: 0; }
+        .call-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .call-status { font-size: 0.72rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+        .call-actions { display: flex; gap: 8px; }
+        .call-action {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #fff;
+            background: var(--surface-3);
+            font-size: 0.9rem;
+        }
+        .call-action.accept { background: var(--success); }
+        .call-action.hangup { background: var(--error); }
+        .call-action.muted  { background: var(--text); color: var(--bg); }
+        .call-action:hover  { filter: brightness(1.12); }
+        .call-overlay .call-avatar, .call-overlay .call-info { cursor: pointer; }
+        .call-expand-hint { font-size: 0.66rem; color: var(--text-faint); margin-left: 4px; }
+
+        /* Full-screen call view (click the call card to open) */
+        .call-stage {
+            position: fixed;
+            inset: 0;
+            z-index: 5050;
+            display: none;
+            flex-direction: column;
+            background: radial-gradient(ellipse at 50% 30%, #1c1c1f 0%, #050506 75%);
+        }
+        .call-stage.show { display: flex; }
+        .call-stage-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 18px;
+        }
+        .call-stage-title { flex: 1; min-width: 0; }
+        .call-stage-name { font-weight: 700; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .call-stage-status { font-size: 0.75rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+        .call-stage-icon-btn {
+            width: 34px; height: 34px;
+            border-radius: var(--r-sm);
+            border: none;
+            background: rgba(255,255,255,0.06);
+            color: var(--text-dim);
+            cursor: pointer;
+        }
+        .call-stage-icon-btn:hover { background: rgba(255,255,255,0.12); color: var(--text); }
+        /* Tiles are sized from their area's width AND height (container query units),
+           so nothing grows past the top bar or under the controls */
+        .call-stage-tiles {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 4px 24px;
+        }
+        .call-stage-screens {
+            flex: 1;
+            min-height: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            container-type: size;
+        }
+        .call-stage-tiles.has-screen .call-stage-screens { display: flex; }
+        .call-stage-people {
+            flex: 1;
+            min-height: 0;
+            container-type: size;
+        }
+        .call-stage-tiles.has-screen .call-stage-people { flex: 0 0 clamp(84px, 18vh, 140px); }
+        .call-people-grid {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+        }
+        .call-people-grid .call-tile {
+            width: min(calc((100cqw - 16px) / 2), calc(100cqh * 16 / 9), 900px);
+        }
+        /* Tall, narrow window: stack the two people instead */
+        @container (max-aspect-ratio: 5 / 4) {
+            .call-people-grid { flex-direction: column; }
+            .call-people-grid .call-tile { width: min(100cqw, calc((100cqh - 16px) / 2 * 16 / 9)); }
+        }
+        .call-tile.screen { width: min(100cqw, calc(100cqh * 16 / 9)); }
+        .call-stage-tiles.two-screens .call-tile.screen { width: min(calc((100cqw - 12px) / 2), calc(100cqh * 16 / 9)); }
+        /* Tall, narrow window: two shared screens stack too */
+        @media (max-aspect-ratio: 5 / 4) {
+            .call-stage-tiles.two-screens .call-stage-screens { flex-direction: column; }
+            .call-stage-tiles.two-screens .call-tile.screen { width: min(100cqw, calc((100cqh - 12px) / 2 * 16 / 9)); }
+        }
+        .call-tile {
+            position: relative;
+            flex: 0 0 auto;
+            aspect-ratio: 16 / 9;
+            border-radius: var(--r-lg);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: box-shadow 0.12s, border-color 0.12s;
+        }
+        .call-tile.speaking { border-color: var(--success); box-shadow: 0 0 0 2px var(--success); }
+        .call-tile.waiting .call-tile-avatar { opacity: 0.45; }
+        .call-tile-avatar {
+            width: clamp(40px, 34%, 120px);
+            aspect-ratio: 1;
+            height: auto;
+            border-radius: 50%;
+            background: var(--surface-3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            overflow: hidden;
+        }
+        .call-tile-avatar { font-size: clamp(0.8rem, 6cqh, 2.2rem); }
+        .call-tile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .call-tile-label {
+            position: absolute;
+            left: 10px;
+            bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            max-width: calc(100% - 20px);
+            padding: 4px 9px;
+            border-radius: 6px;
+            background: rgba(0,0,0,0.55);
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .call-tile-label .fa-microphone-slash { color: var(--error); font-size: 0.7rem; }
+        .call-stage-tiles.has-screen .call-people-grid .call-tile-label { left: 6px; bottom: 6px; padding: 2px 7px; font-size: 0.68rem; }
+        .call-tile video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: inherit;
+            background: #000;
+            display: none;
+        }
+        .call-tile.has-video video { display: block; }
+        .call-tile.has-video .call-tile-avatar { visibility: hidden; }
+        .call-tile video.mirror { transform: scaleX(-1); }
+        .call-tile-label { z-index: 1; }
+        .call-tile.screen video { object-fit: contain; }
+        .call-action.on { background: var(--text); color: var(--bg); }
+        .call-device-panel {
+            position: absolute;
+            top: 58px;
+            right: 18px;
+            z-index: 2;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            width: 280px;
+            max-width: calc(100% - 36px);
+            padding: 14px;
+            background: var(--surface);
+            border: 1px solid var(--border-hi);
+            border-radius: var(--r);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+        }
+        .call-device-panel.show { display: flex; }
+        .call-device-panel label {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: var(--text-muted);
+        }
+        .call-device-panel .settings-select { width: 100%; text-transform: none; font-weight: 400; }
+        .settings-row .call-device-select { max-width: 48%; text-overflow: ellipsis; }
+        .call-stage-controls {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            padding: 18px 16px 26px;
+        }
+        .call-stage-controls .call-action { width: 52px; height: 52px; font-size: 1.1rem; }
+
+        /* ════════════════════════════════════════════════
+           iOS APP (html.ios-app, see the head script)
+           One pane at a time: the list, or the open chat with a back button.
+           --app-h follows the visible viewport so the keyboard never covers the composer.
+        ════════════════════════════════════════════════ */
+        .mobile-back-btn { display: none; }
+        html.ios-app, html.ios-app body { height: var(--app-h, 100dvh); overscroll-behavior: none; }
+        html.ios-app body { position: fixed; inset: 0; width: 100%; -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
+        html.ios-app input, html.ios-app textarea, html.ios-app select { font-size: 16px !important; } /* stops iOS zooming in on focus */
+
+        html.ios-app #loginScreen,
+        html.ios-app #usernameSetup,
+        html.ios-app #systemExplain { height: var(--app-h, 100dvh); padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); overflow-y: auto; }
+        html.ios-app .login-wrap { grid-template-columns: 1fr; width: 100%; max-width: 440px; }
+        html.ios-app .login-brand { padding: 22px 24px; border-right: none; border-bottom: 1px solid var(--border); }
+        html.ios-app .login-brand-bottom { display: none; }
+
+        html.ios-app #dmDashboard { height: var(--app-h, 100dvh); }
+        html.ios-app .dm-sidebar,
+        html.ios-app .dm-sidebar.collapsed { width: 100%; border-right: none; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+        html.ios-app.keyboard-open .dm-sidebar { padding-bottom: 0; }
+        html.ios-app .collapse-btn { display: none; }
+        html.ios-app .dm-chat-area { display: none; }
+        html.ios-app.chat-open .dm-sidebar { display: none; }
+        html.ios-app.chat-open .dm-chat-area { display: flex; }
+        html.ios-app .conv-item, html.ios-app .server-item, html.ios-app .channel-item { min-height: 52px; }
+
+        html.ios-app .chat-header { padding: calc(8px + env(safe-area-inset-top)) 12px 8px 6px; gap: 10px; }
+        html.ios-app .mobile-back-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 40px;
+            margin-right: -4px;
+            border: none;
+            background: none;
+            color: var(--accent);
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+        html.ios-app .messages-container { padding: 14px 12px; }
+        html.ios-app .message-input-area { padding: 6px 10px calc(8px + env(safe-area-inset-bottom)); }
+        html.ios-app.keyboard-open .message-input-area { padding-bottom: 8px; }
+        html.ios-app .input-hint { display: none; }
+
+        /* Modals become bottom sheets */
+        html.ios-app .modal { align-items: flex-end; }
+        html.ios-app .modal-content {
+            width: 100%;
+            max-width: 100%;
+            max-height: calc(var(--app-h, 100dvh) - env(safe-area-inset-top) - 10px);
+            border-radius: 18px 18px 0 0;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        html.ios-app #toast { bottom: calc(80px + env(safe-area-inset-bottom)); max-width: calc(100vw - 32px); }
+
+        /* Calls: the small card sits under the status bar; no browser full screen on iOS */
+        html.ios-app .call-overlay { top: calc(8px + env(safe-area-inset-top)); bottom: auto; left: 10px; right: 10px; min-width: 0; max-width: none; }
+        html.ios-app .call-stage { padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+        html.ios-app #callFullscreenBtn { display: none; }
+        html.ios-app .call-stage-tiles { padding: 4px 12px; }
+        html.ios-app .call-stage-controls { padding-bottom: 14px; }
+        html.ios-app .call-device-panel { top: calc(58px + env(safe-area-inset-top)); left: 12px; right: 12px; width: auto; max-width: none; }
     </style>
     <script>
         // Hide immediately — will be revealed only after token auth passes
@@ -4714,6 +5088,7 @@
             <!-- Active conversation -->
             <div id="chatArea">
                 <div class="chat-header">
+                    <button class="mobile-back-btn" type="button" onclick="mobileBack()" aria-label="Back"><i class="fas fa-chevron-left"></i></button>
                     <div class="chat-header-avatar" id="chatAvatar"></div>
                     <div class="chat-header-info">
                         <div class="chat-header-name" id="chatRecipientName"></div>
@@ -4723,6 +5098,7 @@
                             <div id="chatHeaderStatus"></div>
                         </div>
                     </div>
+                    <button class="chat-call-btn" id="chatCallBtn" type="button" style="display:none" onclick="startCall()" title="Voice call"><i class="fas fa-phone"></i></button>
                 </div>
 
                 <!-- Shown when a non-friend started this conversation -->
@@ -5149,6 +5525,39 @@
                     <span class="settings-row-main">
                         <span class="settings-row-label">Hidden conversations</span>
                         <span class="settings-row-desc">Chats you've hidden from your list</span>
+                    </span>
+                    <i class="fas fa-chevron-right settings-row-chevron"></i>
+                </button>
+            </div>
+
+            <div class="settings-section-label">Voice &amp; video</div>
+            <div class="settings-group">
+                <div class="settings-row">
+                    <i class="fas fa-microphone"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Microphone</span>
+                    </span>
+                    <select class="settings-select call-device-select" data-kind="audioinput" onchange="setCallDevice('audioinput', this.value)"></select>
+                </div>
+                <div class="settings-row">
+                    <i class="fas fa-video"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Camera</span>
+                    </span>
+                    <select class="settings-select call-device-select" data-kind="videoinput" onchange="setCallDevice('videoinput', this.value)"></select>
+                </div>
+                <div class="settings-row call-speaker-row">
+                    <i class="fas fa-volume-high"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Speaker</span>
+                    </span>
+                    <select class="settings-select call-device-select" data-kind="audiooutput" onchange="setCallDevice('audiooutput', this.value)"></select>
+                </div>
+                <button class="settings-row call-device-unlock" type="button" onclick="unlockCallDeviceNames()" style="display:none">
+                    <i class="fas fa-unlock"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Show device names</span>
+                        <span class="settings-row-desc">Your browser hides microphone and camera names until Jitter is allowed to use them</span>
                     </span>
                     <i class="fas fa-chevron-right settings-row-chevron"></i>
                 </button>
@@ -5592,6 +6001,60 @@
 </div>
 
 <!-- ══ TOAST ═══════════════════════════════════════════ -->
+<!-- Voice call (incoming, ringing, or in progress) -->
+<div id="callOverlay" class="call-overlay">
+    <div class="call-avatar" id="callAvatar" onclick="openCallStage()" title="Open call"></div>
+    <div class="call-info" onclick="openCallStage()" title="Open call">
+        <div class="call-name" id="callName"></div>
+        <div class="call-status" id="callStatus"></div>
+    </div>
+    <div class="call-actions" id="callActions"></div>
+</div>
+<audio id="callRemoteAudio" autoplay></audio>
+
+<!-- Full-screen call view -->
+<div id="callStage" class="call-stage">
+    <div class="call-stage-top">
+        <div class="call-stage-title">
+            <div class="call-stage-name" id="callStageName"></div>
+            <div class="call-stage-status" id="callStageStatus"></div>
+        </div>
+        <button class="call-stage-icon-btn" onclick="toggleCallDevicePanel()" title="Devices"><i class="fas fa-gear"></i></button>
+        <button class="call-stage-icon-btn" id="callFullscreenBtn" onclick="toggleCallFullscreen()" title="Full screen"><i class="fas fa-expand" id="callFullscreenIcon"></i></button>
+        <button class="call-stage-icon-btn" onclick="closeCallStage()" title="Minimize"><i class="fas fa-down-left-and-up-right-to-center"></i></button>
+    </div>
+    <div class="call-device-panel" id="callDevicePanel">
+        <label>Microphone<select class="settings-select call-device-select" data-kind="audioinput" onchange="setCallDevice('audioinput', this.value)"></select></label>
+        <label>Camera<select class="settings-select call-device-select" data-kind="videoinput" onchange="setCallDevice('videoinput', this.value)"></select></label>
+        <label class="call-speaker-row">Speaker<select class="settings-select call-device-select" data-kind="audiooutput" onchange="setCallDevice('audiooutput', this.value)"></select></label>
+    </div>
+    <div class="call-stage-tiles">
+        <div class="call-stage-screens">
+            <div class="call-tile screen" id="callTilePeerScreen" style="display:none">
+                <video id="callPeerScreenVideo" autoplay playsinline muted></video>
+                <div class="call-tile-label"><i class="fas fa-display"></i><span id="callPeerScreenLabel"></span></div>
+            </div>
+            <div class="call-tile screen" id="callTileMeScreen" style="display:none">
+                <video id="callMeScreenVideo" autoplay playsinline muted></video>
+                <div class="call-tile-label"><i class="fas fa-display"></i><span>Your screen</span></div>
+            </div>
+        </div>
+        <div class="call-stage-people"><div class="call-people-grid">
+        <div class="call-tile" id="callTilePeer">
+            <div class="call-tile-avatar" id="callTilePeerAvatar"></div>
+            <video id="callPeerCamVideo" autoplay playsinline muted></video>
+            <div class="call-tile-label" id="callTilePeerLabel"></div>
+        </div>
+        <div class="call-tile" id="callTileMe">
+            <div class="call-tile-avatar" id="callTileMeAvatar"></div>
+            <video id="callMeCamVideo" class="mirror" autoplay playsinline muted></video>
+            <div class="call-tile-label" id="callTileMeLabel"></div>
+        </div>
+        </div></div>
+    </div>
+    <div class="call-stage-controls" id="callStageActions"></div>
+</div>
+
 <div id="toast"></div>
 
 <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="handleAvatarUpload(event)">
@@ -5689,7 +6152,8 @@
             sessionStorage.getItem('xorbit_auth_session') ||
             localStorage.getItem('xorbit_auth_session');
 
-        if (sharedAuth) {
+        // The iOS app has its own login, not the desktop's
+        if (sharedAuth && !window.JITTER_IOS_APP) {
             try {
                 const session = JSON.parse(sharedAuth);
                 if (session.authenticated && session.email) {
@@ -5749,6 +6213,7 @@
        INIT
     ────────────────────────────────────────────────── */
     window.addEventListener('load', () => {
+        if (window.JITTER_IOS_APP) { initApp(); return; }
         // Must be inside an iframe
         if (window.self === window.top) {
             showBlockedPage();
@@ -5805,6 +6270,7 @@
     }
 
     function restoreSidebarState() {
+        if (window.JITTER_IOS_APP) return;
         if (localStorage.getItem('jittery_sidebar_collapsed') === '1') {
             const sidebar = document.getElementById('dmSidebar');
             const icon    = document.getElementById('collapseIcon');
@@ -5841,6 +6307,8 @@
         if (friendshipSub)              { friendshipSub.unsubscribe();              friendshipSub              = null; }
         if (typingChannel)              { typingChannel.unsubscribe();              typingChannel              = null; }
         if (globalMessagesSubscription) { globalMessagesSubscription.unsubscribe(); globalMessagesSubscription = null; }
+        endCall(true);
+        if (callInbox)                  { sb.removeChannel(callInbox);              callInbox                  = null; }
     }
 
     /* ──────────────────────────────────────────────────
@@ -6020,6 +6488,9 @@
         subscribeToFriendships();
         requestNotificationPermission();
         subscribeToAllMessages();
+        subscribeToCallInbox();
+        // Lets the desktop hand over a call that was accepted from its toast
+        if (window.parent !== window) window.parent.postMessage({ type: 'jitter-ready' }, '*');
 
         // Pre-load servers list (but don't switch tab)
         loadUserServers();
@@ -6199,6 +6670,7 @@
 
         document.getElementById('emptyState').style.display = 'none';
         document.getElementById('chatArea').style.display   = 'flex';
+        setMobileChatOpen(true);
         updateRequestBanner();
 
         hideTypingIndicator();
@@ -6206,6 +6678,59 @@
         await loadMessages(convId);
         subscribeToMessages(convId);
         subscribeToTyping(convId);
+        updateCallButton();
+    }
+
+    /* ── iOS app navigation: list ⇄ chat ── */
+    function setMobileChatOpen(open) {
+        if (window.JITTER_IOS_APP) document.documentElement.classList.toggle('chat-open', open);
+    }
+
+    // Back to the list. Leaving the chat stops treating it as "open", so its
+    // messages notify again and aren't marked read in the background.
+    function mobileBack() {
+        setMobileChatOpen(false);
+        document.activeElement && document.activeElement.blur();
+        hideTypingIndicator();
+        if (activeConvId) {
+            if (messagesSubscription) { messagesSubscription.unsubscribe(); messagesSubscription = null; }
+            if (typingChannel) { typingChannel.unsubscribe(); typingChannel = null; }
+            activeConvId = null;
+            document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('active'));
+        }
+        if (activeChannelId) {
+            if (serverMsgSubscription) { sb.removeChannel(serverMsgSubscription); serverMsgSubscription = null; }
+            activeChannelId = null;
+            renderChannelList();
+        }
+    }
+
+    if (window.JITTER_IOS_APP) {
+        // Size the app to the visible area so the keyboard pushes the composer up
+        const fitViewport = () => {
+            const vv = window.visualViewport;
+            const h = vv ? vv.height : window.innerHeight;
+            document.documentElement.style.setProperty('--app-h', h + 'px');
+            document.documentElement.classList.toggle('keyboard-open', window.innerHeight - h > 120);
+            window.scrollTo(0, 0);
+        };
+        (window.visualViewport || window).addEventListener('resize', fitViewport);
+        window.addEventListener('orientationchange', fitViewport);
+        fitViewport();
+
+        // Swipe right from the left edge to go back, like other iOS apps
+        let swipeX = null, swipeY = null;
+        document.addEventListener('touchstart', e => {
+            const t = e.touches[0];
+            swipeX = document.documentElement.classList.contains('chat-open') && t.clientX < 28 ? t.clientX : null;
+            swipeY = t.clientY;
+        }, { passive: true });
+        document.addEventListener('touchend', e => {
+            if (swipeX === null) return;
+            const t = e.changedTouches[0];
+            if (t.clientX - swipeX > 80 && Math.abs(t.clientY - swipeY) < 60) mobileBack();
+            swipeX = null;
+        }, { passive: true });
     }
 
     function hideChatArea() {
@@ -6301,6 +6826,7 @@
 
             const safeReplyPreview = (msg.message || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'").substring(0, 80);
             reactionSnapshot[msg.id] = JSON.stringify(msg.reactions || {});
+            messageSnapshot[msg.id]  = msg.message;
             const reactBtn = msg.undelivered ? '' : `<button class="msg-reply-btn" onclick="openReactionPicker(event,'${escAttr(msg.id)}')" title="React"><i class="far fa-face-smile"></i></button>`;
             const replyBtn = msg.undelivered ? '' : `<button class="msg-reply-btn" onclick="startReply('${escAttr(msg.id)}','${escAttr(senderDisplay)}','${safeReplyPreview}')" title="Reply"><i class="fas fa-reply"></i></button>`;
 
@@ -6325,6 +6851,8 @@
                    </div>`
                 : hangmanInviteCode(msg.message)
                 ? hangmanInviteCard(hangmanInviteCode(msg.message), senderDisplay, isMine)
+                : callLogState(msg.message)
+                ? callLogCard(callLogState(msg.message), senderDisplay, isMine, msg.created_at)
                 : sharedAppName(msg.message)
                 ? sharedAppCard(sharedAppName(msg.message), senderDisplay, isMine)
                 : filterView === 'block'
@@ -6413,6 +6941,45 @@
         </div>`;
     }
 
+    // Calls are logged as a normal message in a fixed format (see logCallStart / finishCallLog),
+    // so conversation previews and notifications read sensibly
+    const CALL_LOG_TEXT = { active: '📞 Voice call in progress', missed: '📞 Missed voice call' };
+    const CALL_LOG_STALE_MS = 6 * 60 * 60 * 1000; // an "in progress" card this old lost its caller mid-call
+
+    function callLogState(text) {
+        if (typeof text !== 'string') return null;
+        if (text === CALL_LOG_TEXT.active) return { state: 'active' };
+        if (text === CALL_LOG_TEXT.missed) return { state: 'missed' };
+        const m = text.match(/^📞 Voice call · (\d+:\d{2})$/);
+        return m ? { state: 'ended', duration: m[1] } : null;
+    }
+
+    function callLogText(durationMs) {
+        return `📞 Voice call · ${fmtCallDuration(durationMs)}`;
+    }
+
+    function callLogCard(log, senderName, isMine, createdAt) {
+        const state = log.state === 'active' && Date.now() - new Date(createdAt) > CALL_LOG_STALE_MS ? 'ended' : log.state;
+        const [icon, eyebrow, title] = {
+            active: ['fa-phone-volume', '<span class="call-log-live"></span>In progress', 'Voice call'],
+            ended:  ['fa-phone', isMine ? 'Outgoing call' : 'Incoming call', log.duration ? `Voice call · ${log.duration}` : 'Voice call'],
+            missed: ['fa-phone-slash', 'Missed call', isMine ? 'No answer' : `${escHtml(senderName)} called you`],
+        }[state];
+        const callBack = state === 'active' ? '' : `<div class="game-invite-body">
+                <button class="game-invite-btn" onclick="startCall()"><i class="fas fa-phone"></i> Call ${isMine ? 'again' : 'back'}</button>
+            </div>`;
+        return `<div class="message-bubble game-invite call-log ${state}">
+            <div class="game-invite-top">
+                <div class="game-invite-icon"><i class="fas ${icon}"></i></div>
+                <div>
+                    <div class="game-invite-eyebrow">${eyebrow}</div>
+                    <div class="game-invite-title">${title}</div>
+                </div>
+            </div>
+            ${callBack}
+        </div>`;
+    }
+
     // Ask the desktop shell to open the shared app
     function openSharedApp(name) {
         if (window.parent === window) {
@@ -6453,9 +7020,10 @@
                 table: 'dm_messages',
                 filter: `conversation_id=eq.${convId}`
             }, (payload) => {
-                // Read flags arrive here too; only redraw when a reaction changed
+                // Read flags arrive here too; only redraw when a reaction or the text (a call card) changed
                 const row = payload.new || {};
-                if (JSON.stringify(row.reactions || {}) !== reactionSnapshot[row.id]) loadMessages(convId, true);
+                if (JSON.stringify(row.reactions || {}) !== reactionSnapshot[row.id] ||
+                    (row.message !== undefined && row.message !== messageSnapshot[row.id])) loadMessages(convId, true);
             })
             .subscribe();
     }
@@ -6468,6 +7036,7 @@
     ────────────────────────────────────────────────── */
     const REACTIONS = ['❤️', '👍', '👎', '😂', '‼️', '❓'];
     const reactionSnapshot = {};   // message id -> JSON of the reactions last drawn
+    const messageSnapshot  = {};   // message id -> text last drawn (call cards change when the call ends)
     let reactionPickerMsgId = null;
 
     function reactionsHTML(msg) {
@@ -6711,12 +7280,12 @@
 
     // Inserts the message, then bumps the conversation and un-hides it for the recipient
     async function insertDMMessage(conv, fields) {
-        const { error } = await sb.from('dm_messages').insert([{
+        const { data, error } = await sb.from('dm_messages').insert([{
             conversation_id: conv.id,
             sender_email:    currentUser.email,
             sender_name:     currentUser.display_name || currentUser.username || currentUser.name,
             ...fields,
-        }]);
+        }]).select('id').single();
         if (error) throw error;
 
         const text = fields.message;
@@ -6728,6 +7297,7 @@
             convUpdate[conv.participant_1_email === currentUser.email ? 'hidden_for_p2' : 'hidden_for_p1'] = false;
         }
         await sb.from('dm_conversations').update(convUpdate).eq('id', conv.id);
+        return data && data.id;
     }
 
     // Finds the 1:1 conversation with someone, or creates it. A new one with a
@@ -7110,7 +7680,7 @@
     /* ── VERSION ─────────────────────────────────────────
        Shown under your name in the sidebar so you can tell which build is loaded.
        Bump it with every change to this file: date as YYMMDD, then a counter for that day. */
-    const JITTER_VERSION = '261014-2';
+    const JITTER_VERSION = '261027-10';
     document.getElementById('jitterVersion').textContent = 'Jitter v' + JITTER_VERSION;
 
     /* ── SETTINGS ─────────────────────────────────────── */
@@ -7119,6 +7689,7 @@
         document.getElementById('chatMessagePrivacy').checked = messagePrivacy;
         document.getElementById('chatMessageFilter').value = myMessageFilter;
         document.getElementById('settingsVersion').textContent = 'Jitter v' + JITTER_VERSION;
+        refreshCallDeviceSelects();
         // Always re-read the saved value rather than trusting the cache
         delete msgRequestPref[currentUser.email];
         acceptsMessageRequests(currentUser.email).then(on => {
@@ -8279,6 +8850,838 @@
     }
 
     /* ──────────────────────────────────────────────────
+       AUDIO CALLS
+       1:1 voice calls over WebRTC. Supabase Realtime broadcast carries the signalling:
+       everyone listens on `jcall:<email>` for ring / cancel / decline / busy, and both
+       sides of a call join `jcall-session:<callId>` for accept / offer / answer / ice / hangup.
+       When a direct connection isn't possible (strict school / work networks) audio goes through
+       the coturn relay on the VPS; its short-lived credentials come from the turn-credentials function.
+    ────────────────────────────────────────────────── */
+    const CALL_STUN_SERVERS    = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
+    const CALL_RING_TIMEOUT_MS = 30000;
+
+    let callInbox = null; // my jcall:<email> channel
+    let callTurnCache = null; // { servers, expiresAt }
+
+    // STUN plus the TURN relay; if the credentials can't be fetched, calls still work on direct connections
+    async function getCallIceServers() {
+        if (callTurnCache && callTurnCache.expiresAt > Date.now()) return callTurnCache.servers;
+        try {
+            const { data, error } = await sb.functions.invoke('turn-credentials');
+            if (error || !data || !data.iceServers) throw error || new Error('no iceServers');
+            const servers = [...CALL_STUN_SERVERS, ...data.iceServers];
+            callTurnCache = { servers, expiresAt: Date.now() + (data.ttl - 600) * 1000 };
+            return servers;
+        } catch (err) {
+            console.warn('TURN credentials unavailable, using STUN only:', err);
+            return CALL_STUN_SERVERS;
+        }
+    }
+    let call      = null; // { id, role, state, peerEmail, peerName, pc, stream, session, pendingIce, ringTimer, tickTimer, dropTimer, startedAt, muted }
+
+    function myCallName() {
+        return currentUser.display_name || currentUser.username || currentUser.name;
+    }
+
+    function subscribeToCallInbox() {
+        if (callInbox) sb.removeChannel(callInbox);
+        callInbox = sb.channel(`jcall:${currentUser.email}`)
+            .on('broadcast', { event: 'ring' },    ({ payload }) => onCallRing(payload))
+            .on('broadcast', { event: 'cancel' },  ({ payload }) => onCallRemoteEnd(payload, 'Missed call'))
+            .on('broadcast', { event: 'decline' }, ({ payload }) => onCallRemoteEnd(payload, 'Call declined'))
+            .on('broadcast', { event: 'busy' },    ({ payload }) => onCallRemoteEnd(payload, 'They\'re on another call'))
+            // Another of my own tabs picked up or declined this call
+            .on('broadcast', { event: 'taken' },   ({ payload }) => onCallRemoteEnd(payload, null))
+            .subscribe();
+    }
+
+    // One-off message to someone else's inbox: join their channel, send, leave
+    function sendToCallInbox(email, event, payload) {
+        return new Promise(resolve => {
+            const ch = sb.channel(`jcall:${email}`);
+            const done = () => { sb.removeChannel(ch); resolve(); };
+            const giveUp = setTimeout(done, 5000);
+            ch.subscribe(status => {
+                if (status !== 'SUBSCRIBED') return;
+                ch.send({ type: 'broadcast', event, payload }).finally(() => { clearTimeout(giveUp); done(); });
+            });
+        });
+    }
+
+    function joinCallSession(callId) {
+        return new Promise(resolve => {
+            const ch = sb.channel(`jcall-session:${callId}`)
+                .on('broadcast', { event: 'accept' }, () => onCallAccepted())
+                .on('broadcast', { event: 'offer' },  ({ payload }) => onCallOffer(payload))
+                .on('broadcast', { event: 'answer' }, ({ payload }) => onCallAnswer(payload))
+                .on('broadcast', { event: 'ice' },    ({ payload }) => onCallIce(payload))
+                .on('broadcast', { event: 'logged' }, ({ payload }) => { if (call && payload.id) call.logId = payload.id; })
+                .on('broadcast', { event: 'mute' },   ({ payload }) => { if (call) { call.peerMuted = !!payload.muted; renderCallOverlay(); } })
+                .on('broadcast', { event: 'video' },  ({ payload }) => onCallPeerVideo(payload))
+                .on('broadcast', { event: 'hangup' }, () => { if (call) endCall(false, 'Call ended'); });
+            ch.subscribe(status => { if (status === 'SUBSCRIBED') resolve(ch); });
+        });
+    }
+
+    function sendToCallSession(event, payload = {}) {
+        if (!call || !call.session) return;
+        call.session.send({ type: 'broadcast', event, payload });
+    }
+
+    async function getCallMic() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showToast('Calls aren\'t supported in this browser');
+            return null;
+        }
+        try {
+            return await navigator.mediaDevices.getUserMedia({ audio: callAudioConstraints() });
+        } catch (_) {
+            showToast('Microphone access was blocked');
+            return null;
+        }
+    }
+
+    function createCallPeer(iceServers) {
+        const pc = new RTCPeerConnection({ iceServers });
+        call.stream.getTracks().forEach(t => pc.addTrack(t, call.stream));
+        // Two empty video slots (camera, then screen) are negotiated up front, so turning
+        // either on later is just replaceTrack: no renegotiation mid-call.
+        // The callee gets matching slots from the offer (see onCallOffer).
+        if (call.role === 'caller') {
+            pc.addTransceiver('video', { direction: 'sendrecv' });
+            pc.addTransceiver('video', { direction: 'sendrecv' });
+        }
+        pc.onicecandidate = e => { if (e.candidate) sendToCallSession('ice', { candidate: e.candidate.toJSON() }); };
+        pc.ontrack = e => {
+            if (e.track.kind === 'audio') {
+                const audio = document.getElementById('callRemoteAudio');
+                audio.srcObject = e.streams[0] || new MediaStream([e.track]);
+                applyCallSpeaker();
+                audio.play().catch(() => {});
+                return;
+            }
+            const slot = callVideoTransceiver('cam') === e.transceiver ? 'cam' : 'screen';
+            call.remoteVideo[slot] = new MediaStream([e.track]);
+            renderCallOverlay();
+        };
+        pc.onconnectionstatechange = () => {
+            if (!call || call.pc !== pc) return;
+            const st = pc.connectionState;
+            if (st === 'connected') {
+                clearTimeout(call.dropTimer);
+                if (call.state !== 'active') {
+                    call.state     = 'active';
+                    call.startedAt = Date.now();
+                    call.tickTimer = setInterval(renderCallOverlay, 1000);
+                    renderCallOverlay();
+                    if (call.role === 'caller') logCallStart();
+                }
+            } else if (st === 'disconnected') {
+                // Often recovers by itself; give it a moment before giving up
+                clearTimeout(call.dropTimer);
+                call.dropTimer = setTimeout(() => { if (call && call.pc === pc) endCall(true, 'Call dropped'); }, 10000);
+            } else if (st === 'failed') {
+                endCall(true, call.state === 'active' ? 'Call dropped' : 'Couldn\'t connect the call');
+            }
+        };
+        call.pc = pc;
+        return pc;
+    }
+
+    /* ── Placing a call ── */
+    async function startCall() {
+        if (call) { showToast('You\'re already in a call'); return; }
+        const conv = conversations.find(c => c.id === activeConvId);
+        if (!conv || conv.is_group) return;
+        const peerEmail = getOtherEmail(conv);
+        if (blockedEmails.has(peerEmail) || blockedByEmails.has(peerEmail)) { showToast('You can\'t call this user'); return; }
+
+        const [stream] = await Promise.all([getCallMic(), getCallIceServers()]);
+        if (!stream) return;
+        if (call) { stream.getTracks().forEach(t => t.stop()); return; } // a call came in while the mic prompt was open
+
+        const id = crypto.randomUUID();
+        call = { id, role: 'caller', state: 'ringing', peerEmail, peerName: getOtherName(conv), convId: conv.id, stream, pendingIce: [], muted: false, ...callVideoDefaults() };
+        renderCallOverlay();
+        startCallTone('ringback');
+
+        call.session = await joinCallSession(id);
+        if (!call || call.id !== id) return;
+        await sendToCallInbox(peerEmail, 'ring', { callId: id, email: currentUser.email, name: myCallName(), convId: conv.id });
+        if (!call || call.id !== id) return;
+        call.ringTimer = setTimeout(() => {
+            if (call && call.id === id && call.state === 'ringing') endCall(true, 'No answer');
+        }, CALL_RING_TIMEOUT_MS);
+    }
+
+    // Caller: the other side picked up, so start the WebRTC handshake
+    async function onCallAccepted() {
+        if (!call || call.role !== 'caller' || call.state !== 'ringing') return;
+        clearTimeout(call.ringTimer);
+        stopCallTone();
+        call.state = 'connecting';
+        renderCallOverlay();
+        const id = call.id;
+        const iceServers = await getCallIceServers(); // cached from startCall, so normally instant
+        if (!call || call.id !== id) return;
+        const pc = createCallPeer(iceServers);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        sendToCallSession('offer', { sdp: pc.localDescription.toJSON() });
+    }
+
+    async function onCallAnswer({ sdp }) {
+        if (!call || !call.pc || call.role !== 'caller') return;
+        await call.pc.setRemoteDescription(sdp);
+        flushPendingIce();
+    }
+
+    /* ── Receiving a call ── */
+    function onCallRing({ callId, email, name, convId }) {
+        if (!callId || !email || email === currentUser.email) return;
+        if (blockedEmails.has(email) || blockedByEmails.has(email)) return;
+        if (call) {
+            if (call.id !== callId) sendToCallInbox(email, 'busy', { callId });
+            return;
+        }
+        call = { id: callId, role: 'callee', state: 'incoming', peerEmail: email, peerName: nicknameFor(email) || name || email, convId, pendingIce: [], muted: false, ...callVideoDefaults() };
+        loadAvatarsForEmails([email]).then(renderCallOverlay);
+        renderCallOverlay();
+        startCallTone('ring');
+        showDesktopNotification('Incoming call', `${call.peerName} is calling you`);
+        // The caller gives up after CALL_RING_TIMEOUT_MS; stop ringing here too in case their cancel never arrives
+        call.ringTimer = setTimeout(() => {
+            if (call && call.id === callId && call.state === 'incoming') endCall(false, 'Missed call');
+        }, CALL_RING_TIMEOUT_MS + 5000);
+    }
+
+    async function acceptCall() {
+        if (!call || call.state !== 'incoming') return;
+        const id = call.id;
+        clearTimeout(call.ringTimer);
+        stopCallTone();
+        call.state = 'connecting';
+        renderCallOverlay();
+
+        const [stream, iceServers] = await Promise.all([getCallMic(), getCallIceServers()]);
+        if (!call || call.id !== id) { stream && stream.getTracks().forEach(t => t.stop()); return; }
+        if (!stream) { declineCall(); return; }
+        call.stream = stream;
+        createCallPeer(iceServers);
+        call.session = await joinCallSession(id);
+        if (!call || call.id !== id) return;
+        callInbox && callInbox.send({ type: 'broadcast', event: 'taken', payload: { callId: id } });
+        sendToCallSession('accept');
+    }
+
+    function declineCall() {
+        if (!call || call.role !== 'callee') return;
+        const { id, peerEmail } = call;
+        sendToCallInbox(peerEmail, 'decline', { callId: id });
+        callInbox && callInbox.send({ type: 'broadcast', event: 'taken', payload: { callId: id } });
+        endCall(false);
+    }
+
+    // Callee: answer the caller's offer
+    async function onCallOffer({ sdp }) {
+        if (!call || !call.pc || call.role !== 'callee') return;
+        await call.pc.setRemoteDescription(sdp);
+        // Slots created from the offer default to receive-only; make them two-way so we can send video too
+        call.pc.getTransceivers().forEach(t => { if (t.receiver.track.kind === 'video') t.direction = 'sendrecv'; });
+        flushPendingIce();
+        const answer = await call.pc.createAnswer();
+        await call.pc.setLocalDescription(answer);
+        sendToCallSession('answer', { sdp: call.pc.localDescription.toJSON() });
+    }
+
+    /* ── Shared ── */
+    function onCallIce({ candidate }) {
+        if (!call || !call.pc || !candidate) return;
+        if (!call.pc.remoteDescription) { call.pendingIce.push(candidate); return; }
+        call.pc.addIceCandidate(candidate).catch(() => {});
+    }
+
+    function flushPendingIce() {
+        if (!call || !call.pc) return;
+        call.pendingIce.forEach(c => call.pc.addIceCandidate(c).catch(() => {}));
+        call.pendingIce = [];
+    }
+
+    // Caller posts the "in progress" card once the call connects and tells the other side its id,
+    // so whichever side ends the call can turn it into the duration
+    async function logCallStart() {
+        const c = call;
+        const conv = conversations.find(cv => cv.id === c.convId);
+        if (!conv) return;
+        try {
+            c.logId = await insertDMMessage(conv, { message: CALL_LOG_TEXT.active });
+            if (call === c) sendToCallSession('logged', { id: c.logId });
+            else finishCallLog(c); // the call ended while the card was being posted
+        } catch (err) {
+            console.error('Call log failed:', err);
+        }
+    }
+
+    async function finishCallLog(c) {
+        try {
+            if (c.logId) {
+                const text = callLogText(c.endedAt - c.startedAt);
+                await sb.from('dm_messages').update({ message: text }).eq('id', c.logId);
+                await sb.from('dm_conversations').update({ last_message_preview: text })
+                    .eq('id', c.convId).eq('last_message_preview', CALL_LOG_TEXT.active);
+            } else if (c.role === 'caller' && !c.startedAt) {
+                const conv = conversations.find(cv => cv.id === c.convId);
+                if (conv) await insertDMMessage(conv, { message: CALL_LOG_TEXT.missed });
+            }
+        } catch (err) {
+            console.error('Call log failed:', err);
+        }
+    }
+
+    function onCallRemoteEnd({ callId } = {}, message) {
+        if (!call || call.id !== callId) return;
+        endCall(false, message);
+    }
+
+    // notifyPeer: tell the other side we're leaving (hangup if they joined, cancel if still ringing)
+    function endCall(notifyPeer = true, message = null) {
+        if (!call) return;
+        const c = call;
+        call = null;
+
+        if (notifyPeer) {
+            if (c.role === 'caller' && c.state === 'ringing') {
+                sendToCallInbox(c.peerEmail, 'cancel', { callId: c.id });
+            } else if (c.session) {
+                c.session.send({ type: 'broadcast', event: 'hangup', payload: {} });
+            }
+        }
+        clearTimeout(c.ringTimer);
+        clearTimeout(c.dropTimer);
+        clearInterval(c.tickTimer);
+        stopCallTone();
+        if (c.stream) c.stream.getTracks().forEach(t => t.stop());
+        if (c.camStream) c.camStream.getTracks().forEach(t => t.stop());
+        if (c.screenStream) c.screenStream.getTracks().forEach(t => t.stop());
+        if (c.pc) c.pc.close();
+        // Let the hangup broadcast go out before leaving the channel
+        if (c.session) setTimeout(() => sb.removeChannel(c.session), 500);
+        const audio = document.getElementById('callRemoteAudio');
+        audio.srcObject = null;
+        c.endedAt = Date.now();
+        finishCallLog(c);
+
+        renderCallOverlay();
+        updateCallButton();
+        if (message) {
+            const mins = c.startedAt ? fmtCallDuration(Date.now() - c.startedAt) : '';
+            showToast(mins ? `${message} · ${mins}` : message);
+        }
+    }
+
+    function toggleCallMute() {
+        if (!call || !call.stream) return;
+        call.muted = !call.muted;
+        call.stream.getAudioTracks().forEach(t => { t.enabled = !call.muted; });
+        sendToCallSession('mute', { muted: call.muted });
+        renderCallOverlay();
+    }
+
+    function fmtCallDuration(ms) {
+        const s = Math.floor(ms / 1000);
+        return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    }
+
+    // Mirror ringing to the X-ORBIT desktop so it can show an Accept / Decline toast
+    let desktopCallState = 'none';
+    function tellDesktopCallState() {
+        const state = call && call.state === 'incoming' ? 'incoming' : 'none';
+        if (state === desktopCallState || window.parent === window) return;
+        desktopCallState = state;
+        window.parent.postMessage(state === 'incoming'
+            ? { type: 'jitter-call', state, callId: call.id, email: call.peerEmail, name: call.peerName, convId: call.convId }
+            : { type: 'jitter-call', state }, '*');
+    }
+
+    window.addEventListener('message', (e) => {
+        const d = e.data;
+        if (!d || e.source !== window.parent) return;
+        if (d.type === 'jitter-call-action' && call && call.id === d.callId && call.state === 'incoming') {
+            if (d.action === 'accept') { acceptCall(); openCallStage(); }
+            else if (d.action === 'decline') declineCall();
+        } else if (d.type === 'jitter-accept-call' && d.ring && currentUser) {
+            // Accepted from the desktop toast before Jitter was open
+            if (!call) onCallRing(d.ring);
+            if (call && call.id === d.ring.callId && call.state === 'incoming') { acceptCall(); openCallStage(); }
+        }
+    });
+
+    function renderCallOverlay() {
+        tellDesktopCallState();
+        const el = document.getElementById('callOverlay');
+        if (!call) {
+            el.className = 'call-overlay';
+            if (callStageOpen) closeCallStage();
+            updateCallButton();
+            return;
+        }
+
+        el.className = 'call-overlay show' + (call.state === 'incoming' ? ' incoming' : '');
+        document.getElementById('callAvatar').innerHTML = avatarHTML(call.peerName, call.peerEmail);
+        document.getElementById('callName').textContent = call.peerName;
+        const status = {
+            ringing:    'Calling…',
+            incoming:   'Incoming voice call',
+            connecting: 'Connecting…',
+            active:     call.startedAt ? fmtCallDuration(Date.now() - call.startedAt) : '',
+        }[call.state] || '';
+        document.getElementById('callStatus').textContent = status;
+        document.getElementById('callActions').innerHTML = callActionsHTML();
+        renderCallStage(status);
+        updateCallButton();
+    }
+
+    function callActionsHTML(full = false) {
+        if (call.state === 'incoming') {
+            return `<button class="call-action hangup" onclick="declineCall()" title="Decline"><i class="fas fa-phone-slash"></i></button>` +
+                   `<button class="call-action accept" onclick="acceptCall()" title="Accept"><i class="fas fa-phone"></i></button>`;
+        }
+        const mute = call.stream
+            ? `<button class="call-action${call.muted ? ' muted' : ''}" onclick="toggleCallMute()" title="${call.muted ? 'Unmute' : 'Mute'}"><i class="fas fa-microphone${call.muted ? '-slash' : ''}"></i></button>`
+            : '';
+        const video = full && call.state === 'active'
+            ? `<button class="call-action${call.camStream ? ' on' : ''}" onclick="toggleCallCamera()" title="${call.camStream ? 'Turn off camera' : 'Turn on camera'}"><i class="fas fa-video${call.camStream ? '' : '-slash'}"></i></button>` +
+              (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia
+                ? `<button class="call-action${call.screenStream ? ' on' : ''}" onclick="toggleCallScreen()" title="${call.screenStream ? 'Stop sharing' : 'Share your screen'}"><i class="fas fa-display"></i></button>`
+                : '')
+            : '';
+        return mute + video +
+            `<button class="call-action hangup" onclick="endCall(true)" title="${call.state === 'ringing' ? 'Cancel' : 'Hang up'}"><i class="fas fa-phone-slash"></i></button>`;
+    }
+
+    /* ── Device choice (Settings › Voice & video, and the gear in the call view) ──
+       Saved per browser; "" means the system default. Saved ids are "ideal" when a call
+       starts so an unplugged device falls back to the default instead of failing. */
+    const CALL_DEVICES_KEY = 'jittery_call_devices';
+    const CALL_DEVICE_NAMES = { audioinput: 'Microphone', videoinput: 'Camera', audiooutput: 'Speaker' };
+    const canPickSpeaker = typeof HTMLMediaElement !== 'undefined' && 'setSinkId' in HTMLMediaElement.prototype;
+
+    function callDevicePrefs() {
+        try { return JSON.parse(localStorage.getItem(CALL_DEVICES_KEY) || '{}') || {}; } catch (_) { return {}; }
+    }
+
+    function callAudioConstraints(exactId) {
+        const id = exactId !== undefined ? exactId : callDevicePrefs().audioinput;
+        const c = { echoCancellation: true, noiseSuppression: true };
+        if (id) c.deviceId = exactId !== undefined ? { exact: id } : { ideal: id };
+        return c;
+    }
+
+    function callVideoConstraints(exactId) {
+        const id = exactId !== undefined ? exactId : callDevicePrefs().videoinput;
+        const c = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
+        if (id) c.deviceId = exactId !== undefined ? { exact: id } : { ideal: id };
+        return c;
+    }
+
+    async function refreshCallDeviceSelects() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+        let devices = [];
+        try { devices = await navigator.mediaDevices.enumerateDevices(); } catch (_) {}
+        const prefs = callDevicePrefs();
+        const counts = {};
+        const byKind = { audioinput: [], videoinput: [], audiooutput: [] };
+        devices.forEach(d => {
+            if (!byKind[d.kind] || d.deviceId === 'default' || d.deviceId === 'communications' || !d.deviceId) return;
+            counts[d.kind] = (counts[d.kind] || 0) + 1;
+            byKind[d.kind].push({ id: d.deviceId, label: d.label || `${CALL_DEVICE_NAMES[d.kind]} ${counts[d.kind]}` });
+        });
+        const namesHidden = devices.some(d => (d.kind === 'audioinput' || d.kind === 'videoinput') && !d.label);
+
+        document.querySelectorAll('.call-device-select').forEach(sel => {
+            const kind = sel.dataset.kind;
+            sel.innerHTML = '<option value="">System default</option>' +
+                byKind[kind].map(d => `<option value="${escHtml(d.id).replace(/"/g, '&quot;')}">${escHtml(d.label)}</option>`).join('');
+            sel.value = byKind[kind].some(d => d.id === prefs[kind]) ? prefs[kind] : '';
+        });
+        document.querySelectorAll('.call-speaker-row').forEach(el => { el.style.display = canPickSpeaker ? '' : 'none'; });
+        document.querySelectorAll('.call-device-unlock').forEach(el => { el.style.display = namesHidden ? '' : 'none'; });
+    }
+
+    // Labels only appear once the page has been allowed to use the mic / camera
+    async function unlockCallDeviceNames() {
+        for (const constraints of [{ audio: true, video: true }, { audio: true }]) {
+            try {
+                const s = await navigator.mediaDevices.getUserMedia(constraints);
+                s.getTracks().forEach(t => t.stop());
+                break;
+            } catch (_) {}
+        }
+        refreshCallDeviceSelects();
+    }
+
+    async function setCallDevice(kind, id) {
+        const prefs = callDevicePrefs();
+        prefs[kind] = id;
+        try { localStorage.setItem(CALL_DEVICES_KEY, JSON.stringify(prefs)); } catch (_) {}
+        document.querySelectorAll(`.call-device-select[data-kind="${kind}"]`).forEach(sel => { sel.value = id; });
+
+        if (!call) return;
+        try {
+            if (kind === 'audioinput' && call.stream) {
+                const c = call;
+                const fresh = await navigator.mediaDevices.getUserMedia({ audio: callAudioConstraints(id || undefined) });
+                if (call !== c) { fresh.getTracks().forEach(t => t.stop()); return; }
+                const track = fresh.getAudioTracks()[0];
+                track.enabled = !c.muted;
+                const sender = c.pc && c.pc.getSenders().find(s => s.track && s.track.kind === 'audio');
+                if (sender) await sender.replaceTrack(track);
+                c.stream.getTracks().forEach(t => t.stop());
+                c.stream = fresh;
+            } else if (kind === 'videoinput' && call.camStream) {
+                const c = call;
+                const fresh = await navigator.mediaDevices.getUserMedia({ video: callVideoConstraints(id || undefined) });
+                if (call !== c || !c.camStream) { fresh.getTracks().forEach(t => t.stop()); return; }
+                await setCallVideoTrack('cam', fresh.getVideoTracks()[0]);
+                c.camStream.getTracks().forEach(t => t.stop());
+                c.camStream = fresh;
+            } else if (kind === 'audiooutput') {
+                await applyCallSpeaker();
+            }
+            renderCallOverlay();
+        } catch (_) {
+            showToast(`Couldn't switch to that ${CALL_DEVICE_NAMES[kind].toLowerCase()}`);
+        }
+    }
+
+    function applyCallSpeaker() {
+        const audio = document.getElementById('callRemoteAudio');
+        if (!canPickSpeaker) return Promise.resolve();
+        return audio.setSinkId(callDevicePrefs().audiooutput || '').catch(() => {});
+    }
+
+    function toggleCallDevicePanel() {
+        const panel = document.getElementById('callDevicePanel');
+        const show = !panel.classList.contains('show');
+        panel.classList.toggle('show', show);
+        if (show) refreshCallDeviceSelects();
+    }
+
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+        navigator.mediaDevices.addEventListener('devicechange', refreshCallDeviceSelects);
+    }
+
+    /* ── Camera and screen sharing ── */
+    function callVideoDefaults() {
+        return { camStream: null, screenStream: null, remoteVideo: { cam: null, screen: null }, peerVideo: { cam: false, screen: false } };
+    }
+
+    // Video transceivers in m-line order: [0] camera, [1] screen (same order on both sides)
+    function callVideoTransceiver(slot) {
+        if (!call || !call.pc) return null;
+        const video = call.pc.getTransceivers().filter(t => t.receiver.track.kind === 'video');
+        return video[slot === 'cam' ? 0 : 1] || null;
+    }
+
+    async function setCallVideoTrack(slot, track) {
+        const tr = callVideoTransceiver(slot);
+        if (!tr) return false;
+        await tr.sender.replaceTrack(track);
+        if (track) {
+            // Cap bitrate: these may run through the relay on the VPS
+            try {
+                const params = tr.sender.getParameters();
+                if (!params.encodings || !params.encodings.length) params.encodings = [{}];
+                params.encodings[0].maxBitrate = slot === 'cam' ? 1000000 : 2500000;
+                await tr.sender.setParameters(params);
+            } catch (_) {}
+        }
+        return true;
+    }
+
+    function sendCallVideoState() {
+        if (!call) return;
+        sendToCallSession('video', { cam: !!call.camStream, screen: !!call.screenStream });
+    }
+
+    function onCallPeerVideo({ cam, screen } = {}) {
+        if (!call) return;
+        const startedSharing = (screen && !call.peerVideo.screen) || (cam && !call.peerVideo.cam);
+        call.peerVideo = { cam: !!cam, screen: !!screen };
+        if (startedSharing && !callStageOpen) openCallStage();
+        else renderCallOverlay();
+    }
+
+    async function toggleCallCamera() {
+        if (!call || call.state !== 'active') return;
+        if (call.camStream) {
+            call.camStream.getTracks().forEach(t => t.stop());
+            call.camStream = null;
+            await setCallVideoTrack('cam', null);
+        } else {
+            let stream;
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: callVideoConstraints() });
+            } catch (_) {
+                showToast('Camera access was blocked');
+                return;
+            }
+            if (!call) { stream.getTracks().forEach(t => t.stop()); return; }
+            call.camStream = stream;
+            await setCallVideoTrack('cam', stream.getVideoTracks()[0]);
+            if (!callStageOpen) openCallStage();
+        }
+        sendCallVideoState();
+        renderCallOverlay();
+    }
+
+    async function toggleCallScreen() {
+        if (!call || call.state !== 'active') return;
+        if (call.screenStream) { stopCallScreen(); return; }
+        if (!navigator.mediaDevices.getDisplayMedia) { showToast('Screen sharing isn\'t supported in this browser'); return; }
+        let stream;
+        try {
+            stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: { ideal: 15, max: 30 } }, audio: false });
+        } catch (_) {
+            return; // picker cancelled
+        }
+        if (!call) { stream.getTracks().forEach(t => t.stop()); return; }
+        const track = stream.getVideoTracks()[0];
+        track.contentHint = 'detail'; // keep text sharp rather than motion smooth
+        track.onended = () => { if (call && call.screenStream === stream) stopCallScreen(); }; // browser's own "Stop sharing" bar
+        call.screenStream = stream;
+        await setCallVideoTrack('screen', track);
+        if (!callStageOpen) openCallStage();
+        sendCallVideoState();
+        renderCallOverlay();
+    }
+
+    async function stopCallScreen() {
+        if (!call || !call.screenStream) return;
+        call.screenStream.getTracks().forEach(t => t.stop());
+        call.screenStream = null;
+        await setCallVideoTrack('screen', null);
+        sendCallVideoState();
+        renderCallOverlay();
+    }
+
+    /* ── Full-screen call view ── */
+    let callStageOpen = false;
+    let callMeterTimer = null;
+    let callMeterCtx = null;
+    const callMeters = {}; // 'me' | 'peer' -> { stream, analyser, buf }
+
+    function openCallStage() {
+        if (!call) return;
+        callStageOpen = true;
+        renderCallOverlay();
+        startCallMeters();
+    }
+
+    function closeCallStage() {
+        callStageOpen = false;
+        document.getElementById('callDevicePanel').classList.remove('show');
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        stopCallMeters();
+        document.getElementById('callStage').classList.remove('show');
+        renderCallOverlay();
+    }
+
+    // Real browser full screen on top of the in-window view
+    function toggleCallFullscreen() {
+        const stage = document.getElementById('callStage');
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+        else if (stage.requestFullscreen) stage.requestFullscreen().catch(() => showToast('Full screen isn\'t allowed here'));
+    }
+    document.addEventListener('fullscreenchange', () => {
+        const icon = document.getElementById('callFullscreenIcon');
+        if (icon) icon.className = 'fas ' + (document.fullscreenElement ? 'fa-compress' : 'fa-expand');
+    });
+
+    function renderCallStage(status) {
+        const stage = document.getElementById('callStage');
+        if (!call || !callStageOpen) {
+            stage.classList.remove('show');
+            // The small card hides while the big view is open
+            if (call) document.getElementById('callOverlay').classList.add('show');
+            return;
+        }
+        stage.classList.add('show');
+        document.getElementById('callOverlay').classList.remove('show');
+        document.getElementById('callStageName').textContent = call.peerName;
+        document.getElementById('callStageStatus').textContent = status;
+
+        const myName = myCallName();
+        const peerAvatar = document.getElementById('callTilePeerAvatar');
+        const peerHTML = avatarHTML(call.peerName, call.peerEmail);
+        if (peerAvatar.dataset.key !== call.peerEmail + peerHTML) { peerAvatar.innerHTML = peerHTML; peerAvatar.dataset.key = call.peerEmail + peerHTML; }
+        const meAvatar = document.getElementById('callTileMeAvatar');
+        const meHTML = avatarHTML(myName, currentUser.email);
+        if (meAvatar.dataset.key !== meHTML) { meAvatar.innerHTML = meHTML; meAvatar.dataset.key = meHTML; }
+
+        const label = (name, muted) => (muted ? '<i class="fas fa-microphone-slash"></i>' : '') + `<span>${escHtml(name)}</span>`;
+        document.getElementById('callTilePeerLabel').innerHTML = label(call.peerName, call.peerMuted);
+        document.getElementById('callTileMeLabel').innerHTML = label(myName + ' (you)', call.muted);
+        document.getElementById('callTilePeer').classList.toggle('waiting', call.state !== 'active');
+        document.getElementById('callStageActions').innerHTML = callActionsHTML(true);
+
+        // Video: camera replaces the avatar in its tile; a shared screen gets its own big tile
+        const peerCam    = call.peerVideo.cam    ? call.remoteVideo.cam    : null;
+        const peerScreen = call.peerVideo.screen ? call.remoteVideo.screen : null;
+        showCallVideo('callTilePeer', 'callPeerCamVideo', peerCam);
+        showCallVideo('callTileMe', 'callMeCamVideo', call.camStream);
+        showCallVideo('callTilePeerScreen', 'callPeerScreenVideo', peerScreen);
+        showCallVideo('callTileMeScreen', 'callMeScreenVideo', call.screenStream);
+        document.getElementById('callTilePeerScreen').style.display = peerScreen ? '' : 'none';
+        document.getElementById('callTileMeScreen').style.display = call.screenStream ? '' : 'none';
+        document.getElementById('callPeerScreenLabel').textContent = `${call.peerName}'s screen`;
+        const tiles = document.querySelector('.call-stage-tiles');
+        tiles.classList.toggle('has-screen', !!(peerScreen || call.screenStream));
+        tiles.classList.toggle('two-screens', !!(peerScreen && call.screenStream));
+    }
+
+    function showCallVideo(tileId, videoId, stream) {
+        const video = document.getElementById(videoId);
+        if (video.srcObject !== stream) {
+            video.srcObject = stream || null;
+            if (stream) video.play().catch(() => {});
+        }
+        document.getElementById(tileId).classList.toggle('has-video', !!stream);
+    }
+
+    // Green ring on whoever is talking: sample each stream's loudness a few times a second
+    function attachCallMeter(key, stream) {
+        if (!stream || (callMeters[key] && callMeters[key].stream === stream)) return;
+        try {
+            callMeterCtx = callMeterCtx || new (window.AudioContext || window.webkitAudioContext)();
+            callMeterCtx.resume().catch(() => {});
+            const analyser = callMeterCtx.createAnalyser();
+            analyser.fftSize = 512;
+            callMeterCtx.createMediaStreamSource(stream).connect(analyser);
+            callMeters[key] = { stream, analyser, buf: new Uint8Array(analyser.fftSize) };
+        } catch (_) {}
+    }
+
+    function startCallMeters() {
+        stopCallMeters();
+        callMeterTimer = setInterval(() => {
+            if (!call) return stopCallMeters();
+            attachCallMeter('me', call.stream);
+            attachCallMeter('peer', document.getElementById('callRemoteAudio').srcObject);
+            [['me', 'callTileMe', call.muted], ['peer', 'callTilePeer', call.peerMuted]].forEach(([key, tileId, muted]) => {
+                const m = callMeters[key];
+                let speaking = false;
+                if (m && !muted) {
+                    m.analyser.getByteTimeDomainData(m.buf);
+                    let sum = 0;
+                    for (let i = 0; i < m.buf.length; i++) { const v = (m.buf[i] - 128) / 128; sum += v * v; }
+                    speaking = Math.sqrt(sum / m.buf.length) > 0.04;
+                }
+                document.getElementById(tileId).classList.toggle('speaking', speaking);
+            });
+        }, 120);
+    }
+
+    function stopCallMeters() {
+        clearInterval(callMeterTimer);
+        callMeterTimer = null;
+        Object.keys(callMeters).forEach(k => delete callMeters[k]);
+        document.querySelectorAll('.call-tile.speaking').forEach(el => el.classList.remove('speaking'));
+    }
+
+    // The phone button in the chat header: only for 1:1 chats, disabled while in a call
+    function updateCallButton() {
+        const btn = document.getElementById('chatCallBtn');
+        if (!btn) return;
+        const conv = conversations.find(c => c.id === activeConvId);
+        btn.style.display = conv && !conv.is_group ? 'flex' : 'none';
+        btn.disabled = !!call;
+    }
+
+    /* Ringtones, generated with WebAudio so there are no audio files to ship.
+       "ring" (incoming) is a bright marimba-style arpeggio in E major; "ringback"
+       (what the caller hears while waiting) is a soft two-note chime. */
+    let callToneCtx = null;
+    let callToneTimer = null;
+    let callToneOut = null; // master gain, so stopping cuts off notes already scheduled
+
+    const NOTE = { E5: 659.25, Gs5: 830.61, A5: 880.00, B5: 987.77, Cs6: 1108.73, E6: 1318.51, A4: 440.00, E4: 329.63 };
+
+    // One mallet-like note: a sine plus quieter overtones, fast attack, long exponential decay
+    function callToneNote(freq, when, { gain = 0.2, decay = 0.9, overtones = [[2, 0.25], [4.02, 0.06]] } = {}) {
+        const ctx = callToneCtx;
+        const env = ctx.createGain();
+        env.gain.setValueAtTime(0.0001, when);
+        env.gain.exponentialRampToValueAtTime(gain, when + 0.006);
+        env.gain.exponentialRampToValueAtTime(0.0001, when + decay);
+        env.connect(callToneOut);
+        [[1, 1], ...overtones].forEach(([mult, level]) => {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq * mult;
+            g.gain.value = level;
+            osc.connect(g).connect(env);
+            osc.start(when);
+            osc.stop(when + decay + 0.05);
+        });
+    }
+
+    function startCallTone(kind) {
+        stopCallTone();
+        try {
+            callToneCtx = callToneCtx || new (window.AudioContext || window.webkitAudioContext)();
+            callToneCtx.resume().catch(() => {});
+        } catch (_) { return; }
+
+        // Master out with a short echo for a bit of space
+        const ctx = callToneCtx;
+        callToneOut = ctx.createGain();
+        callToneOut.gain.value = 1;
+        const delay = ctx.createDelay();
+        const feedback = ctx.createGain();
+        const wet = ctx.createGain();
+        delay.delayTime.value = 0.18;
+        feedback.gain.value = 0.25;
+        wet.gain.value = 0.22;
+        callToneOut.connect(ctx.destination);
+        callToneOut.connect(delay);
+        delay.connect(feedback).connect(delay);
+        delay.connect(wet).connect(ctx.destination);
+        const out = callToneOut;
+
+        const play = () => {
+            if (callToneOut !== out) return;
+            const t = ctx.currentTime + 0.03;
+            if (kind === 'ring') {
+                // Two rising phrases, the second resolving up to the octave
+                const step = 0.13;
+                [NOTE.E5, NOTE.B5, NOTE.Gs5, NOTE.B5].forEach((f, i) => callToneNote(f, t + i * step, { gain: 0.16 }));
+                [NOTE.E5, NOTE.B5, NOTE.Cs6, NOTE.E6].forEach((f, i) => callToneNote(f, t + 0.62 + i * step, { gain: 0.16, decay: i === 3 ? 1.4 : 0.9 }));
+            } else {
+                callToneNote(NOTE.A4, t,        { gain: 0.07, decay: 1.1, overtones: [[2, 0.1]] });
+                callToneNote(NOTE.E5, t + 0.32, { gain: 0.06, decay: 1.4, overtones: [[2, 0.1]] });
+            }
+        };
+        play();
+        callToneTimer = setInterval(play, kind === 'ring' ? 2600 : 3200);
+    }
+
+    function stopCallTone() {
+        clearInterval(callToneTimer);
+        callToneTimer = null;
+        if (callToneOut && callToneCtx) {
+            // Quick fade so a cut-off note doesn't click
+            const out = callToneOut;
+            out.gain.setTargetAtTime(0.0001, callToneCtx.currentTime, 0.03);
+            setTimeout(() => out.disconnect(), 300);
+        }
+        callToneOut = null;
+    }
+
+    window.addEventListener('beforeunload', () => endCall(true));
+
+    /* ──────────────────────────────────────────────────
        SEEN RECEIPT
     ────────────────────────────────────────────────── */
     function updateSeenTick() {
@@ -9360,7 +10763,6 @@
         'cadence':            'Making music in Cadence',
         'settings':           'Tweaking settings',
         'hangman':            'Playing Hangman',
-        'minecraft':          'Playing Minecraft',
         'block-blast':        'Playing Block Blast',
         'dino-run':           'Playing Dino Run',
         'web-dashers':        'Playing Web Dashers',
@@ -9944,6 +11346,7 @@
         const emptyState = document.getElementById('emptyState');
         emptyState.style.display = 'none';
         chatArea.style.display = 'flex';
+        setMobileChatOpen(true);
 
         // Update chat header
         const avatarEl = document.getElementById('chatAvatar');

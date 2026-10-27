@@ -3,7 +3,7 @@
 ## What It Is
 
 A browser-based desktop operating system built entirely in HTML, CSS, and JavaScript.
-Live at: **https://xorbit.org**
+Live at: **https://beta.xorbit.org**
 
 Features:
 - Full windowed desktop environment with resizable/draggable windows, dock, and menu bar
@@ -59,7 +59,7 @@ The service role key is used only inside Edge Functions (server-side). It is nev
 ## Project Structure
 
 ```
-xorbit-main/
+xorbit-beta/
 ├── index.html                  # Landing/marketing page
 ├── auth.html                   # Login screen (Supabase auth, macOS-style UI)
 ├── browser.html                # In-OS proxy browser (Orbix + Rammerhead)

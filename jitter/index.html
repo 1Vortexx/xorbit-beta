@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Jitter</title>
+    <!-- Home Screen app (iOS): launches here, then opens Jitter in app mode -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Jitter">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
+    <link rel="manifest" href="/jitter/manifest.json">
+    <link rel="apple-touch-icon" href="/jitter/apple-touch-icon.png">
+    <link rel="icon" href="/jitter/icon-192.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Installed on an iPhone / iPad → straight into Jitter
+        const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        if (isIOS && navigator.standalone) location.replace('/jittery.html?app=ios');
+    </script>
+    <style>
+        :root {
+            --bg: #000;
+            --surface: #1c1c1e;
+            --surface-2: #2c2c2e;
+            --border: rgba(255,255,255,0.09);
+            --text: #fff;
+            --text-muted: rgba(235,235,245,0.6);
+            --accent: #0a84ff;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { min-height: 100%; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', 'Segoe UI', Roboto, sans-serif;
+            -webkit-text-size-adjust: 100%;
+            display: flex;
+            justify-content: center;
+            padding: calc(32px + env(safe-area-inset-top)) 16px calc(32px + env(safe-area-inset-bottom));
+        }
+        main { width: 100%; max-width: 420px; display: none; }
+        main.show { display: block; }
+        .icon { width: 88px; height: 88px; border-radius: 22px; display: block; margin: 8px auto 18px; box-shadow: 0 10px 30px rgba(10,132,255,0.35); }
+        h1 { font-size: 1.7rem; font-weight: 700; text-align: center; letter-spacing: -0.02em; }
+        .sub { color: var(--text-muted); text-align: center; margin: 8px 0 28px; line-height: 1.45; font-size: 0.98rem; }
+        .steps { list-style: none; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+        .steps li { display: flex; align-items: center; gap: 14px; padding: 15px 16px; font-size: 0.98rem; line-height: 1.35; }
+        .steps li + li { border-top: 1px solid var(--border); }
+        .num {
+            width: 28px; height: 28px; flex-shrink: 0;
+            border-radius: 50%;
+            background: var(--surface-2);
+            display: grid; place-items: center;
+            font-size: 0.85rem; font-weight: 700;
+        }
+        .glyph { color: var(--accent); margin: 0 2px; }
+        .share-glyph { width: 1.15em; height: 1.15em; vertical-align: -0.2em; }
+        .note { color: var(--text-muted); font-size: 0.82rem; text-align: center; margin-top: 18px; line-height: 1.45; }
+        .url {
+            display: block;
+            margin: 6px auto 0;
+            padding: 12px 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--accent);
+            user-select: all;
+        }
+        /* Points at Safari's Share button (bottom bar on iPhone) */
+        .hint-arrow {
+            position: fixed;
+            left: 50%;
+            bottom: calc(6px + env(safe-area-inset-bottom));
+            transform: translateX(-50%);
+            color: var(--accent);
+            width: 30px;
+            height: 30px;
+            animation: bob 1.2s ease-in-out infinite;
+        }
+        @keyframes bob { 50% { transform: translate(-50%, 6px); } }
+        @media (min-width: 700px) { .hint-arrow { display: none; } }
+    </style>
+</head>
+<body>
+    <!-- iPhone / iPad in the browser: install first -->
+    <main id="install">
+        <img class="icon" src="/jitter/apple-touch-icon.png" alt="">
+        <h1>Get Jitter</h1>
+        <p class="sub">Jitter runs as an app on your Home Screen. Add it once, then open it from there.</p>
+        <ol class="steps">
+            <li><span class="num">1</span><span>Tap <svg class="glyph share-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M8 10H6.5A1.5 1.5 0 0 0 5 11.5v8A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-8a1.5 1.5 0 0 0-1.5-1.5H16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> <b>Share</b> in Safari's toolbar</span></li>
+            <li><span class="num">2</span><span>Scroll down and tap <b>Add to Home Screen</b> <i class="far fa-square-plus glyph"></i></span></li>
+            <li><span class="num">3</span><span>Tap <b>Add</b>, then open <b>Jitter</b> from your Home Screen</span></li>
+        </ol>
+        <p class="note">Using Chrome or another browser? Open this page in Safari first.</p>
+        <svg class="hint-arrow" id="hintArrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </main>
+
+    <!-- Anything that isn't iOS -->
+    <main id="unsupported">
+        <img class="icon" src="/jitter/apple-touch-icon.png" alt="">
+        <h1>Jitter for iPhone</h1>
+        <p class="sub">The Jitter app is iPhone and iPad only for now. Open this link in Safari on your iPhone to install it:</p>
+        <span class="url" id="jitterUrl"></span>
+        <p class="note">On a computer, Jitter is in the X-ORBIT desktop.</p>
+    </main>
+
+    <script>
+        document.getElementById('jitterUrl').textContent = location.host + '/jitter';
+        if (isIOS && !navigator.standalone) {
+            document.getElementById('install').classList.add('show');
+            // iPad's Share button is at the top, so the arrow would point the wrong way
+            if (/iPad/.test(navigator.userAgent) || navigator.maxTouchPoints > 1 && navigator.platform === 'MacIntel') {
+                document.getElementById('hintArrow').style.display = 'none';
+            }
+        } else if (!isIOS) {
+            document.getElementById('unsupported').classList.add('show');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Long Haul</title>
+  <link rel="icon" href="data:,"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    :root {
+      --panel: rgba(8, 10, 28, 0.66);
+      --panel-solid: rgba(10, 12, 32, 0.92);
+      --line: rgba(79, 138, 255, 0.28);
+      --accent: #4f8aff;
+      --accent-2: #7aaaff;
+      --text: #e8f0ff;
+      --muted: #a8b4d9;
+      --dim: #7f8ab0;
+      --warn: #ffb547;
+      --bad: #ff5a4f;
+      --sun: #ffcf6e;
+    }
+    body {
+      background: #000014; overflow: hidden; color: var(--text); user-select: none;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    #game { display: block; width: 100vw; height: 100vh; outline: none; }
+    [hidden] { display: none !important; }
+    button { font: inherit; color: inherit; }
+
+    /* ── HUD ─────────────────────────────────────── */
+    .panel {
+      position: absolute; background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+      backdrop-filter: blur(6px); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+    #hudTop { top: 14px; left: 14px; padding: 9px 14px; display: flex; gap: 16px; font-size: 0.78rem; font-weight: 600; color: var(--muted); letter-spacing: 0.05em; flex-wrap: wrap; max-width: calc(100vw - 230px); }
+    #hudTop span { color: var(--accent-2); }
+    #hudTop #money { color: #7fe0a0; }
+    #liteBadge { color: var(--sun); }
+
+    #needs { top: 14px; right: 14px; padding: 10px 14px; width: 190px; display: grid; gap: 7px; }
+    .need { display: grid; grid-template-columns: 58px 1fr; align-items: center; gap: 8px; font-size: 0.68rem; font-weight: 700; color: var(--muted); letter-spacing: 0.06em; }
+    .bar { height: 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+    .bar > i { display: block; height: 100%; width: 100%; border-radius: 4px; transition: width 0.4s; }
+    .need.low { color: var(--bad); animation: blink 1s infinite; }
+    @keyframes blink { 50% { opacity: 0.45; } }
+    #nHealth i { background: linear-gradient(90deg, #e2463d, #ff7b6e); }
+    #nHunger i { background: linear-gradient(90deg, #d9822b, #ffb05c); }
+    #nThirst i { background: linear-gradient(90deg, #2f86d6, #6ec3ff); }
+    #nEnergy i { background: linear-gradient(90deg, #c9a227, #ffe07a); }
+
+    #hudDash { left: 14px; bottom: 14px; padding: 12px 16px; width: 236px; }
+    #speedRow { display: flex; align-items: baseline; gap: 6px; }
+    #speed { font-size: 2.3rem; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; line-height: 1; }
+    #speedRow small { color: var(--muted); font-weight: 600; font-size: 0.72rem; letter-spacing: 0.08em; }
+    #gear { margin-left: auto; font-size: 0.72rem; font-weight: 700; color: var(--dim); }
+    .gauge { margin-top: 9px; display: grid; grid-template-columns: 38px 1fr 46px; align-items: center; gap: 8px; font-size: 0.7rem; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; }
+    .gauge b { text-align: right; color: var(--text); font-variant-numeric: tabular-nums; font-weight: 700; }
+    #fuelFill { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+    #tempFill { background: linear-gradient(90deg, #4fc3a1, #ffd166 70%, #ff5a4f); }
+    .low > i { background: linear-gradient(90deg, #ff5a4f, #ff8a6e) !important; }
+    #warns { display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
+    .warn { font-size: 0.6rem; font-weight: 800; letter-spacing: 0.06em; padding: 3px 6px; border-radius: 6px; color: rgba(255, 255, 255, 0.22); border: 1px solid rgba(255, 255, 255, 0.1); }
+    .warn.on { color: #1a1206; background: var(--warn); border-color: transparent; }
+    .warn.bad { color: #fff; background: var(--bad); border-color: transparent; animation: blink 1s infinite; }
+
+    #help { right: 14px; bottom: 14px; padding: 10px 14px; font-size: 0.7rem; line-height: 1.7; color: var(--muted); }
+    #help b { color: var(--text); font-weight: 700; }
+    #crosshair { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255, 255, 255, 0.75); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4); pointer-events: none; }
+
+    #prompt, #toast {
+      position: absolute; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px);
+      padding: 9px 16px; border-radius: 12px; font-size: 0.9rem; font-weight: 600; text-align: center;
+      background: rgba(8, 10, 28, 0.76); border: 1px solid rgba(79, 138, 255, 0.35);
+      opacity: 0; transition: opacity 0.25s; pointer-events: none;
+    }
+    #prompt { bottom: 22%; }
+    #toast { top: 64px; }
+    #prompt.show, #toast.show { opacity: 1; }
+    #vignette { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.6s; }
+    #fade { position: absolute; inset: 0; pointer-events: none; background: #000; opacity: 0; transition: opacity 0.8s; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; font-weight: 600; color: var(--muted); }
+
+    /* ── Screens ─────────────────────────────────── */
+    .screen { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; background: radial-gradient(ellipse at center, rgba(13, 0, 26, 0.45) 0%, rgba(0, 0, 20, 0.82) 100%); }
+    .card {
+      width: min(440px, 100%); max-height: calc(100vh - 32px); overflow: auto; padding: 26px 24px;
+      background: var(--panel-solid); border: 1px solid var(--line); border-radius: 18px;
+      box-shadow: 0 0 40px rgba(79, 138, 255, 0.16), 0 16px 32px rgba(0, 0, 0, 0.5);
+    }
+    .card.wide { width: min(720px, 100%); }
+    .card h2 { font-size: 1.4rem; font-weight: 800; margin-bottom: 4px; }
+    .card .sub { color: var(--muted); font-size: 0.86rem; line-height: 1.5; margin-bottom: 18px; }
+    .btn {
+      display: block; width: 100%; margin-top: 10px; padding: 11px 14px; border-radius: 12px; cursor: pointer; text-align: center;
+      font-weight: 700; font-size: 0.95rem; background: rgba(255, 255, 255, 0.06); border: 1px solid var(--line);
+    }
+    .btn:hover, .btn:focus-visible { background: rgba(79, 138, 255, 0.2); outline: none; }
+    .btn.primary { background: var(--accent); border-color: transparent; color: #fff; }
+    .btn.primary:hover { filter: brightness(1.1); }
+    .btn.small { display: inline-block; width: auto; margin: 0; padding: 6px 12px; font-size: 0.8rem; border-radius: 9px; }
+    .btn:disabled { opacity: 0.4; cursor: default; filter: none; }
+    .row { display: flex; gap: 10px; }
+    .row .btn { flex: 1; }
+
+    /* Main menu: big title on the left over the live scene */
+    #mainMenu { justify-content: flex-start; background: linear-gradient(90deg, rgba(0, 0, 20, 0.88) 0%, rgba(0, 0, 20, 0.55) 45%, rgba(0, 0, 20, 0) 75%); }
+    #mainInner { width: min(380px, 100%); margin-left: clamp(0px, 7vw, 110px); }
+    #logo { font-size: clamp(2.6rem, 7vw, 4.2rem); font-weight: 900; letter-spacing: 0.08em; line-height: 0.95; }
+    #logo em { display: block; font-style: normal; color: var(--sun); }
+    #tagline { margin: 14px 0 26px; color: var(--muted); font-size: 0.95rem; line-height: 1.5; }
+    #mainMenu .btn { text-align: left; padding: 13px 16px; }
+    #mainMenu .btn small { display: block; font-weight: 500; font-size: 0.75rem; color: rgba(255, 255, 255, 0.75); margin-top: 2px; }
+    #mainMenu .btn:not(.primary) small { color: var(--dim); }
+    #mainFoot { margin-top: 22px; font-size: 0.75rem; color: var(--dim); line-height: 1.6; }
+
+    /* Difficulty cards */
+    .diffs { display: grid; gap: 10px; margin-bottom: 8px; }
+    .diff { text-align: left; padding: 12px 14px; border-radius: 12px; cursor: pointer; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--line); }
+    .diff b { display: block; font-size: 0.98rem; }
+    .diff span { display: block; font-size: 0.78rem; color: var(--muted); margin-top: 3px; line-height: 1.45; }
+    .diff.sel { border-color: var(--accent-2); background: rgba(79, 138, 255, 0.18); box-shadow: 0 0 0 1px var(--accent-2) inset; }
+
+    /* Settings */
+    .set { display: grid; grid-template-columns: 1fr 170px; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.06); font-size: 0.88rem; }
+    .set small { display: block; color: var(--dim); font-size: 0.72rem; margin-top: 2px; }
+    .set select, .set input[type=range] { width: 100%; }
+    .set select { background: #12152e; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 0.85rem; }
+    .set input[type=range] { accent-color: var(--accent); }
+    .set input[type=checkbox] { justify-self: end; width: 18px; height: 18px; accent-color: var(--accent); }
+    .setVal { color: var(--accent-2); font-weight: 700; font-size: 0.78rem; }
+
+    /* How to play */
+    .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 0.84rem; color: var(--muted); margin-bottom: 14px; }
+    .keys kbd { font: inherit; font-weight: 700; color: var(--text); background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
+    .tips { font-size: 0.82rem; color: var(--muted); line-height: 1.55; padding-left: 18px; }
+    .tips li { margin-bottom: 4px; }
+    .h3 { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.1em; color: var(--dim); margin: 14px 0 8px; }
+
+    /* Inventory and shop */
+    .tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+    .tab { padding: 7px 14px; border-radius: 9px; cursor: pointer; font-weight: 700; font-size: 0.85rem; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); }
+    .tab.sel { background: var(--accent); border-color: transparent; color: #fff; }
+    .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+    .item { display: grid; grid-template-columns: 34px 1fr; gap: 4px 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); }
+    .item .ic { font-size: 1.5rem; grid-row: span 2; text-align: center; }
+    .item b { font-size: 0.86rem; }
+    .item b em { font-style: normal; color: var(--accent-2); margin-left: 4px; }
+    .item span { font-size: 0.72rem; color: var(--muted); }
+    .item .act { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+    .item .price { font-weight: 800; color: #7fe0a0; font-size: 0.85rem; }
+    .empty { color: var(--dim); font-size: 0.88rem; padding: 18px 0; text-align: center; }
+    .stat { display: grid; grid-template-columns: 110px 1fr 48px; align-items: center; gap: 10px; padding: 7px 0; font-size: 0.84rem; color: var(--muted); }
+    .stat b { text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+    .stat .bar { height: 8px; }
+    .stat .bar i { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+    .stat.warnv .bar i { background: linear-gradient(90deg, #d9822b, var(--warn)); }
+    .stat.badv .bar i { background: linear-gradient(90deg, #c23b2e, var(--bad)); }
+    .cash { float: right; font-weight: 800; color: #7fe0a0; font-size: 1rem; }
+    .msg { min-height: 1.3em; margin-top: 10px; font-size: 0.82rem; color: var(--sun); text-align: center; }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 14px; }
+    .stats div { padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); font-size: 0.75rem; color: var(--muted); }
+    .stats b { display: block; font-size: 1.15rem; color: var(--text); margin-top: 2px; }
+
+    #loadErr { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; color: var(--muted); }
+
+    @media (max-width: 640px) {
+      #help { display: none; }
+      #needs { width: 150px; }
+      #hudTop { max-width: calc(100vw - 190px); gap: 10px; }
+      #hudDash { width: 200px; }
+      .set { grid-template-columns: 1fr 130px; }
+    }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="game" tabindex="0"></canvas>
+  <div id="vignette"></div>
+
+  <!-- HUD -->
+  <div id="hud" hidden>
+    <div id="hudTop" class="panel">
+      <div>DAY <span id="day">1</span></div>
+      <div><span id="clock">07:12</span></div>
+      <div><span id="weather">Clear</span> <span id="temp">24°C</span></div>
+      <div><span id="money">$0</span></div>
+      <div id="liteBadge" hidden>LITE</div>
+    </div>
+
+    <div id="needs" class="panel">
+      <div class="need" id="nHealth">HEALTH <div class="bar"><i></i></div></div>
+      <div class="need" id="nHunger">HUNGER <div class="bar"><i></i></div></div>
+      <div class="need" id="nThirst">THIRST <div class="bar"><i></i></div></div>
+      <div class="need" id="nEnergy">ENERGY <div class="bar"><i></i></div></div>
+    </div>
+
+    <div id="hudDash" class="panel">
+      <div id="speedRow"><div id="speed">0</div><small id="speedUnit">KM/H</small><div id="gear">ON FOOT</div></div>
+      <div class="gauge">FUEL <div class="bar" id="fuelBar"><i id="fuelFill"></i></div><b id="fuelText">30 L</b></div>
+      <div class="gauge">TEMP <div class="bar" id="tempBar"><i id="tempFill"></i></div><b id="tempText">70°</b></div>
+      <div id="warns">
+        <span class="warn" id="wEng">ENGINE</span>
+        <span class="warn" id="wTyre">TYRES</span>
+        <span class="warn" id="wCool">COOLANT</span>
+        <span class="warn" id="wBatt">BATTERY</span>
+        <span class="warn" id="wBody">BODY</span>
+      </div>
+    </div>
+
+    <div id="help" class="panel"></div>
+    <div id="crosshair" hidden></div>
+  </div>
+
+  <div id="prompt"></div>
+  <div id="toast"></div>
+  <div id="fade"></div>
+
+  <!-- Main menu -->
+  <div id="mainMenu" class="screen">
+    <div id="mainInner">
+      <div id="logo">LONG<em>HAUL</em></div>
+      <div id="tagline">One truck, one road, no end. Keep it running, keep yourself alive, and see how far you get.</div>
+      <button class="btn primary" id="mContinue" hidden>Continue trip<small id="mContinueSub"></small></button>
+      <button class="btn" id="mNew">New trip<small>Pick a difficulty and hit the road</small></button>
+      <button class="btn" id="mSettings">Settings</button>
+      <button class="btn" id="mHow">How to play</button>
+      <div id="mainFoot"></div>
+    </div>
+  </div>
+
+  <!-- New trip -->
+  <div id="newTrip" class="screen" hidden>
+    <div class="card">
+      <h2>New trip</h2>
+      <div class="sub">How rough do you want the road to be?</div>
+      <div class="diffs" id="diffs">
+        <button class="diff" data-d="easy"><b>Easygoing</b><span>Needs drop slowly and parts last longer. You start with $200.</span></button>
+        <button class="diff sel" data-d="normal"><b>Survival</b><span>The intended experience. You start with $120.</span></button>
+        <button class="diff" data-d="hard"><b>Hardcore</b><span>Everything wears faster, you start with $50, and nobody stops to help when you run dry.</span></button>
+      </div>
+      <div class="sub" id="newWarn" hidden style="color: var(--warn); margin: 8px 0 0">This replaces your current trip.</div>
+      <div class="row"><button class="btn" data-back>Back</button><button class="btn primary" id="startTrip">Start driving</button></div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div id="settings" class="screen" hidden>
+    <div class="card">
+      <h2>Settings</h2>
+      <div class="sub">Changes apply straight away.</div>
+      <label class="set">Graphics<small>Auto follows X-ORBIT Performance Mode</small>
+        <select id="sQuality"><option value="auto">Auto</option><option value="full">Full</option><option value="lite">Lite</option></select></label>
+      <label class="set">Field of view <span class="setVal" id="vFov"></span><input type="range" id="sFov" min="55" max="95" step="1"/></label>
+      <label class="set">Mouse sensitivity <span class="setVal" id="vSens"></span><input type="range" id="sSens" min="0.3" max="2.5" step="0.1"/></label>
+      <label class="set">Volume <span class="setVal" id="vVol"></span><input type="range" id="sVol" min="0" max="1" step="0.05"/></label>
+      <label class="set">Speed units<select id="sUnits"><option value="km">km/h</option><option value="mi">mph</option></select></label>
+      <label class="set">Show controls on screen<input type="checkbox" id="sHelp"/></label>
+      <div class="row" style="margin-top: 8px"><button class="btn" id="sFull">Toggle fullscreen</button><button class="btn primary" data-back>Done</button></div>
+    </div>
+  </div>
+
+  <!-- How to play -->
+  <div id="howTo" class="screen" hidden>
+    <div class="card wide">
+      <h2>How to play</h2>
+      <div class="sub">The desert goes on forever. Gas stations, wrecks and the odd bit of luck are all you've got.</div>
+      <div class="h3">DRIVING</div>
+      <div class="keys">
+        <kbd>W / S</kbd><span>Gas, brake and reverse. W also restarts a stalled engine.</span>
+        <kbd>A / D</kbd><span>Steer</span>
+        <kbd>Space</kbd><span>Handbrake</span>
+        <kbd>F</kbd><span>Get in or out of the truck</span>
+        <kbd>C</kbd><span>Chase or cab view (click to look around in the cab)</span>
+        <kbd>L</kbd><span>Headlights: auto, on, off</span>
+        <kbd>H</kbd><span>Horn</span>
+        <kbd>Z</kbd><span>Sleep in the truck (stopped)</span>
+        <kbd>R</kbd><span>Put the truck back on the road, or flag down help when you're out of fuel</span>
+      </div>
+      <div class="h3">ON FOOT</div>
+      <div class="keys">
+        <kbd>W A S D</kbd><span>Walk. Click to look around with the mouse, or turn with ← →</span>
+        <kbd>Shift</kbd><span>Run (uses energy)</span>
+        <kbd>E</kbd><span>Search wrecks, use the shop, refuel at the pump</span>
+      </div>
+      <div class="h3">ANY TIME</div>
+      <div class="keys">
+        <kbd>Tab / I</kbd><span>Inventory, truck condition and trip stats</span>
+        <kbd>P / Esc</kbd><span>Pause</span>
+        <kbd>M</kbd><span>Sound on or off</span>
+      </div>
+      <div class="h3">STAYING ALIVE</div>
+      <ul class="tips">
+        <li>Hunger, thirst and energy drop over time. If one runs out, your health starts falling. Thirst drops faster in the midday heat.</li>
+        <li>The truck wears out: tyres (faster off-road), the engine (faster when it runs hot or in sandstorms), coolant, and the battery if you leave the lights on with the engine off.</li>
+        <li>Watch the temperature gauge. Push a hot engine with low coolant and it will damage itself, then cut out.</li>
+        <li>Crashing into rocks, poles and wrecks damages the truck and you.</li>
+        <li>Rain makes the road slippery. Sandstorms cut visibility to almost nothing.</li>
+        <li>Abandoned cars can be searched once for cash and supplies. Station shops sell food, water and parts. Fuel costs $1.60 a litre.</li>
+      </ul>
+      <button class="btn primary" data-back>Got it</button>
+    </div>
+  </div>
+
+  <!-- Pause -->
+  <div id="pauseMenu" class="screen" hidden>
+    <div class="card">
+      <h2>Paused</h2>
+      <div class="sub" id="pauseSub"></div>
+      <button class="btn primary" id="pResume">Resume</button>
+      <button class="btn" id="pSettings">Settings</button>
+      <button class="btn" id="pHow">How to play</button>
+      <button class="btn" id="pQuit">Save and quit to menu</button>
+    </div>
+  </div>
+
+  <!-- Inventory -->
+  <div id="inventory" class="screen" hidden>
+    <div class="card wide">
+      <h2>Inventory <span class="cash" id="invCash">$0</span></h2>
+      <div class="tabs">
+        <button class="tab sel" data-tab="supplies">Supplies</button>
+        <button class="tab" data-tab="truck">Truck</button>
+        <button class="tab" data-tab="trip">Trip</button>
+      </div>
+      <div id="invBody"></div>
+      <div class="msg" id="invMsg"></div>
+      <button class="btn" id="invClose">Close (Tab)</button>
+    </div>
+  </div>
+
+  <!-- Shop -->
+  <div id="shop" class="screen" hidden>
+    <div class="card wide">
+      <h2>Station shop <span class="cash" id="shopCash">$0</span></h2>
+      <div class="sub">Dusty shelves, a humming fridge, and a cashier who barely looks up.</div>
+      <div class="items" id="shopItems"></div>
+      <div class="msg" id="shopMsg"></div>
+      <button class="btn" id="shopClose">Leave</button>
+    </div>
+  </div>
+
+  <!-- Game over -->
+  <div id="gameOver" class="screen" hidden>
+    <div class="card">
+      <h2>Your trip is over</h2>
+      <div class="sub" id="goCause"></div>
+      <div class="stats" id="goStats"></div>
+      <div class="row"><button class="btn" id="goMenu">Main menu</button><button class="btn primary" id="goNew">New trip</button></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+  <script>
+    // If the module never starts (offline / CDN blocked), say so instead of showing a blank screen
+    setTimeout(function () {
+      if (!window.__longhaul) {
+        var d = document.createElement("div");
+        d.id = "loadErr";
+        d.textContent = "Long Haul couldn't load its 3D engine. Check your connection and reopen the game.";
+        document.body.appendChild(d);
+        document.getElementById("mainMenu").hidden = true;
+      }
+    }, 12000);
+  </script>
+</body>
+</html>

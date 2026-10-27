@@ -2433,6 +2433,31 @@
       .desktop-dm-badge.hiding { animation: toastOut var(--t-med) var(--ease) both; pointer-events: none; }
       .desktop-dm-badge.replying { border-color: var(--hairline-3); }
 
+      .desktop-call-badge { border-color: rgba(48, 209, 88, 0.55); }
+      .desktop-call-badge .desktop-dm-badge-icon-wrap { background: #30d158; border-color: transparent; }
+      .desktop-call-badge .desktop-dm-badge-icon-wrap i { color: #fff; }
+      .desktop-call-badge.show .desktop-dm-badge-icon-wrap { animation: callBadgePulse 1.4s ease-out infinite; }
+      @keyframes callBadgePulse {
+        0%   { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.55); }
+        100% { box-shadow: 0 0 0 12px rgba(48, 209, 88, 0); }
+      }
+      .desktop-call-actions { display: flex; gap: 8px; padding: 0 12px 12px; }
+      .desktop-call-btn {
+        flex: 1;
+        padding: 9px 10px;
+        border: none;
+        border-radius: 10px;
+        color: #fff;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .desktop-call-btn i { margin-right: 6px; }
+      .desktop-call-btn.accept  { background: #30d158; }
+      .desktop-call-btn.decline { background: #ff453a; }
+      .desktop-call-btn:hover   { filter: brightness(1.1); }
+
       .desktop-dm-badge-main {
         display: flex;
         align-items: center;
@@ -3110,8 +3135,8 @@
         </div>
         <div class="desktop-folder-icon" onclick="openFolder('games', this)">
           <div class="folder-icon-grid">
-            <div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="fas fa-tree"></i></div>
             <div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="fas fa-th-large"></i></div>
+            <div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="fas fa-gamepad"></i></div>
             <div class="folder-mini-app" style="background:rgba(255,255,255,0.08)"></div>
             <div class="folder-mini-app" style="background:rgba(255,255,255,0.08)"></div>
           </div>
@@ -3145,6 +3170,15 @@
           <i class="fas fa-music"></i>
           <span>Cadence</span>
         </div>
+        <div
+          class="desktop-icon"
+          data-app="Spotify"
+          data-src="spotify.html"
+          data-icon="fab fa-spotify"
+        >
+          <i class="fab fa-spotify"></i>
+          <span>Spotify</span>
+        </div>
         <!-- Minimalist theme folder – hidden in all other themes -->
         <div id="desktopFolder" class="desktop-icon">
           <i class="fas fa-folder-open"></i>
@@ -3165,6 +3199,24 @@
           </div>
         </div>
         <div class="folder-modal-apps" id="folderModalApps"></div>
+      </div>
+    </div>
+
+    <!-- Incoming Jitter call -->
+    <div class="desktop-dm-badge desktop-call-badge" id="desktopCallBadge">
+      <div class="desktop-dm-badge-main" onclick="openDMApp()">
+        <div class="desktop-dm-badge-icon-wrap">
+          <i class="fas fa-phone-volume"></i>
+        </div>
+        <div class="desktop-dm-badge-body">
+          <div class="desktop-dm-badge-app">Jitter</div>
+          <div class="desktop-dm-badge-title" id="callBadgeName">Incoming call</div>
+          <div class="desktop-dm-badge-text">Incoming voice call</div>
+        </div>
+      </div>
+      <div class="desktop-call-actions">
+        <button type="button" class="desktop-call-btn decline" onclick="declineDesktopCall(event)"><i class="fas fa-phone-slash"></i> Decline</button>
+        <button type="button" class="desktop-call-btn accept" onclick="acceptDesktopCall(event)"><i class="fas fa-phone"></i> Accept</button>
       </div>
     </div>
 
@@ -3335,6 +3387,15 @@
       >
         <i class="fas fa-music"></i>
         <div class="tooltip">Cadence</div>
+      </div>
+      <div
+        class="dock-item"
+        data-app="Spotify"
+        data-src="spotify.html"
+        data-icon="fab fa-spotify"
+      >
+        <i class="fab fa-spotify"></i>
+        <div class="tooltip">Spotify</div>
       </div>
       <div
         class="dock-item"
@@ -4661,7 +4722,7 @@
       // Stacks the top-right toasts: outage, then software update, then DM
       function repositionDMBadge() {
         let top = 48;
-        ["desktopOutageBadge", "desktopUpdateBadge", "desktopDMBadge"].forEach(id => {
+        ["desktopCallBadge", "desktopOutageBadge", "desktopUpdateBadge", "desktopDMBadge"].forEach(id => {
           const el = document.getElementById(id);
           if (!el) return;
           el.style.top = top + "px";
@@ -4672,6 +4733,168 @@
       function openDMApp() {
         hideDMBadge(null);
         openWindow("Jitter", "jittery.html", "fas fa-comment-dots");
+      }
+
+      // ── Jitter calls on the desktop ──────────────────────────────────
+      // Calls ring on `jcall:<email>` (see AUDIO CALLS in jittery.html). With Jitter
+      // closed the desktop answers that channel itself: it rings, and Accept opens
+      // Jitter and hands it the call once it has signed in ("jitter-ready").
+      // With Jitter open, Jitter rings and sends "jitter-call" so the toast still
+      // shows when its window is behind others.
+      let _callChannel       = null;
+      let _desktopCall       = null; // { callId, email, name, convId, source: "desktop" | "jitter" }
+      let _pendingCallAccept = null; // ring payload waiting for Jitter to load
+      let _callBadgeTimer    = null;
+
+      function jitterFrame() {
+        return document.querySelector('#desktop iframe[src="jittery.html"]');
+      }
+
+      function startCallListener() {
+        if (_callChannel || !currentUser.email) return;
+        if (!supabaseClient) { initSupabaseClient(); if (!supabaseClient) return; }
+        _callChannel = supabaseClient.channel(`jcall:${currentUser.email}`)
+          .on("broadcast", { event: "ring" },   ({ payload }) => onDesktopRing(payload))
+          .on("broadcast", { event: "cancel" }, ({ payload }) => onDesktopRingEnded(payload, true))
+          .on("broadcast", { event: "taken" },  ({ payload }) => onDesktopRingEnded(payload, false))
+          .subscribe();
+      }
+
+      async function onDesktopRing(ring) {
+        if (!ring || !ring.callId || !ring.email || ring.email === currentUser.email) return;
+        if (jitterFrame()) return;   // Jitter is open and handles it (and tells us)
+        if (_desktopCall) return;    // already showing a call
+        try {
+          const { data } = await supabaseClient
+            .from("user_blocks")
+            .select("blocker_email")
+            .or(`and(blocker_email.eq.${currentUser.email},blocked_email.eq.${ring.email}),and(blocker_email.eq.${ring.email},blocked_email.eq.${currentUser.email})`)
+            .limit(1);
+          if (data && data.length) return;
+        } catch (e) {}
+        showCallBadge(ring, "desktop");
+      }
+
+      function onDesktopRingEnded(payload, missed) {
+        if (!_desktopCall || _desktopCall.source !== "desktop" || !payload || payload.callId !== _desktopCall.callId) return;
+        const name = _desktopCall.name;
+        hideCallBadge();
+        if (missed) saveNotificationToCenter("message", name, "Missed call", null);
+      }
+
+      function showCallBadge(ring, source) {
+        _desktopCall = { callId: ring.callId, email: ring.email, name: ring.name || ring.email, convId: ring.convId, source };
+        document.getElementById("callBadgeName").textContent = _desktopCall.name;
+        const badge = document.getElementById("desktopCallBadge");
+        badge.classList.remove("hiding");
+        badge.classList.add("show");
+        repositionDMBadge();
+        if (source === "desktop") startDesktopRing(); // Jitter plays its own
+        clearTimeout(_callBadgeTimer);
+        // Callers give up after 30s; don't leave a stale toast if their cancel is lost
+        _callBadgeTimer = setTimeout(() => {
+          if (_desktopCall && _desktopCall.source === "desktop") onDesktopRingEnded({ callId: _desktopCall.callId }, true);
+        }, 35000);
+      }
+
+      function hideCallBadge() {
+        _desktopCall = null;
+        clearTimeout(_callBadgeTimer);
+        stopDesktopRing();
+        const badge = document.getElementById("desktopCallBadge");
+        if (!badge.classList.contains("show")) return;
+        badge.classList.add("hiding");
+        setTimeout(() => { badge.classList.remove("show", "hiding"); repositionDMBadge(); }, 240);
+      }
+
+      function acceptDesktopCall(e) {
+        if (e) e.stopPropagation();
+        if (!_desktopCall) return;
+        const c = _desktopCall;
+        hideCallBadge();
+        const frame = jitterFrame();
+        if (c.source === "jitter" && frame) {
+          focusWindow(frame.closest(".window").id);
+          frame.contentWindow.postMessage({ type: "jitter-call-action", action: "accept", callId: c.callId }, "*");
+          return;
+        }
+        _pendingCallAccept = { callId: c.callId, email: c.email, name: c.name, convId: c.convId };
+        if (frame) {
+          // Opened between the ring and the click: it's already signed in
+          focusWindow(frame.closest(".window").id);
+          frame.contentWindow.postMessage({ type: "jitter-accept-call", ring: _pendingCallAccept }, "*");
+          _pendingCallAccept = null;
+        } else {
+          openWindow("Jitter", "jittery.html", "fas fa-comment-dots");
+        }
+      }
+
+      function declineDesktopCall(e) {
+        if (e) e.stopPropagation();
+        if (!_desktopCall) return;
+        const c = _desktopCall;
+        hideCallBadge();
+        const frame = jitterFrame();
+        if (c.source === "jitter" && frame) {
+          frame.contentWindow.postMessage({ type: "jitter-call-action", action: "decline", callId: c.callId }, "*");
+          return;
+        }
+        // Tell the caller (join their channel, send, leave), and any other tab of mine
+        const ch = supabaseClient.channel(`jcall:${c.email}`);
+        ch.subscribe((status) => {
+          if (status !== "SUBSCRIBED") return;
+          ch.send({ type: "broadcast", event: "decline", payload: { callId: c.callId } })
+            .finally(() => supabaseClient.removeChannel(ch));
+        });
+        if (_callChannel) _callChannel.send({ type: "broadcast", event: "taken", payload: { callId: c.callId } });
+      }
+
+      // Same ringtone as Jitter's (a marimba-style arpeggio, generated with WebAudio)
+      let _ringCtx = null, _ringTimer = null, _ringOut = null;
+      function startDesktopRing() {
+        stopDesktopRing();
+        try {
+          _ringCtx = _ringCtx || new (window.AudioContext || window.webkitAudioContext)();
+          _ringCtx.resume().catch(() => {});
+        } catch (e) { return; }
+        const ctx = _ringCtx;
+        const out = (_ringOut = ctx.createGain());
+        out.connect(ctx.destination);
+        const note = (freq, when, decay) => {
+          const env = ctx.createGain();
+          env.gain.setValueAtTime(0.0001, when);
+          env.gain.exponentialRampToValueAtTime(0.16, when + 0.006);
+          env.gain.exponentialRampToValueAtTime(0.0001, when + decay);
+          env.connect(out);
+          [[1, 1], [2, 0.25], [4.02, 0.06]].forEach(([mult, level]) => {
+            const osc = ctx.createOscillator();
+            const g = ctx.createGain();
+            osc.frequency.value = freq * mult;
+            g.gain.value = level;
+            osc.connect(g).connect(env);
+            osc.start(when);
+            osc.stop(when + decay + 0.05);
+          });
+        };
+        const play = () => {
+          if (_ringOut !== out) return;
+          const t = ctx.currentTime + 0.03;
+          [659.25, 987.77, 830.61, 987.77].forEach((f, i) => note(f, t + i * 0.13, 0.9));
+          [659.25, 987.77, 1108.73, 1318.51].forEach((f, i) => note(f, t + 0.62 + i * 0.13, i === 3 ? 1.4 : 0.9));
+        };
+        play();
+        _ringTimer = setInterval(play, 2600);
+      }
+
+      function stopDesktopRing() {
+        clearInterval(_ringTimer);
+        _ringTimer = null;
+        if (_ringOut && _ringCtx) {
+          const out = _ringOut;
+          out.gain.setTargetAtTime(0.0001, _ringCtx.currentTime, 0.03);
+          setTimeout(() => out.disconnect(), 300);
+        }
+        _ringOut = null;
       }
       // ─────────────────────────────────────────────────────────────────
 
@@ -4779,6 +5002,7 @@
             updateUserDisplay();
             fetchAndSetTopbarAvatar();
             startDMPolling();
+            startCallListener();
             startIndexPresence();
             pullSettingsFromCloud(false);
             initCloudSyncInterval();
@@ -5342,8 +5566,8 @@
         slowSync: true,      // poll for messages less often
         liteApps: true,      // tell apps to use their own lighter mode
       };
-      // Apps that are never put to sleep: music keeps playing, live games stay connected
-      const PERF_NEVER_SLEEP = ["cadence.html", "hangman.html"];
+      // Apps that are never put to sleep: music keeps playing, live games and Jitter calls stay connected
+      const PERF_NEVER_SLEEP = ["cadence.html", "hangman.html", "spotify.html", "jittery.html"];
 
       let perf = (() => {
         try { return Object.assign({}, PERF_DEFAULTS, JSON.parse(localStorage.getItem(PERF_KEY) || "{}")); }
@@ -5760,6 +5984,16 @@
           // Jitter's Status setting changed
           _statusDetail = event.data.mode === "minimal" ? "minimal" : "all";
           publishPage(true);
+        } else if (event.data && event.data.type === "jitter-call") {
+          // Jitter (open) is ringing or stopped ringing; mirror it as a desktop toast
+          if (event.data.state === "incoming") showCallBadge(event.data, "jitter");
+          else if (_desktopCall && _desktopCall.source === "jitter") hideCallBadge();
+        } else if (event.data && event.data.type === "jitter-ready") {
+          // Jitter finished signing in; hand over a call accepted from the desktop toast
+          if (_pendingCallAccept && event.source) {
+            event.source.postMessage({ type: "jitter-accept-call", ring: _pendingCallAccept }, "*");
+            _pendingCallAccept = null;
+          }
         } else if (event.data && event.data.type === "open-shared-app") {
           // Jitter's "Open" button on an app someone shared
           openSharedApp(String(event.data.app || ""));
@@ -5830,14 +6064,12 @@
         const startupOption = settings.startupWindows || "welcome";
 
         switch (startupOption) {
+          case "terminal": // was "Minecraft", which has been removed; open the welcome screen instead
           case "welcome":
             openWindow("Welcome to X-ORBIT", "render.html", "fas fa-rocket");
             break;
           case "browser":
             openWindow("Browser", "browser.html", "fas fa-globe");
-            break;
-          case "terminal":
-            openWindow("Minecraft", "minecraft.html", "fas fa-tree");
             break;
           case "settings":
             openSettingsWindow();
@@ -6324,10 +6556,10 @@
           title: 'Games',
           icon: 'fas fa-gamepad',
           apps: [
-            { name: 'Minecraft', src: 'minecraft.html', icon: 'fas fa-tree' },
             { name: 'Block Blast', src: 'blockblast.html', icon: 'fas fa-th-large' },
             { name: 'Dino Run', src: 'dino.html', icon: 'fas fa-gamepad' },
             { name: 'Hangman', src: 'hangman.html', icon: 'fas fa-spell-check' },
+            { name: 'Long Haul', src: 'longhaul/index.html', icon: 'fas fa-truck' },
             { name: 'Web Dashers', src: 'web-dashers-main/index.html', icon: 'fas fa-running' },
           ],
         },
@@ -6514,7 +6746,9 @@
           '<div class="window-content">' +
           '<iframe src="' +
           src +
-          '"></iframe>' +
+          // Jitter calls: mic, camera, screen sharing and the full-screen call view
+          (src === "jittery.html" ? '" allow="microphone; camera; display-capture; autoplay; fullscreen; speaker-selection"' : '"') +
+          '></iframe>' +
           "</div>";
 
         const desktop = document.getElementById("desktop");
@@ -7662,7 +7896,6 @@
                     <option value="welcome">Welcome Screen</option>
                     <option value="none">None (Disabled)</option>
                     <option value="browser">Browser</option>
-                    <option value="terminal">Minecraft</option>
                     <option value="settings">Settings</option>
                     <option value="files">File Manager</option>
                   </select>
@@ -10802,8 +11035,8 @@
       const IS_BETA_BUILD = true;
       // Exposed so the login page (auth.html, loaded in an iframe) can read the build channel
       window.IS_BETA_BUILD = IS_BETA_BUILD;
-      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.4.2-beta" : "v6.4.2";
-      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.4.2 Beta" : "X-ORBIT Desktop v6.4.2 Sahara";
+      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.5.0-beta" : "v6.5.0";
+      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.5.0 Beta" : "X-ORBIT Desktop v6.5.0 Sahara";
       // Short label for UI chips, e.g. "v6.2.4 Sahara"
       const CURRENT_VERSION_LABEL = CURRENT_VERSION_NAME.replace("X-ORBIT Desktop ", "");
       const UPDATE_CHECK_TABLE = IS_BETA_BUILD ? "update_check_beta" : "update_check";
@@ -11783,6 +12016,25 @@
       // ── What's New – version changelog data ──
       const WHATSNEW_CHANGELOG = [
         {
+          version: "v6.5.0",
+          name: "Sahara",
+          date: "October 27, 2026",
+          sections: [
+            { type: "added", items: [
+              "Voice and video calls in Jitter: call a friend from the phone button in any chat, with a full-screen view, camera, and screen sharing",
+              "Pick your microphone, camera and speaker in Jitter\u2019s Settings or from the gear during a call",
+              "Answer Jitter calls from the desktop, even when Jitter is closed",
+              "Calls show up in the chat as cards: in progress, how long it lasted, or missed, with a Call back button",
+              "Jitter for iPhone: open beta.xorbit.org/jitter in Safari and add it to your Home Screen",
+              "Spotify app on the dock and desktop",
+              "Long Haul in the Games folder: one truck, one road, no end"
+            ]},
+            { type: "changed", items: [
+              "Minecraft has been removed"
+            ]}
+          ]
+        },
+        {
           version: "v6.4.2",
           name: "Sahara",
           date: "October 22, 2026",
@@ -12542,8 +12794,8 @@
       let userFolders = [];
       try { savedLayout = JSON.parse(localStorage.getItem(LAYOUT_KEY)  || '{}'); } catch(_) {}
       try { userFolders = JSON.parse(localStorage.getItem(FOLDERS_KEY) || '[]'); } catch(_) {}
-      // The Music (Spotify) app was removed; drop it from folders saved before that
-      const REMOVED_APPS = ['spotify-player.html', 'X-MUSIC.html'];
+      // Music (Spotify) and Minecraft were removed; drop them from folders saved before that
+      const REMOVED_APPS = ['spotify-player.html', 'X-MUSIC.html', 'minecraft.html'];
       userFolders.forEach(f => { if (Array.isArray(f.apps)) f.apps = f.apps.filter(a => !REMOVED_APPS.includes(a.src)); });
 
       const desktop        = document.getElementById('desktop');
