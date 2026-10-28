@@ -4791,10 +4791,10 @@
         repositionDMBadge();
         if (source === "desktop") startDesktopRing(); // Jitter plays its own
         clearTimeout(_callBadgeTimer);
-        // Callers give up after 30s; don't leave a stale toast if their cancel is lost
+        // Callers give up after 45s; don't leave a stale toast if their cancel is lost
         _callBadgeTimer = setTimeout(() => {
           if (_desktopCall && _desktopCall.source === "desktop") onDesktopRingEnded({ callId: _desktopCall.callId }, true);
-        }, 35000);
+        }, 50000);
       }
 
       function hideCallBadge() {

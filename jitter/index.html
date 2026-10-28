@@ -8,7 +8,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Jitter">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <!-- Solid black, not black-translucent: with the translucent bar iOS shows the page 62pt short at the bottom -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="theme-color" content="#000000">
     <link rel="manifest" href="/jitter/manifest.json">
     <link rel="apple-touch-icon" href="/jitter/apple-touch-icon.png">
@@ -18,7 +19,12 @@
         // Installed on an iPhone / iPad → straight into Jitter
         const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-        if (isIOS && navigator.standalone) location.replace('/jittery.html?app=ios');
+        // Pass along ?ring= / ?chat= from a tapped notification
+        if (isIOS && navigator.standalone) {
+            const params = new URLSearchParams(location.search);
+            params.set('app', 'ios');
+            location.replace('/jittery.html?' + params.toString());
+        }
     </script>
     <style>
         :root {

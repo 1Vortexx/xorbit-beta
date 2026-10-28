@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <title>X-ORBIT Direct Messages</title>
     <script>
         /* iOS app mode: the Home Screen app installed from /jitter/ opens jittery.html?app=ios.
@@ -4788,9 +4788,12 @@
         /* ════════════════════════════════════════════════
            iOS APP (html.ios-app, see the head script)
            One pane at a time: the list, or the open chat with a back button.
-           The app fills the whole screen (100lvh) and only shrinks by --kb while the keyboard
-           is open. --safe-top/--safe-bottom are the status bar / home bar insets, with a
-           per-model fallback (--sat/--sab, from device detection) in case iOS reports 0.
+           The status bar is solid black (not black-translucent: with that, iOS starts the page
+           under the status bar but only shows it down to screen height minus the status bar,
+           leaving a black strip at the bottom). So the page sits below the status bar and
+           --app-h is simply its height, or the visible height while the keyboard is open.
+           Everything full-screen (body, modals, overlays) uses --app-h.
+           --safe-top/--safe-bottom are the status bar (0 with the solid bar) and home bar insets.
         ════════════════════════════════════════════════ */
         /* Update prompt (see VERSION CHECK) */
         .update-prompt {
@@ -4839,6 +4842,27 @@
         .update-prompt-go:disabled { opacity: 0.6; cursor: default; }
         html.ios-app .update-prompt { top: calc(8px + var(--safe-top)); }
 
+        /* Layout test: magenta = page area outside <body>, green = <body>'s edge,
+           red = bottom of the viewport, yellow = bottom of --app-h */
+        #layoutDebug { display: none; }
+        html.layout-debug { background: #ff00ff !important; }
+        html.layout-debug body { outline: 4px solid #00ff00; outline-offset: -4px; }
+        html.layout-debug #layoutDebug { display: block; position: fixed; inset: 0; z-index: 100001; }
+        #layoutDebug pre {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: min(340px, calc(100% - 24px));
+            padding: 12px;
+            background: rgba(0,0,0,0.85);
+            color: #0f0;
+            font: 12px/1.45 ui-monospace, Menlo, monospace;
+            white-space: pre-wrap;
+            border-radius: 10px;
+        }
+        #layoutDebug .ld-bottom { position: fixed; left: 0; right: 0; bottom: 0; height: 6px; background: #f00; }
+        #layoutDebug .ld-apph { position: absolute; left: 0; right: 0; top: calc(var(--app-h) - 6px); height: 6px; background: #ff0; }
+
         .mobile-back-btn { display: none; }
         .ios-only { display: none !important; }
         html.ios-app .ios-only { display: flex !important; }
@@ -4877,13 +4901,12 @@
         }
         #privacyScreen.on { display: block; }
         html.ios-app {
-            --safe-top: max(env(safe-area-inset-top), var(--sat, 0px));
-            --safe-bottom: max(env(safe-area-inset-bottom), var(--sab, 0px));
-            --app-h: calc(100vh - var(--kb, 0px));
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+            --app-h: 100vh; /* replaced by fitViewport() with the real screen height */
             height: 100%;
             overscroll-behavior: none;
         }
-        @supports (height: 100lvh) { html.ios-app { --app-h: calc(100lvh - var(--kb, 0px)); } }
         html.ios-app body {
             position: fixed;
             top: 0; left: 0; right: 0;
@@ -4947,6 +4970,12 @@
         html.ios-app .call-overlay { top: calc(8px + var(--safe-top)); bottom: auto; left: 10px; right: 10px; min-width: 0; max-width: none; }
         html.ios-app .call-stage { padding: var(--safe-top) 0 var(--safe-bottom); }
         html.ios-app #callFullscreenBtn { display: none; }
+        html.ios-app .modal,
+        html.ios-app .call-stage,
+        html.ios-app #imageLightbox,
+        html.ios-app #systemExplain,
+        html.ios-app #usernameSetup,
+        html.ios-app #privacyScreen { top: 0; bottom: auto; height: var(--app-h); }
         html.ios-app .call-stage-tiles { padding: 4px 12px; }
         html.ios-app .call-stage-controls { padding-bottom: 14px; }
         html.ios-app .call-device-panel { top: calc(58px + var(--safe-top)); left: 12px; right: 12px; width: auto; max-width: none; }
@@ -5576,7 +5605,7 @@
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
-                <div class="settings-row ios-only">
+                <div class="settings-row ios-only" onclick="toggleLayoutDebug()" style="cursor:pointer">
                     <i class="fas fa-mobile-button"></i>
                     <span class="settings-row-main">
                         <span class="settings-row-label">This iPhone</span>
@@ -5591,6 +5620,17 @@
                     </span>
                     <label class="toggle-switch">
                         <input type="checkbox" id="privacyScreenToggle" onchange="setPrivacyScreen(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-row ios-only">
+                    <i class="fas fa-bell"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Call notifications</span>
+                        <span class="settings-row-desc">Get notified when someone calls, even when Jitter is closed</span>
+                    </span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="callPushToggle" onchange="setCallPush(this.checked)">
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
@@ -6188,6 +6228,9 @@
     </div>
 </div>
 
+<!-- Layout test (Settings › This iPhone): measurements for debugging the iOS app's sizing -->
+<div id="layoutDebug" onclick="toggleLayoutDebug()"><pre id="layoutDebugText"></pre><div class="ld-bottom"></div><div class="ld-apph"></div></div>
+
 <!-- Privacy screen (iOS app): darkens the edges that tilt away -->
 <div id="privacyScreen" aria-hidden="true"></div>
 
@@ -6416,6 +6459,7 @@
     }
 
     function logout() {
+        if (callPushOn()) setCallPush(false);
         setOnlineStatus(false);
         localStorage.removeItem('xorbit_dm_user');
         currentUser  = null;
@@ -6625,6 +6669,8 @@
         requestNotificationPermission();
         subscribeToAllMessages();
         subscribeToCallInbox();
+        handleLaunchParams();
+        refreshCallPush();
         // Lets the desktop hand over a call that was accepted from its toast
         if (window.parent !== window) window.parent.postMessage({ type: 'jitter-ready' }, '*');
 
@@ -6843,12 +6889,12 @@
 
     if (window.JITTER_IOS_APP) {
         // Size the app to the visible area so the keyboard pushes the composer up
-        // The app is full-screen by CSS; while the keyboard is up, shrink it by the keyboard's height
+        // The page's height, or the part above the keyboard while it's up
         const fitViewport = () => {
             const vv = window.visualViewport;
-            const kb = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
-            const open = kb > 120;
-            document.documentElement.style.setProperty('--kb', open ? kb + 'px' : '0px');
+            const visible = vv ? vv.height : window.innerHeight;
+            const open = window.innerHeight - visible > 150;
+            document.documentElement.style.setProperty('--app-h', visible + 'px');
             document.documentElement.classList.toggle('keyboard-open', open);
             window.scrollTo(0, 0);
         };
@@ -6928,10 +6974,35 @@
                  cutout, dynamicIsland: cutout === 'island', method, insetTop: ins.top };
     }
 
+    function toggleLayoutDebug() {
+        const on = document.documentElement.classList.toggle('layout-debug');
+        if (!on) return;
+        closeSettingsModal();
+        const vv = window.visualViewport, ins = safeAreaInsets();
+        const r = el => { const b = document.querySelector(el)?.getBoundingClientRect(); return b ? `${Math.round(b.top)}→${Math.round(b.bottom)}` : '-'; };
+        document.getElementById('layoutDebugText').textContent = [
+            'LAYOUT TEST (tap to close)',
+            `screen        ${screen.width}×${screen.height}`,
+            `inner         ${innerWidth}×${innerHeight}`,
+            `outer         ${outerWidth}×${outerHeight}`,
+            `client        ${document.documentElement.clientWidth}×${document.documentElement.clientHeight}`,
+            `visualVP      ${vv ? Math.round(vv.width) + '×' + Math.round(vv.height) + ' @' + Math.round(vv.offsetTop) : '-'}`,
+            `safe t/b/l/r  ${[ins.top, ins.bottom, ins.left, ins.right].map(Math.round).join('/')}`,
+            `--app-h       ${getComputedStyle(document.documentElement).getPropertyValue('--app-h').trim()}`,
+            `--safe-top/bot ${getComputedStyle(document.documentElement).getPropertyValue('--safe-top').trim()} / ${getComputedStyle(document.documentElement).getPropertyValue('--safe-bottom').trim()}`,
+            `body          ${r('body')}`,
+            `dashboard     ${r('#dmDashboard')}`,
+            `user panel    ${r('.user-panel')}`,
+            `standalone    ${navigator.standalone}`,
+            `dpr           ${devicePixelRatio}`,
+            `Jitter        ${JITTER_VERSION}`,
+        ].join('\n');
+    }
+
     function describeDevice(d) {
         const cut = { island: 'Dynamic Island', notch: 'Notch', button: 'Home button' }[d.cutout] || 'Unknown screen';
         const ins = safeAreaInsets();
-        const layout = `Safe area ${Math.round(ins.top)}/${Math.round(ins.bottom)} · view ${window.innerWidth}×${window.innerHeight}` +
+        const layout = `Safe area ${Math.round(ins.top)}/${Math.round(ins.bottom)} · view ${window.innerWidth}×${window.innerHeight} · app ${getComputedStyle(document.documentElement).getPropertyValue('--app-h').trim()}` +
             (window.visualViewport ? ` (${Math.round(visualViewport.height)})` : '') + (navigator.standalone ? ' · Home Screen' : '');
         return [d.device + (d.os ? ' · iOS ' + d.os : ''), cut, d.group, layout].filter(Boolean).join(' · ');
     }
@@ -6943,15 +7014,140 @@
             window.JITTER_DEVICE = d;
             document.documentElement.classList.toggle('has-dynamic-island', d.dynamicIsland);
             document.documentElement.classList.toggle('has-notch', d.cutout === 'notch');
-            // If iOS reported no inset at all, use the usual status bar / home bar size for this kind of iPhone
-            const portrait = window.innerHeight >= window.innerWidth;
-            const fallbackTop = !portrait ? 0 : d.cutout === 'island' ? 59 : d.cutout === 'notch' ? 47 : d.cutout === 'button' ? 20 : 0;
-            const fallbackBottom = d.cutout === 'island' || d.cutout === 'notch' ? (portrait ? 34 : 21) : 0;
-            document.documentElement.style.setProperty('--sat', (d.method === 'inset' ? 0 : fallbackTop) + 'px');
-            document.documentElement.style.setProperty('--sab', (d.method === 'inset' ? 0 : fallbackBottom) + 'px');
         };
         window.addEventListener('load', markDevice);
         window.addEventListener('orientationchange', () => setTimeout(markDevice, 300));
+    }
+
+    /* ── Call notifications (iPhone app, Web Push) ──
+       The phone registers its push address with the jitter-push Edge Function
+       (supabase/functions/jitter-push). A caller asks that function to push "ring" every
+       CALL_PUSH_REPEAT_MS while ringing (at most CALL_PUSH_MAX, so ~30 buzzes in the first
+       30 seconds, like a phone ringing), then "missed" if nobody answered; sw.js shows them
+       and, when one is tapped, opens Jitter with ?ring= (answer) or ?chat= (open the chat). */
+    const VAPID_PUBLIC_KEY = 'BIYakT1SWm56y5RmUAeYoG0iIDUAqi_ABtohW40wuOb_FikuJneABzO7lZjXGXlekdbVtf3_sKZ_DRET3dYGhgQ';
+    const CALL_PUSH_KEY = 'jittery_call_push';
+    const CALL_PUSH_REPEAT_MS = 1000;
+    const CALL_PUSH_MAX = 30;
+
+    function callPushSupported() {
+        return !!window.JITTER_IOS_APP && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    }
+
+    function callPushOn() {
+        try { return localStorage.getItem(CALL_PUSH_KEY) === '1'; } catch (_) { return false; }
+    }
+
+    async function jitterPush(body) {
+        try {
+            const { data, error } = await sb.functions.invoke('jitter-push', { body });
+            if (error) throw error;
+            return data;
+        } catch (err) {
+            console.warn('jitter-push', body.action, err);
+            return null;
+        }
+    }
+
+    function b64urlToBytes(s) {
+        const bin = atob(s.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (s.length % 4)) % 4));
+        return Uint8Array.from(bin, c => c.charCodeAt(0));
+    }
+
+    async function devicePushSubscription(create) {
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub && create) {
+            sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64urlToBytes(VAPID_PUBLIC_KEY) });
+        }
+        return sub;
+    }
+
+    async function setCallPush(on) {
+        const toggle = document.getElementById('callPushToggle');
+        if (on) {
+            try {
+                if (!callPushSupported()) throw new Error('unsupported');
+                if (await Notification.requestPermission() !== 'granted') throw new Error('denied');
+                const sub = await devicePushSubscription(true);
+                const res = await jitterPush({ action: 'subscribe', email: currentUser.email, subscription: sub.toJSON() });
+                if (!res || !res.ok) throw new Error('not saved');
+                try { localStorage.setItem(CALL_PUSH_KEY, '1'); } catch (_) {}
+                showToast('Call notifications on');
+            } catch (err) {
+                if (toggle) toggle.checked = false;
+                showToast(window.Notification && Notification.permission === 'denied'
+                    ? 'Notifications are off for Jitter. Turn them on in iPhone Settings › Notifications › Jitter.'
+                    : 'Couldn\'t turn on call notifications', 4500);
+            }
+            return;
+        }
+        try { localStorage.setItem(CALL_PUSH_KEY, '0'); } catch (_) {}
+        try {
+            const sub = callPushSupported() ? await devicePushSubscription(false) : null;
+            if (sub) {
+                await jitterPush({ action: 'unsubscribe', endpoint: sub.endpoint });
+                await sub.unsubscribe();
+            }
+        } catch (_) {}
+    }
+
+    // Each launch: iOS can change the push address, so register it again
+    async function refreshCallPush() {
+        if (!callPushSupported() || !callPushOn() || Notification.permission !== 'granted') return;
+        try {
+            const sub = await devicePushSubscription(true);
+            await jitterPush({ action: 'subscribe', email: currentUser.email, subscription: sub.toJSON() });
+        } catch (_) {}
+    }
+
+    function sendCallPush(c, action, seq = 0) {
+        jitterPush({ action, from: currentUser.email, fromName: myCallName(), to: c.peerEmail, callId: c.id, convId: c.convId, seq });
+    }
+
+    // Caller: push now and every CALL_PUSH_REPEAT_MS until answered, ended, or CALL_PUSH_MAX sent
+    function startCallPushes() {
+        const c = call;
+        let seq = 0;
+        const send = () => {
+            if (call !== c || c.state !== 'ringing' || seq >= CALL_PUSH_MAX) { clearInterval(c.pushTimer); return; }
+            sendCallPush(c, 'ring', seq++);
+        };
+        send();
+        c.pushTimer = setInterval(send, CALL_PUSH_REPEAT_MS);
+    }
+
+    // A tapped notification: show the incoming call, or open the chat
+    function handlePushOpen(ring, convId) {
+        if (!currentUser) return;
+        if (ring && ring.callId && ring.email) {
+            if (!call) onCallRing(ring);
+            if (call && call.id === ring.callId && call.state === 'incoming') openCallStage();
+        } else if (convId && conversations.some(c => c.id === convId)) {
+            openConversation(convId);
+        }
+    }
+
+    // Launched from a notification: /jitter/ passes ?ring= or ?chat= through
+    function handleLaunchParams() {
+        const params = new URLSearchParams(location.search);
+        let ring = null;
+        try { ring = params.get('ring') ? JSON.parse(params.get('ring')) : null; } catch (_) {}
+        const chat = params.get('chat');
+        if (!ring && !chat) return;
+        params.delete('ring');
+        params.delete('chat');
+        history.replaceState(null, '', location.pathname + (params.toString() ? '?' + params : ''));
+        handlePushOpen(ring, chat);
+    }
+
+    // Tapped while Jitter was already running in the background
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', (e) => {
+            const d = e.data;
+            if (d && d.type === 'jitter-push-open') handlePushOpen(d.ring, d.convId);
+        });
     }
 
     /* ── Privacy screen (iOS app) ──
@@ -7995,7 +8191,7 @@
     /* ── VERSION ─────────────────────────────────────────
        Shown under your name in the sidebar so you can tell which build is loaded.
        Bump it with every change to this file: date as YYMMDD, then a counter for that day. */
-    const JITTER_VERSION = '261027-15';
+    const JITTER_VERSION = '261027-20';
     document.getElementById('jitterVersion').textContent = 'Jitter v' + JITTER_VERSION;
 
     /* ── VERSION CHECK ───────────────────────────────────
@@ -8105,6 +8301,8 @@
         refreshCallDeviceSelects();
         const psToggle = document.getElementById('privacyScreenToggle');
         if (psToggle) psToggle.checked = privacyScreenOn();
+        const cpToggle = document.getElementById('callPushToggle');
+        if (cpToggle) cpToggle.checked = callPushOn() && window.Notification && Notification.permission === 'granted';
         if (window.JITTER_IOS_APP) document.getElementById('deviceInfoText').textContent = describeDevice(detectDevice());
         // Always re-read the saved value rather than trusting the cache
         delete msgRequestPref[currentUser.email];
@@ -9274,7 +9472,7 @@
        the coturn relay on the VPS; its short-lived credentials come from the turn-credentials function.
     ────────────────────────────────────────────────── */
     const CALL_STUN_SERVERS    = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] }];
-    const CALL_RING_TIMEOUT_MS = 30000;
+    const CALL_RING_TIMEOUT_MS = 45000; // long enough to answer from a push notification
 
     let callInbox = null; // my jcall:<email> channel
     let callTurnCache = null; // { servers, expiresAt }
@@ -9428,6 +9626,7 @@
         call.ringTimer = setTimeout(() => {
             if (call && call.id === id && call.state === 'ringing') endCall(true, 'No answer');
         }, CALL_RING_TIMEOUT_MS);
+        startCallPushes();
     }
 
     // Caller: the other side picked up, so start the WebRTC handshake
@@ -9488,6 +9687,10 @@
         if (!call || call.id !== id) return;
         callInbox && callInbox.send({ type: 'broadcast', event: 'taken', payload: { callId: id } });
         sendToCallSession('accept');
+        // Answered from a late notification after the caller hung up: nobody will reply
+        call.ringTimer = setTimeout(() => {
+            if (call && call.id === id && call.state === 'connecting') endCall(true, 'Call ended');
+        }, 15000);
     }
 
     function declineCall() {
@@ -9568,6 +9771,7 @@
         if (notifyPeer) {
             if (c.role === 'caller' && c.state === 'ringing') {
                 sendToCallInbox(c.peerEmail, 'cancel', { callId: c.id });
+                sendCallPush(c, 'missed');
             } else if (c.session) {
                 c.session.send({ type: 'broadcast', event: 'hangup', payload: {} });
             }
@@ -9575,6 +9779,7 @@
         clearTimeout(c.ringTimer);
         clearTimeout(c.dropTimer);
         clearInterval(c.tickTimer);
+        clearInterval(c.pushTimer);
         stopCallTone();
         if (c.stream) c.stream.getTracks().forEach(t => t.stop());
         if (c.camStream) c.camStream.getTracks().forEach(t => t.stop());
