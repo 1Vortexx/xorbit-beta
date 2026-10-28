@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-title" content="Jitter">
     <!-- Solid black, not black-translucent: with the translucent bar iOS shows the page 62pt short at the bottom -->
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#0d1834">
     <link rel="manifest" href="/jitter/manifest.json">
     <link rel="apple-touch-icon" href="/jitter/apple-touch-icon.png">
     <link rel="icon" href="/jitter/icon-192.png">
@@ -90,6 +90,73 @@
         }
         @keyframes bob { 50% { transform: translate(-50%, 6px); } }
         @media (min-width: 700px) { .hint-arrow { display: none; } }
+
+        /* Developer preview: the iPhone app in a phone-sized frame (iPhone 16 Pro, 402×874) */
+        .dev-preview {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            background: radial-gradient(80% 60% at 50% 20%, #12224a 0%, #05070d 70%);
+        }
+        .dev-preview.show { display: flex; }
+        .dev-scale { width: calc(402px * var(--s, 1) + 24px * var(--s, 1)); height: calc(874px * var(--s, 1) + 24px * var(--s, 1)); }
+        .dev-phone {
+            position: relative;
+            width: 402px;
+            height: 874px;
+            border-radius: 56px;
+            overflow: hidden;
+            background: #0d1834;
+            border: 12px solid #1b1d22;
+            box-sizing: content-box;
+            box-shadow: 0 0 0 2px #3a3d45, 0 30px 80px rgba(0,0,0,0.7);
+            transform: scale(var(--s, 1));
+            transform-origin: top left;
+        }
+        .dev-status {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 62px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 34px 0 46px;
+            background: #0d1834;
+            color: #fff;
+            font-size: 17px;
+            font-weight: 600;
+            box-sizing: border-box;
+        }
+        .dev-island {
+            position: absolute;
+            top: 11px;
+            left: 50%;
+            width: 126px;
+            height: 37px;
+            margin-left: -63px;
+            border-radius: 20px;
+            background: #000;
+        }
+        .dev-icons { display: flex; gap: 6px; font-size: 14px; }
+        .dev-frame { position: absolute; top: 62px; left: 0; width: 402px; height: 812px; border: 0; display: block; }
+        .dev-home {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            width: 140px;
+            height: 5px;
+            margin-left: -70px;
+            border-radius: 3px;
+            background: rgba(255,255,255,0.7);
+            pointer-events: none;
+        }
+        .dev-caption { color: var(--text-muted); font-size: 0.8rem; }
+        .dev-caption a { color: var(--accent); text-decoration: none; }
     </style>
 </head>
 <body>
@@ -116,6 +183,22 @@
         <p class="note">On a computer, Jitter is in the X-ORBIT desktop.</p>
     </main>
 
+    <!-- Developer preview (type "developer" on a computer) -->
+    <div class="dev-preview" id="devPreview">
+        <div class="dev-scale">
+            <div class="dev-phone">
+                <div class="dev-status">
+                    <span id="devClock"></span>
+                    <div class="dev-island"></div>
+                    <span class="dev-icons"><i class="fas fa-signal"></i><i class="fas fa-wifi"></i><i class="fas fa-battery-full"></i></span>
+                </div>
+                <iframe class="dev-frame" id="devFrame" title="Jitter on iPhone (preview)" allow="microphone; camera; autoplay; clipboard-write"></iframe>
+                <div class="dev-home"></div>
+            </div>
+        </div>
+        <div class="dev-caption">Developer preview · iPhone 16 Pro (402×874) · <a href="#" onclick="exitDevPreview(); return false;">Exit</a></div>
+    </div>
+
     <script>
         document.getElementById('jitterUrl').textContent = location.host + '/jitter';
         if (isIOS && !navigator.standalone) {
@@ -126,7 +209,44 @@
             }
         } else if (!isIOS) {
             document.getElementById('unsupported').classList.add('show');
+
+            // Typing "developer" opens the iPhone app in a phone-sized frame; #developer keeps it on reload
+            let typed = '';
+            window.addEventListener('keydown', (e) => {
+                if (e.key.length !== 1) return;
+                typed = (typed + e.key.toLowerCase()).slice(-9);
+                if (typed === 'developer') enterDevPreview();
+            });
+            if (location.hash === '#developer') enterDevPreview();
         }
+
+        function enterDevPreview() {
+            const frame = document.getElementById('devFrame');
+            if (!frame.src) frame.src = '/jittery.html?app=ios&dev=1';
+            document.getElementById('devPreview').classList.add('show');
+            if (location.hash !== '#developer') history.replaceState(null, '', '#developer');
+            fitDevPreview();
+            tickDevClock();
+        }
+
+        function exitDevPreview() {
+            document.getElementById('devPreview').classList.remove('show');
+            document.getElementById('devFrame').removeAttribute('src');
+            history.replaceState(null, '', location.pathname + location.search);
+        }
+
+        // Scale the phone down to fit shorter windows
+        function fitDevPreview() {
+            const s = Math.min(1, (window.innerHeight - 70) / 898, (window.innerWidth - 32) / 426);
+            document.querySelector('.dev-preview').style.setProperty('--s', s.toFixed(3));
+        }
+        window.addEventListener('resize', fitDevPreview);
+
+        function tickDevClock() {
+            const d = new Date();
+            document.getElementById('devClock').textContent = `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')}`;
+        }
+        setInterval(tickDevClock, 10000);
     </script>
 </body>
 </html>

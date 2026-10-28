@@ -24,3 +24,8 @@ on conflict (channel) do update set version = excluded.version, updated_at = now
 
 -- Live updates: open copies of Jitter see a change within seconds
 alter publication supabase_realtime add table public.jitter_version;
+
+-- Dev server address for beta.xorbit.org/jitterdev (a Cloudflare quick tunnel; it changes
+-- on every restart, so update the beta row each time):
+--   update public.jitter_version set cloudflared_url = 'https://….trycloudflare.com' where channel = 'beta';
+alter table public.jitter_version add column if not exists cloudflared_url text;

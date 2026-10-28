@@ -4293,8 +4293,13 @@
           const newMsgs = msgs.filter(m => !dmSnapshot.has(m.id));
           if (newMsgs.length === 0) return;
 
-          // Show notification for the most recent new message
-          const top = newMsgs[0];
+          // Show notification for the most recent new message, skipping chats muted in Jitter
+          // (Jitter keeps the muted list in localStorage, same origin)
+          let muted = [];
+          try { muted = JSON.parse(localStorage.getItem("jittery_muted_" + currentUser.email)) || []; } catch (e) {}
+          newMsgs.forEach(m => dmSnapshot.add(m.id)); // so none of them re-trigger
+          const top = newMsgs.find(m => !muted.includes(m.conversation_id));
+          if (!top) return;
           showDMBadge(top.sender_name, top.message, {
             convId: top.conversation_id,
             msgId: top.id,
@@ -4303,8 +4308,6 @@
             preview: top.message,
           });
 
-          // Add all new IDs to snapshot so they don't re-trigger
-          newMsgs.forEach(m => dmSnapshot.add(m.id));
 
           // Mark them as read in the table (notification delivered)
           await supabaseClient

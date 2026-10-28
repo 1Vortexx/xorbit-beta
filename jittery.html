@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <!-- iOS paints the status bar with this (white if missing); matches the top of the iPhone background -->
+    <meta name="theme-color" content="#0d1834">
     <title>X-ORBIT Direct Messages</title>
     <script>
         /* iOS app mode: the Home Screen app installed from /jitter/ opens jittery.html?app=ios.
@@ -16,8 +18,16 @@
             const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
             const preview = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-            if (!preview && !(isIOS && navigator.standalone)) location.replace('/jitter/');
+            // Developer preview: framed by /jitter/ on this site after typing "developer" there
+            const devPreview = (() => {
+                try {
+                    return new URLSearchParams(location.search).get('dev') === '1' && window.parent !== window &&
+                        window.parent.location.pathname.replace(/\/$/, '') === '/jitter';
+                } catch (_) { return false; } // framed by another site
+            })();
+            if (!preview && !devPreview && !(isIOS && navigator.standalone)) location.replace('/jitter/');
             document.documentElement.classList.add('ios-app');
+            if (devPreview) document.documentElement.classList.add('ios-dev-preview');
             document.querySelector('meta[name=viewport]').setAttribute('content',
                 'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover');
             // Same ban / lockout checks as the desktop
@@ -4999,6 +5009,131 @@
             padding-bottom: var(--safe-bottom);
         }
 
+        /* Profile: its own card, not .modal-content, so it gets its own bottom sheet */
+        html.ios-app #profileModal { align-items: flex-end; }
+        html.ios-app #profileModal .profile-card {
+            width: 100%;
+            max-width: 100%;
+            height: calc(var(--app-h) - var(--safe-top) - 10px); /* full-height sheet, see below */
+            max-height: none;
+            border-radius: 22px 22px 0 0;
+            border-bottom: none;
+            padding-bottom: var(--safe-bottom);
+            overflow-y: auto;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+        }
+        html.ios-app #profileModal .profile-banner { border-radius: 22px 22px 0 0; }
+        /* The card sits in a preview pane that only grows to its content; make it full width */
+        html.ios-app #profileModal:not(.editing) .profile-preview-pane { width: 100%; align-self: flex-end; }
+        /* Editing your own profile: settings panel and preview card stack and scroll together */
+        html.ios-app #profileModal.editing {
+            flex-direction: column;
+            align-items: stretch;
+            justify-content: flex-start;
+            gap: 10px;
+            padding: calc(var(--safe-top) + 10px) 0 0;
+            overflow-y: auto;
+            overscroll-behavior: contain;
+        }
+        html.ios-app #profileModal.editing .profile-settings-panel {
+            width: auto;
+            max-width: none;
+            max-height: none;
+            margin: 0 10px;
+            flex-shrink: 0;
+        }
+        html.ios-app #profileModal.editing .profile-card { height: auto; max-height: none; flex-shrink: 0; }
+
+        /* Big sheets open just under the status bar and fill the screen (iOS "large" sheet),
+           instead of sitting low with a gap above. Small confirmations stay compact. */
+        html.ios-app #settingsModal .modal-content,
+        html.ios-app #newDMModal .modal-content,
+        html.ios-app #groupInfoModal .modal-content,
+        html.ios-app #friendReqModal .modal-content,
+        html.ios-app #blockedModal .modal-content,
+        html.ios-app #hiddenModal .modal-content,
+        html.ios-app #serverSettingsModal .modal-content {
+            height: calc(var(--app-h) - var(--safe-top) - 10px);
+            max-height: none;
+        }
+
+        /* New message › Direct: friends fill the sheet, "Add a friend" search sits at the
+           bottom (just above the keyboard when typing), results grow upward above it */
+        html.ios-app #panelDirect > .dm-section-label:first-child { order: 1; }
+        html.ios-app #panelDirect .dm-friends-list { order: 2; flex: 1 1 auto; max-height: none; min-height: 0; }
+        html.ios-app #addFriendResults { order: 3; flex: 0 1 auto; max-height: 45%; border-top: 1px solid var(--border); }
+        html.ios-app #addFriendResults:empty { border-top: none; }
+        html.ios-app #panelDirect > .dm-section-divider { order: 4; }
+        html.ios-app #panelDirect > .dm-section-divider ~ .dm-section-label { order: 5; }
+        html.ios-app #panelDirect > .modal-search-wrap { order: 6; border-bottom: none; padding-bottom: 14px; }
+
+        /* Your own profile (You tab): Edit profile + Settings */
+        #profileOwnActions { flex-direction: column; gap: 10px; }
+
+        .conv-muted { font-size: 0.7em; color: var(--text-faint); margin-left: 4px; }
+
+        /* iOS action sheet (chat ⋯) */
+        .action-sheet {
+            position: fixed;
+            inset: 0;
+            z-index: 1300;
+            display: none;
+            align-items: flex-end;
+            background: rgba(0,0,0,0.5);
+        }
+        .action-sheet.show { display: flex; animation: sheetFade 0.18s ease-out; }
+        @keyframes sheetFade { from { background: rgba(0,0,0,0); } }
+        .action-sheet-panel {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 0 10px calc(10px + var(--safe-bottom, 0px));
+            animation: sheetUp 0.24s cubic-bezier(0.2, 0.9, 0.3, 1);
+        }
+        @keyframes sheetUp { from { transform: translateY(100%); } }
+        .action-sheet-group,
+        .action-sheet-cancel {
+            border-radius: 16px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+        .action-sheet-title { padding: 12px 16px; text-align: center; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+        .action-sheet-item,
+        .action-sheet-cancel {
+            width: 100%;
+            min-height: 54px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            border: none;
+            background: none;
+            color: var(--accent-hi);
+            font: inherit;
+            font-size: 1.05rem;
+            cursor: pointer;
+        }
+        .action-sheet-item + .action-sheet-item { border-top: 1px solid var(--border); }
+        .action-sheet-item.danger { color: var(--error); }
+        .action-sheet-item:active, .action-sheet-cancel:active { background: rgba(255,255,255,0.06); }
+        .action-sheet-cancel { font-weight: 700; background: var(--surface-2); }
+        .action-sheet-form { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 16px; }
+        .action-sheet-form input {
+            height: 44px;
+            padding: 0 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border-hi);
+            background: var(--surface);
+            color: var(--text);
+            font: inherit;
+            outline: none;
+        }
+        .action-sheet-note { font-size: 0.75rem; color: var(--text-muted); }
+        .action-sheet-save { height: 46px; border: none; border-radius: 12px; background: var(--accent); color: #fff; font: inherit; font-weight: 700; }
+
         html.ios-app #toast { bottom: calc(80px + var(--safe-bottom)); max-width: calc(100vw - 32px); }
 
         /* Calls: the small card sits under the status bar; no browser full screen on iOS */
@@ -5014,6 +5149,219 @@
         html.ios-app .call-stage-tiles { padding: 4px 12px; }
         html.ios-app .call-stage-controls { padding-bottom: 14px; }
         html.ios-app .call-device-panel { top: calc(58px + var(--safe-top)); left: 12px; right: 12px; width: auto; max-width: none; }
+
+        /* ════════════════════════════════════════════════
+           iPHONE SKIN (html.ios-app): deep navy, rounded bubbles, pill composer, tab bar.
+           Pieces only the iPhone app shows are hidden here for the desktop.
+        ════════════════════════════════════════════════ */
+        .ios-tabbar, .composer-plus-btn, .composer-emoji-btn, .emoji-palette, .ios-header-btn { display: none; }
+        .composer-pill { display: contents; }
+
+        html.ios-app {
+            --bg: #070b16;
+            --surface: #0c1222;
+            --surface-2: #151d31;
+            --surface-3: #222b41;
+            --bubble-in: #232b3e;
+            --border: rgba(255,255,255,0.07);
+            --border-hi: rgba(255,255,255,0.12);
+            --accent: #2f6dff;
+            --accent-hi: #4d86ff;
+            --accent-dim: rgba(47,109,255,0.18);
+            --ios-row: #0a1020;
+            --ios-top: #0d1834; /* = <meta name="theme-color"> */
+        }
+        /* Developer preview (/jitter/ → "developer"): no real home bar inside the frame, so fake its space */
+        html.ios-app.ios-dev-preview { --safe-bottom: 34px; }
+        /* Starts at the theme-color navy so the status bar runs straight into the app */
+        html.ios-app body { background: linear-gradient(180deg, var(--ios-top) 0%, #0a1226 38%, #060a15 100%); }
+        html.ios-app #dmDashboard { flex-direction: column; }
+        html.ios-app .dm-body { flex: 1; min-height: 0; }
+        html.ios-app .dm-sidebar,
+        html.ios-app .dm-chat-area,
+        html.ios-app .messages-container { background: transparent; }
+
+        /* List screen */
+        html.ios-app .sidebar-tabs,
+        html.ios-app .user-panel { display: none; }
+        html.ios-app .sidebar-header { padding: 14px 18px 10px; border-bottom: none; }
+        html.ios-app .sidebar-header .logo { font-size: 1.85rem; font-weight: 800; letter-spacing: -0.02em; }
+        html.ios-app .ios-header-btn { display: flex; position: relative; }
+        html.ios-app .compose-btn {
+            width: 38px; height: 38px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+            border: none;
+            color: var(--text);
+        }
+        html.ios-app .sidebar-search {
+            height: 42px;
+            border-radius: 14px;
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+        }
+        html.ios-app .conv-item { margin: 2px 10px; padding: 10px 10px; border-radius: 16px; background: transparent; }
+        html.ios-app .conv-item:active { background: rgba(255,255,255,0.05); }
+        html.ios-app .conv-avatar { width: 50px; height: 50px; }
+        html.ios-app .status-dot { border-color: var(--ios-row); }
+
+        /* Chat header */
+        /* Everything that touches the top edge is the theme-color navy, so the status bar
+           (which iOS paints in that colour) looks like part of the app */
+        html.ios-app .chat-header {
+            background: var(--ios-top);
+            border-bottom: 1px solid var(--border);
+        }
+        html.ios-app .chat-header .chat-header-avatar .status-dot { border-color: var(--ios-top); }
+        html.ios-app .chat-header .chat-header-avatar .status-dot.mobile::after { background: var(--ios-top); }
+        html.ios-app #loginScreen,
+        html.ios-app #usernameSetup,
+        html.ios-app #systemExplain { background: transparent; }
+        html.ios-app .call-stage { background: linear-gradient(180deg, var(--ios-top) 0%, #070b16 100%); }
+        html.ios-app .chat-header-avatar { width: 42px; height: 42px; }
+        html.ios-app .chat-header-name { font-size: 1.02rem; text-transform: none; letter-spacing: -0.01em; }
+        html.ios-app .chat-header-email,
+        html.ios-app #chatRecipientTags { display: none !important; }
+        html.ios-app .chat-header-tags-row { margin-top: 1px; }
+        html.ios-app .chat-header-tags-row .status-tag {
+            padding: 0;
+            border: none;
+            background: none;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.78rem;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+        html.ios-app .chat-header-tags-row .status-tag i { font-size: 0.5rem; margin-right: 2px; }
+        html.ios-app .chat-header-tags-row .status-tag.online i { color: var(--online); }
+        html.ios-app .chat-header-tags-row .status-tag.away i { color: var(--away); }
+        html.ios-app .chat-header-tags-row .status-tag .fa-mobile-screen-button { font-size: 0.72rem; }
+        html.ios-app .chat-call-btn {
+            width: 38px; height: 38px;
+            border: none;
+            background: rgba(255,255,255,0.08);
+            color: var(--text);
+            font-size: 0.92rem;
+        }
+        html.ios-app .chat-call-btn:hover { color: var(--text); }
+
+        /* Bubbles */
+        html.ios-app .message .message-bubble { border-radius: 22px; font-size: 1rem; line-height: 1.38; padding: 10px 15px; }
+        html.ios-app .message.theirs .message-bubble { background: var(--bubble-in); color: var(--text); }
+        html.ios-app .message.mine .message-bubble { background: linear-gradient(180deg, #3574ff 0%, #1f57ee 100%); color: #fff; }
+        html.ios-app .message.grp-last .message-bubble:not(.game-invite)::before,
+        html.ios-app .message.grp-last .message-bubble:not(.game-invite)::after { display: none; }
+        html.ios-app .message.theirs.grp-last .message-bubble { border-bottom-left-radius: 6px; }
+        html.ios-app .message.mine.grp-last .message-bubble { border-bottom-right-radius: 6px; }
+        html.ios-app .msg-reply-quote {
+            display: block;
+            margin: 0 -5px 8px;
+            padding: 7px 10px;
+            border-left: 3px solid rgba(255,255,255,0.55);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.1);
+        }
+        html.ios-app .message.theirs .msg-reply-quote { border-left-color: var(--accent-hi); background: rgba(255,255,255,0.05); }
+        html.ios-app .msg-reply-quote-name,
+        html.ios-app .msg-reply-quote-text { display: block; font-size: 0.78rem; }
+        html.ios-app .msg-reply-quote-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        html.ios-app .message-time { font-size: 0.72rem; color: var(--text-faint); }
+
+        /* Replied from Desktop: amber bubble and an outlined chip */
+        html.ios-app .message.desktop-reply .desktop-reply-banner {
+            padding: 5px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.16);
+            background: rgba(255,255,255,0.04);
+            color: var(--text);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        html.ios-app .message.desktop-reply .message-bubble {
+            background: linear-gradient(180deg, #5b3d1b 0%, #3f2a13 100%) !important;
+            border: 1px solid rgba(255,170,60,0.22);
+            color: #fff;
+        }
+        html.ios-app .message.desktop-reply .msg-reply-quote { border-left-color: #f0a040; background: rgba(255,170,60,0.13); }
+        html.ios-app .message.desktop-reply .msg-reply-quote-name { color: #f5a742; }
+
+        /* Composer: + · pill with emoji · send */
+        html.ios-app .message-input-area { background: transparent; border-top: none; padding-top: 6px; }
+        html.ios-app .message-input-container { align-items: flex-end; gap: 8px; background: none; border: none; padding: 0; }
+        html.ios-app .image-upload-btn { display: none !important; }
+        html.ios-app .composer-plus-btn,
+        html.ios-app .composer-emoji-btn { display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; flex-shrink: 0; }
+        html.ios-app .composer-plus-btn { width: 42px; height: 42px; border-radius: 50%; background: rgba(255,255,255,0.08); color: var(--text); font-size: 1.05rem; }
+        html.ios-app .composer-pill {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: flex-end;
+            min-height: 42px;
+            padding: 0 6px 0 16px;
+            border-radius: 22px;
+            background: var(--surface-2);
+            border: 1px solid var(--border-hi);
+        }
+        html.ios-app .composer-pill .message-input {
+            flex: 1;
+            min-height: 40px;
+            padding: 9px 0;
+            border: none !important;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+        html.ios-app .composer-emoji-btn { width: 34px; height: 40px; background: none; color: var(--text-muted); font-size: 1.2rem; }
+        html.ios-app .send-btn { width: 42px; height: 42px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+        html.ios-app .emoji-palette {
+            display: none;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 2px;
+            margin-top: 8px;
+            padding: 8px;
+            border-radius: 18px;
+            background: var(--surface-2);
+            border: 1px solid var(--border-hi);
+        }
+        html.ios-app .emoji-palette.show { display: grid; }
+        html.ios-app .emoji-palette button { height: 40px; border: none; background: none; font-size: 1.45rem; border-radius: 10px; }
+        html.ios-app .emoji-palette button:active { background: rgba(255,255,255,0.08); }
+
+        /* Tab bar */
+        html.ios-app .ios-tabbar {
+            display: flex;
+            flex-shrink: 0;
+            padding: 6px 8px var(--safe-bottom);
+            background: rgba(8,12,24,0.9);
+            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border);
+        }
+        html.ios-app.keyboard-open .ios-tabbar { display: none; }
+        html.ios-app .ios-tab {
+            position: relative;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            padding: 4px 0 6px;
+            border: none;
+            background: none;
+            color: var(--text-muted);
+            font: inherit;
+            font-size: 0.68rem;
+            font-weight: 600;
+        }
+        html.ios-app .ios-tab i { font-size: 1.3rem; }
+        html.ios-app .ios-tab.active { color: #4d86ff; }
+        .ios-tab-badge { display: none; position: absolute; top: 2px; left: calc(50% + 8px); width: 9px; height: 9px; border-radius: 50%; background: var(--error); }
+        .ios-tab-badge.show { display: block; }
+        /* The tab bar takes the home-bar space now */
+        html.ios-app .dm-sidebar,
+        html.ios-app .dm-sidebar.collapsed { padding-bottom: 0; }
+        html.ios-app .message-input-area { padding-bottom: 10px !important; }
     </style>
     <script>
         // Hide immediately — will be revealed only after token auth passes
@@ -5135,6 +5483,7 @@
             <div class="sidebar-header">
                 <div class="logo">Jitter</div>
                 <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                    <button class="compose-btn ios-header-btn" onclick="openFriendRequestsModal()" title="Friend requests"><i class="fas fa-user-plus"></i><span class="notif-badge" id="friendReqBadgeMobile"></span></button>
                     <button class="compose-btn" onclick="openNewDMModal()" title="New Message">
                         <i class="fas fa-edit"></i>
                     </button>
@@ -5265,6 +5614,8 @@
                         </div>
                     </div>
                     <button class="chat-call-btn" id="chatCallBtn" type="button" style="display:none" onclick="startCall()" title="Voice call"><i class="fas fa-phone"></i></button>
+                    <button class="chat-call-btn" id="chatVideoBtn" type="button" style="display:none" onclick="startCall({ video: true })" title="Video call"><i class="fas fa-video"></i></button>
+                    <button class="chat-call-btn" id="chatMoreBtn" type="button" style="display:none" onclick="openChatMore()" title="More"><i class="fas fa-ellipsis"></i></button>
                 </div>
 
                 <!-- Shown when a non-friend started this conversation -->
@@ -5299,6 +5650,8 @@
                         <button class="image-upload-btn" id="imageUploadBtn" style="display:none" onclick="document.getElementById('imageFileInput').click()" title="Upload image (Premium)">
                             <i class="fas fa-image"></i>
                         </button>
+                        <button class="composer-plus-btn" type="button" onclick="composerPlus()" title="Add a photo"><i class="fas fa-plus"></i></button>
+                        <div class="composer-pill">
                         <textarea
                             id="messageInput"
                             class="message-input"
@@ -5307,16 +5660,26 @@
                             onkeydown="handleMessageKeydown(event)"
                             oninput="broadcastTyping()"
                         ></textarea>
+                        <button class="composer-emoji-btn" type="button" onclick="toggleEmojiPalette()" title="Emoji"><i class="far fa-face-smile"></i></button>
+                        </div>
                         <button class="send-btn" onclick="sendMessage()" id="sendBtn" title="Send">
                             <i class="fas fa-arrow-up"></i>
                         </button>
                     </div>
+                    <div class="emoji-palette" id="emojiPalette"></div>
                     <div class="input-hint">Enter to send &middot; Shift+Enter for new line</div>
                 </div>
             </div>
 
         </div>
     </div>
+
+    <!-- iPhone app tab bar -->
+    <nav class="ios-tabbar" aria-label="Jitter">
+        <button type="button" class="ios-tab active" id="iosTabChats" onclick="iosTab('friends')"><i class="fas fa-comment-dots"></i><span>Chats</span></button>
+        <button type="button" class="ios-tab" id="iosTabServers" onclick="iosTab('servers')"><i class="fas fa-server"></i><span>Servers</span></button>
+        <button type="button" class="ios-tab" id="iosTabYou" onclick="iosTab('you')"><i class="far fa-user"></i><span>You</span><span class="ios-tab-badge" id="iosTabYouBadge"></span></button>
+    </nav>
 </div>
 
 <!-- ══ NEW DM MODAL ════════════════════════════════════ -->
@@ -5531,6 +5894,12 @@
                 <button class="profile-message-btn" id="profileMessageBtn" style="display:none">
                     <i class="fas fa-paper-plane"></i> Send Message
                 </button>
+
+                <!-- Your own profile from the iPhone "You" tab: edit it, or go to Settings -->
+                <div id="profileOwnActions" style="display:none">
+                    <button class="profile-friend-btn" type="button" onclick="openProfile(currentUser.email)"><i class="fas fa-pen"></i> Edit profile</button>
+                    <button class="profile-message-btn" type="button" onclick="closeProfileModal(); openSettingsModal()"><i class="fas fa-gear"></i> Settings</button>
+                </div>
 
                 <!-- Private nickname (other users) -->
                 <div class="privacy-row" id="profileNicknameRow" style="display:none;margin-top:12px;border-top:1px solid var(--border);">
@@ -5823,6 +6192,14 @@
     <div class="ctx-divider"></div>
     <div class="ctx-item ctx-danger" onclick="blockUserCtx()">
         <i class="fas fa-ban"></i> Block User
+    </div>
+</div>
+
+<!-- iPhone app: the chat header's ⋯ action sheet (also used for the nickname prompt) -->
+<div id="chatActionSheet" class="action-sheet" onclick="if (event.target === this) closeChatActions()">
+    <div class="action-sheet-panel">
+        <div class="action-sheet-group" id="chatActionBody"></div>
+        <button type="button" class="action-sheet-cancel" onclick="closeChatActions()">Cancel</button>
     </div>
 </div>
 
@@ -6554,6 +6931,7 @@
                 if (!conv) return;
                 // Skip if this is the active conversation and page is visible (subscribeToMessages already handles render)
                 if (msg.conversation_id === activeConvId && !document.hidden) return;
+                if (isMuted(msg.conversation_id)) return;
                 const sender = msg.sender_name || msg.sender_email;
                 const preview = (msg.message || '').substring(0, 100);
                 const title = conv.is_group ? `${sender} in ${conv.group_name || 'Group'}` : `New message from ${sender}`;
@@ -6802,7 +7180,7 @@
                      oncontextmenu="showConvContextMenu(event,'${conv.id}')">
                     <div class="${avatarClass}">${avatarContent}</div>
                     <div class="conv-details">
-                        <div class="conv-name">${escHtml(otherName)}</div>
+                        <div class="conv-name">${escHtml(otherName)}${isMuted(conv.id) ? ' <i class="fas fa-bell-slash conv-muted" title="Muted"></i>' : ''}</div>
                         <div class="conv-preview">${isMessageRequest(conv) ? '<span class="conv-request-tag">Request</span>' : ''}${escHtml(filteredPreview(conv.last_message_preview) || 'No messages yet')}</div>
                     </div>
                     <div class="conv-meta">
@@ -6896,6 +7274,124 @@
         subscribeToMessages(convId);
         subscribeToTyping(convId);
         updateCallButton();
+    }
+
+    /* ── iPhone app: tab bar, header "more", composer + and emoji ── */
+    function iosTab(tab) {
+        if (tab === 'you') { openProfile(currentUser.email, { viewOnly: true }); return; }
+        if (document.documentElement.classList.contains('chat-open')) mobileBack();
+        if (tab !== currentSidebarTab) switchSidebarTab(tab);
+    }
+
+    /* ── The header's ⋯ (iPhone app): an action sheet ──
+       1:1 → Set nickname · Mute · Block   group → Group info · Mute */
+    function openChatMore() {
+        const conv = conversations.find(c => c.id === activeConvId);
+        if (!conv) return;
+        const muted = isMuted(conv.id);
+        const item = (icon, label, action, cls = '') =>
+            `<button type="button" class="action-sheet-item ${cls}" onclick="${action}"><i class="fas ${icon}"></i>${label}</button>`;
+        const title = `<div class="action-sheet-title">${escHtml(conv.is_group ? (conv.group_name || 'Group') : getOtherName(conv))}</div>`;
+        document.getElementById('chatActionBody').innerHTML = title + (conv.is_group
+            ? item('fa-users', 'Group info', `closeChatActions(); openGroupModal('${escAttr(conv.id)}')`) +
+              item(muted ? 'fa-bell' : 'fa-bell-slash', muted ? 'Unmute' : 'Mute', 'chatActionMute()')
+            : item('fa-tag', 'Set nickname', 'chatActionNickname()') +
+              item(muted ? 'fa-bell' : 'fa-bell-slash', muted ? 'Unmute' : 'Mute', 'chatActionMute()') +
+              item('fa-ban', 'Block', 'chatActionBlock(this)', 'danger'));
+        document.getElementById('chatActionSheet').classList.add('show');
+    }
+
+    function closeChatActions() {
+        document.getElementById('chatActionSheet').classList.remove('show');
+    }
+
+    function chatActionMute() {
+        const muted = !isMuted(activeConvId);
+        setMuted(activeConvId, muted);
+        closeChatActions();
+        showToast(muted ? 'Muted: no notifications from this chat' : 'Unmuted');
+    }
+
+    // Block asks for a second tap instead of a separate dialog
+    async function chatActionBlock(btn) {
+        if (!btn.dataset.confirm) {
+            btn.dataset.confirm = '1';
+            btn.innerHTML = `<i class="fas fa-ban"></i>Tap again to block ${escHtml(getOtherName(conversations.find(c => c.id === activeConvId)))}`;
+            return;
+        }
+        closeChatActions();
+        ctxConvId = activeConvId;
+        await blockUserCtx();
+        setMobileChatOpen(false);
+    }
+
+    function chatActionNickname() {
+        const conv = conversations.find(c => c.id === activeConvId);
+        if (!conv || conv.is_group) return;
+        const email = getOtherEmail(conv);
+        document.getElementById('chatActionBody').innerHTML = `
+            <div class="action-sheet-title">Nickname for ${escHtml(displayNameCache[email] || usernameCache[email] || email)}</div>
+            <div class="action-sheet-form">
+                <input type="text" id="sheetNicknameInput" maxlength="32" placeholder="Nickname" autocomplete="off" value="${escHtml(nicknameFor(email) || '').replace(/"/g, '&quot;')}">
+                <div class="action-sheet-note">Only you see it. Saved on this device. Leave empty to remove it.</div>
+                <button type="button" class="action-sheet-save" onclick="saveSheetNickname('${escAttr(email)}')">Save</button>
+            </div>`;
+        const input = document.getElementById('sheetNicknameInput');
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') saveSheetNickname(email); });
+        input.focus();
+    }
+
+    // Same path as the profile's nickname box
+    function saveSheetNickname(email) {
+        const src = document.getElementById('sheetNicknameInput');
+        const input = document.getElementById('profileNicknameInput');
+        input.dataset.email = email;
+        input.value = src.value;
+        saveNickname();
+        closeChatActions();
+    }
+
+    /* ── Mute (this device): no message notifications, calls show up without ringing ── */
+    function mutedKey() { return 'jittery_muted_' + (currentUser && currentUser.email); }
+
+    function mutedConvs() {
+        try { return new Set(JSON.parse(localStorage.getItem(mutedKey())) || []); } catch (_) { return new Set(); }
+    }
+
+    function isMuted(convId) {
+        return !!convId && !!currentUser && mutedConvs().has(convId);
+    }
+
+    function setMuted(convId, on) {
+        const set = mutedConvs();
+        if (on) set.add(convId); else set.delete(convId);
+        try { localStorage.setItem(mutedKey(), JSON.stringify([...set])); } catch (_) {}
+        const q = document.getElementById('sidebarSearch').value;
+        q ? filterConversations(q) : renderConversations(conversations);
+    }
+
+    function composerPlus() {
+        if (!currentUserIsPremium) { showToast('Sending photos is a Premium feature'); return; }
+        document.getElementById('imageFileInput').click();
+    }
+
+    const EMOJI_PALETTE = ['😂','❤️','😭','🔥','👍','🙏','😊','😍','🥺','😅','💀','✨','😎','🤔','🙌','👀','😢','😡','🥳','💯','👋','🤝','😴','🎉'];
+
+    function toggleEmojiPalette() {
+        const el = document.getElementById('emojiPalette');
+        if (!el.childElementCount) {
+            el.innerHTML = EMOJI_PALETTE.map(e => `<button type="button" onclick="insertEmoji('${e}')">${e}</button>`).join('');
+        }
+        el.classList.toggle('show');
+    }
+
+    function insertEmoji(e) {
+        const input = document.getElementById('messageInput');
+        const start = input.selectionStart ?? input.value.length, end = input.selectionEnd ?? start;
+        input.value = input.value.slice(0, start) + e + input.value.slice(end);
+        input.selectionStart = input.selectionEnd = start + e.length;
+        document.getElementById('emojiPalette').classList.remove('show');
+        input.focus();
     }
 
     /* ── iOS app navigation: list ⇄ chat ── */
@@ -8226,7 +8722,7 @@
     /* ── VERSION ─────────────────────────────────────────
        Shown under your name in the sidebar so you can tell which build is loaded.
        Bump it with every change to this file: date as YYMMDD, then a counter for that day. */
-    const JITTER_VERSION = '261027-22';
+    const JITTER_VERSION = '261028-6';
     document.getElementById('jitterVersion').textContent = 'Jitter v' + JITTER_VERSION;
 
     /* ── VERSION CHECK ───────────────────────────────────
@@ -9624,6 +10120,7 @@
                     call.tickTimer = setInterval(renderCallOverlay, 1000);
                     renderCallOverlay();
                     if (call.role === 'caller') logCallStart();
+                    if (call.wantVideo) toggleCallCamera(); // started with the video button
                 }
             } else if (st === 'disconnected') {
                 // Often recovers by itself; give it a moment before giving up
@@ -9638,7 +10135,7 @@
     }
 
     /* ── Placing a call ── */
-    async function startCall() {
+    async function startCall({ video = false } = {}) {
         if (call) { showToast('You\'re already in a call'); return; }
         const conv = conversations.find(c => c.id === activeConvId);
         if (!conv || conv.is_group) return;
@@ -9650,7 +10147,7 @@
         if (call) { stream.getTracks().forEach(t => t.stop()); return; } // a call came in while the mic prompt was open
 
         const id = crypto.randomUUID();
-        call = { id, role: 'caller', state: 'ringing', peerEmail, peerName: getOtherName(conv), convId: conv.id, stream, pendingIce: [], muted: false, ...callVideoDefaults() };
+        call = { id, role: 'caller', state: 'ringing', peerEmail, peerName: getOtherName(conv), convId: conv.id, stream, pendingIce: [], muted: false, wantVideo: video, ...callVideoDefaults() };
         renderCallOverlay();
         startCallTone('ringback');
 
@@ -9697,8 +10194,10 @@
         call = { id: callId, role: 'callee', state: 'incoming', peerEmail: email, peerName: nicknameFor(email) || name || email, convId, pendingIce: [], muted: false, ...callVideoDefaults() };
         loadAvatarsForEmails([email]).then(renderCallOverlay);
         renderCallOverlay();
-        startCallTone('ring');
-        showDesktopNotification('Incoming call', `${call.peerName} is calling you`);
+        if (!isMuted(convId)) {
+            startCallTone('ring');
+            showDesktopNotification('Incoming call', `${call.peerName} is calling you`);
+        }
         // The caller gives up after CALL_RING_TIMEOUT_MS; stop ringing here too in case their cancel never arrives
         call.ringTimer = setTimeout(() => {
             if (call && call.id === callId && call.state === 'incoming') endCall(false, 'Missed call');
@@ -10251,8 +10750,15 @@
         const btn = document.getElementById('chatCallBtn');
         if (!btn) return;
         const conv = conversations.find(c => c.id === activeConvId);
-        btn.style.display = conv && !conv.is_group ? 'flex' : 'none';
+        const oneToOne = !!(conv && !conv.is_group);
+        btn.style.display = oneToOne ? 'flex' : 'none';
         btn.disabled = !!call;
+        // iPhone app header: video call and "more" too
+        const video = document.getElementById('chatVideoBtn');
+        const more = document.getElementById('chatMoreBtn');
+        video.style.display = window.JITTER_IOS_APP && oneToOne ? 'flex' : 'none';
+        video.disabled = !!call;
+        more.style.display = window.JITTER_IOS_APP && conv ? 'flex' : 'none';
     }
 
     /* Ringtones, generated with WebAudio so there are no audio files to ship.
@@ -10560,10 +11066,14 @@
     ────────────────────────────────────────────────── */
     const profileCache = {}; // email -> full profile data
 
-    async function openProfile(email) {
+    let profileViewOnly = false; // your own profile shown as others see it (iPhone "You" tab)
+
+    async function openProfile(email, { viewOnly = false } = {}) {
         const modal = document.getElementById('profileModal');
         modal.classList.add('active');
         const isOwn = email === currentUser.email;
+        profileViewOnly = isOwn && viewOnly;
+        document.getElementById('profileOwnActions').style.display = 'none';
 
         // Reset to loading state
         document.getElementById('profileModal').classList.remove('editing');
@@ -10608,6 +11118,7 @@
     }
 
     function renderProfileModal(profile, isOwn) {
+        const editing = isOwn && !profileViewOnly;
         const gradStart = profile.gradient_start || '#0a0a0a';
         const gradEnd   = profile.gradient_end   || '#1a1a1a';
         const gradAngle = profile.gradient_angle  ?? 135;
@@ -10624,7 +11135,7 @@
 
         // Banner upload overlay (own profile only)
         const bannerUpload = document.getElementById('profileBannerUpload');
-        if (isOwn) {
+        if (editing) {
             bannerUpload.style.display = 'flex';
             bannerUpload.classList.add('editable');
         } else {
@@ -10638,7 +11149,7 @@
         const avatarContent = profile.avatar_url
             ? `<img src="${profile.avatar_url.replace(/"/g,'&quot;')}" alt="${escHtml(profileDisplayName)}">`
             : getInitials(profileDisplayName);
-        const uploadOverlay = isOwn
+        const uploadOverlay = editing
             ? `<div class="profile-avatar-upload-overlay" onclick="document.getElementById('avatarFileInput').click()"><i class="fas fa-camera"></i></div>`
             : '';
         avatarEl.innerHTML = avatarContent + uploadOverlay;
@@ -10718,7 +11229,7 @@
             }
         });
 
-        if (isOwn) {
+        if (editing) {
             document.getElementById('profileModal').classList.add('editing');
             document.getElementById('profileSettingsPanel').style.display   = 'block';
             document.getElementById('profilePreviewLabelBar').style.display = 'block';
@@ -10739,6 +11250,13 @@
             document.getElementById('gradientAngleVal').textContent  = `${gradAngle}°`;
             updateGradientPreview();
             updateProfilePreview();
+        } else if (isOwn) {
+            // Viewing your own profile: no friend / message / nickname, just Edit and Settings
+            document.getElementById('profileModal').classList.remove('editing');
+            document.getElementById('profileSettingsPanel').style.display   = 'none';
+            document.getElementById('profilePreviewLabelBar').style.display = 'none';
+            document.getElementById('profileBannerCloseBtn').style.display  = '';
+            document.getElementById('profileOwnActions').style.display = 'flex';
         } else {
             document.getElementById('profileModal').classList.remove('editing');
             document.getElementById('profileSettingsPanel').style.display   = 'none';
@@ -11312,8 +11830,10 @@
     }
 
     function updateFriendRequestBadge() {
-        const badge = document.getElementById('friendReqBadge');
-        if (badge) badge.classList.toggle('show', pendingIncoming.length > 0);
+        ['friendReqBadge', 'friendReqBadgeMobile', 'iosTabYouBadge'].forEach(id => {
+            const badge = document.getElementById(id);
+            if (badge) badge.classList.toggle('show', pendingIncoming.length > 0);
+        });
     }
 
     let _friendReqNotifTimer = null;
@@ -11785,6 +12305,8 @@
     // ─── SIDEBAR TAB SWITCHING ───────────────────────
     function switchSidebarTab(tab) {
         currentSidebarTab = tab;
+        document.getElementById('iosTabChats').classList.toggle('active', tab === 'friends');
+        document.getElementById('iosTabServers').classList.toggle('active', tab === 'servers');
         document.getElementById('tabFriends').classList.toggle('active', tab === 'friends');
         document.getElementById('tabServers').classList.toggle('active', tab === 'servers');
         document.getElementById('friendsSection').classList.toggle('active', tab === 'friends');
@@ -12027,6 +12549,7 @@
         emptyState.style.display = 'none';
         chatArea.style.display = 'flex';
         setMobileChatOpen(true);
+        updateCallButton();
 
         // Update chat header
         const avatarEl = document.getElementById('chatAvatar');

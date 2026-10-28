@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Jitter dev</title>
+    <meta name="robots" content="noindex">
+    <!-- Full-screen frame of the local dev server. Its address (a Cloudflare quick tunnel,
+         which changes on every restart) lives in jitter_version.cloudflared_url, beta row;
+         see supabase/jitter-version.sql. The frame follows it live when it changes. -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        html, body { margin: 0; height: 100%; background: #070b16; color: rgba(235,235,245,0.6); font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; }
+        #devFrame { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; display: none; }
+        #devStatus { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; font-size: 0.95rem; line-height: 1.5; }
+        #devStatus code { color: #fff; }
+    </style>
+</head>
+<body>
+    <div id="devStatus">Loading the dev server address…</div>
+    <iframe id="devFrame" title="Jitter dev server" allow="microphone; camera; display-capture; autoplay; fullscreen; clipboard-write; speaker-selection"></iframe>
+    <script>
+        const sb = supabase.createClient('https://rujvmtvozorylfzsqppc.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1anZtdHZvem9yeWxmenNxcHBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0NjQxNDEsImV4cCI6MjA3MzA0MDE0MX0.b7jJz3Se_oXXDwwd0dWQ8-rEvhY0aU4JDHQVioE39iY');
+        const frame = document.getElementById('devFrame');
+        const status = document.getElementById('devStatus');
+
+        function show(url) {
+            if (!url || !/^https:\/\//.test(url)) {
+                frame.style.display = 'none';
+                frame.removeAttribute('src');
+                status.style.display = 'flex';
+                status.innerHTML = 'No dev server address yet.<br>Set <code>jitter_version.cloudflared_url</code> on the <code>beta</code> row.';
+                return;
+            }
+            if (frame.getAttribute('src') === url) return;
+            frame.src = url;
+            frame.style.display = 'block';
+            status.style.display = 'none';
+        }
+
+        async function load() {
+            const { data, error } = await sb.from('jitter_version').select('cloudflared_url').eq('channel', 'beta').maybeSingle();
+            if (error) { status.textContent = 'Couldn’t read the dev server address: ' + error.message; return; }
+            show(data && data.cloudflared_url);
+        }
+
+        load();
+        // New tunnel address → follow it without a reload
+        sb.channel('jitterdev_url')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'jitter_version', filter: 'channel=eq.beta' },
+                ({ new: row }) => show(row && row.cloudflared_url))
+            .subscribe();
+    </script>
+</body>
+</html>
