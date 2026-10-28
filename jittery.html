@@ -1282,6 +1282,23 @@
         .status-dot.online  { background: var(--online); }
         .status-dot.away    { background: var(--away); }
         .status-dot.offline { background: var(--offline); }
+        /* On the Jitter iPhone app: a little phone instead of a dot */
+        .status-dot.mobile {
+            width: 9px !important;
+            height: 14px !important;
+            border-radius: 3px !important;
+        }
+        .status-dot.mobile::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: 1px;
+            width: 3px;
+            height: 1.5px;
+            margin-left: -1.5px;
+            border-radius: 1px;
+            background: var(--surface);
+        }
 
         .avatar-online { border-color: rgba(34,197,94,0.5) !important; }
         .avatar-away   { border-color: rgba(249,115,22,0.5) !important; }
@@ -3489,6 +3506,24 @@
             object-fit: cover;
             display: block;
         }
+
+        /* Status dots / phones sit over the avatar's edge, not inside it: the avatar box
+           doesn't clip, its picture does. The dot's border (the background colour) reads
+           as a cut-out in the ring. */
+        .conv-avatar,
+        .chat-header-avatar,
+        .result-avatar { overflow: visible; }
+        .conv-avatar img,
+        .chat-header-avatar img,
+        .result-avatar img { border-radius: 50%; }
+        .conv-avatar .status-dot,
+        .chat-header-avatar .status-dot,
+        .result-avatar .status-dot { bottom: -3px !important; right: -3px !important; }
+        .conv-avatar .status-dot.mobile,
+        .chat-header-avatar .status-dot.mobile,
+        .result-avatar .status-dot.mobile { bottom: -4px !important; right: -4px !important; }
+        .chat-header .chat-header-avatar .status-dot { border-color: #0e0e0f; } /* the header's own background */
+        .chat-header .chat-header-avatar .status-dot.mobile::after { background: #0e0e0f; }
 
         .header-avatar {
             width: 32px;
@@ -6757,7 +6792,7 @@
 
             const avatarContent = conv.is_group
                 ? '<i class="fas fa-users"></i>'
-                : `${avatarHTML(otherName, otherEmail)}<span class="status-dot ${convStatus}"></span>`;
+                : `${avatarHTML(otherName, otherEmail)}<span class="${statusDotClass(convStatus, otherEmail)}"></span>`;
             const avatarClass = `conv-avatar${convStatus !== 'offline' ? ` avatar-${convStatus}` : ''}${conv.is_group ? ' group-conv-avatar' : ''}`;
 
             return `
@@ -8191,7 +8226,7 @@
     /* ── VERSION ─────────────────────────────────────────
        Shown under your name in the sidebar so you can tell which build is loaded.
        Bump it with every change to this file: date as YYMMDD, then a counter for that day. */
-    const JITTER_VERSION = '261027-20';
+    const JITTER_VERSION = '261027-22';
     document.getElementById('jitterVersion').textContent = 'Jitter v' + JITTER_VERSION;
 
     /* ── VERSION CHECK ───────────────────────────────────
@@ -9284,7 +9319,7 @@
                     <div class="search-result-item" onclick="startDMWith('${escAttr(user.id)}','${escAttr(name)}','${escAttr(user.email)}')" style="cursor:pointer">
                         <div class="result-avatar" style="position:relative">
                             ${avatarHTML(name, user.email)}
-                            <span class="status-dot ${st}" style="position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;border:2px solid var(--surface-2)"></span>
+                            <span class="${statusDotClass(st, user.email)}" style="position:absolute;bottom:-1px;right:-1px;width:9px;height:9px;border-radius:50%;border:2px solid var(--surface-2)"></span>
                         </div>
                         <div class="result-info">
                             <div class="result-name">${escHtml(name)}</div>
@@ -10651,7 +10686,7 @@
         const lastSeenTxt = profileSt === 'offline' ? fmtLastSeen(profile.last_seen) : null;
         const statusLabel = escHtml(statusLabelFor(profileSt, profile.email, lastSeenTxt));
         document.getElementById('profileStatusRow').innerHTML =
-            `<span class="status-tag ${profileSt}"><i class="fas fa-circle"></i>${statusLabel}</span>`;
+            `<span class="status-tag ${profileSt}">${statusTagIcon(profileSt, profile.email)}${statusLabel}</span>`;
         const profileAvatarEl = document.getElementById('profileModalAvatar');
         profileAvatarEl.classList.remove('avatar-online', 'avatar-away');
         if (profileSt !== 'offline') profileAvatarEl.classList.add(`avatar-${profileSt}`);
@@ -10962,9 +10997,12 @@
 
     function setOnlineStatus(online) {
         if (!currentUser) return;
+        const row = { is_online: online, last_seen: new Date().toISOString() };
+        // current_page is written by the desktop (it knows which window is in front);
+        // the iPhone app sets it itself so friends see the phone icon
+        if (window.JITTER_IOS_APP) row.current_page = online ? MOBILE_PAGE : null;
         sb.from('clients')
-            // current_page is written by the desktop (it knows which window is in front)
-            .update({ is_online: online, last_seen: new Date().toISOString() })
+            .update(row)
             .eq('id', currentUser.id)
             .then(() => {});
     }
@@ -10999,7 +11037,7 @@
         const avatarEl = document.getElementById('chatAvatar');
         if (avatarEl) {
             avatarEl.innerHTML = avatarHTML(getOtherName(conv), otherEmail)
-                + `<span class="status-dot ${st}"></span>`;
+                + `<span class="${statusDotClass(st, otherEmail)}"></span>`;
             avatarEl.className = 'chat-header-avatar' + (st !== 'offline' ? ` avatar-${st}` : '');
         }
         const statusEl = document.getElementById('chatHeaderStatus');
@@ -11023,7 +11061,7 @@
                 const lastSeenTxt = pSt === 'offline' ? fmtLastSeen(profileCache[email]?.last_seen) : null;
                 const statusLabel = escHtml(statusLabelFor(pSt, email, lastSeenTxt));
                 document.getElementById('profileStatusRow').innerHTML =
-                    `<span class="status-tag ${pSt}"><i class="fas fa-circle"></i>${statusLabel}</span>`;
+                    `<span class="status-tag ${pSt}">${statusTagIcon(pSt, email)}${statusLabel}</span>`;
                 const profileAvatarEl = document.getElementById('profileModalAvatar');
                 profileAvatarEl.classList.remove('avatar-online', 'avatar-away');
                 if (pSt !== 'offline') profileAvatarEl.classList.add(`avatar-${pSt}`);
@@ -11361,7 +11399,7 @@
         if (blockedByEmails.has(email)) return 'offline';
         if (!isRecentlySeen(lastSeenCache[email])) return 'offline';
         const pg = pageCache[email];
-        if (pg === 'jittery' || pg === 'online') return 'online';
+        if (pg === 'jittery' || pg === 'online' || pg === 'jitter-mobile') return 'online';
         if (pg) return 'away';   // somewhere else on X-ORBIT
         return 'online';         // recently seen, page unknown — treat as online
     }
@@ -11380,6 +11418,7 @@
     const PAGE_LABELS = {
         'index':              'Perusing the desktop',
         'jittery':            'Chatting on Jitter',
+        'jitter-mobile':      'On mobile',
         'browser':            'Surfing ORBIX',
         'ember':              'Sketching with Ember',
         'cadence':            'Making music in Cadence',
@@ -11437,7 +11476,26 @@
 
     function headerStatusTagHTML(st, email) {
         const label = escHtml(statusLabelFor(st, email, fmtLastSeen(lastSeenCache[email])));
-        return `<span class="status-tag ${st}"><i class="fas fa-circle"></i>${label}</span>`;
+        return `<span class="status-tag ${st}">${statusTagIcon(st, email)}${label}</span>`;
+    }
+
+    /* ── Mobile presence ──
+       The iPhone app writes clients.current_page = 'jitter-mobile' (see setOnlineStatus);
+       anyone seen there gets a phone instead of a dot, and "On mobile" as their activity. */
+    const MOBILE_PAGE = 'jitter-mobile';
+
+    function onMobile(email) {
+        return pageCache[email] === MOBILE_PAGE && effectiveStatus(email) !== 'offline';
+    }
+
+    function statusDotClass(st, email) {
+        return `status-dot ${st}${onMobile(email) ? ' mobile' : ''}`;
+    }
+
+    function statusTagIcon(st, email) {
+        return st !== 'offline' && onMobile(email)
+            ? '<i class="fas fa-mobile-screen-button"></i>'
+            : '<i class="fas fa-circle"></i>';
     }
 
     function showConvContextMenu(e, convId) {
