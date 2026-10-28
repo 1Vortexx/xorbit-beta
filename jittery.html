@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>X-ORBIT Direct Messages</title>
     <script>
         /* iOS app mode: the Home Screen app installed from /jitter/ opens jittery.html?app=ios.
@@ -4786,7 +4788,9 @@
         /* ════════════════════════════════════════════════
            iOS APP (html.ios-app, see the head script)
            One pane at a time: the list, or the open chat with a back button.
-           --app-h follows the visible viewport so the keyboard never covers the composer.
+           The app fills the whole screen (100lvh) and only shrinks by --kb while the keyboard
+           is open. --safe-top/--safe-bottom are the status bar / home bar insets, with a
+           per-model fallback (--sat/--sab, from device detection) in case iOS reports 0.
         ════════════════════════════════════════════════ */
         /* Update prompt (see VERSION CHECK) */
         .update-prompt {
@@ -4833,7 +4837,7 @@
         .update-prompt-later { background: var(--surface-3); color: var(--text); }
         .update-prompt-go { background: var(--accent); color: #fff; }
         .update-prompt-go:disabled { opacity: 0.6; cursor: default; }
-        html.ios-app .update-prompt { top: calc(8px + env(safe-area-inset-top)); }
+        html.ios-app .update-prompt { top: calc(8px + var(--safe-top)); }
 
         .mobile-back-btn { display: none; }
         .ios-only { display: none !important; }
@@ -4872,20 +4876,35 @@
                     rgba(0,0,0,0) calc(var(--ps-b) * 100% + 18%));
         }
         #privacyScreen.on { display: block; }
-        html.ios-app, html.ios-app body { height: var(--app-h, 100dvh); overscroll-behavior: none; }
-        html.ios-app body { position: fixed; inset: 0; width: 100%; -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
+        html.ios-app {
+            --safe-top: max(env(safe-area-inset-top), var(--sat, 0px));
+            --safe-bottom: max(env(safe-area-inset-bottom), var(--sab, 0px));
+            --app-h: calc(100vh - var(--kb, 0px));
+            height: 100%;
+            overscroll-behavior: none;
+        }
+        @supports (height: 100lvh) { html.ios-app { --app-h: calc(100lvh - var(--kb, 0px)); } }
+        html.ios-app body {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: var(--app-h);
+            width: 100%;
+            overscroll-behavior: none;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-text-size-adjust: 100%;
+        }
         html.ios-app input, html.ios-app textarea, html.ios-app select { font-size: 16px !important; } /* stops iOS zooming in on focus */
 
         html.ios-app #loginScreen,
         html.ios-app #usernameSetup,
-        html.ios-app #systemExplain { height: var(--app-h, 100dvh); padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); overflow-y: auto; }
+        html.ios-app #systemExplain { height: var(--app-h); padding: var(--safe-top) 16px var(--safe-bottom); overflow-y: auto; }
         html.ios-app .login-wrap { grid-template-columns: 1fr; width: 100%; max-width: 440px; }
         html.ios-app .login-brand { padding: 22px 24px; border-right: none; border-bottom: 1px solid var(--border); }
         html.ios-app .login-brand-bottom { display: none; }
 
-        html.ios-app #dmDashboard { height: var(--app-h, 100dvh); }
+        html.ios-app #dmDashboard { height: var(--app-h); }
         html.ios-app .dm-sidebar,
-        html.ios-app .dm-sidebar.collapsed { width: 100%; border-right: none; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+        html.ios-app .dm-sidebar.collapsed { width: 100%; border-right: none; padding-top: var(--safe-top); padding-bottom: var(--safe-bottom); }
         html.ios-app.keyboard-open .dm-sidebar { padding-bottom: 0; }
         html.ios-app .collapse-btn { display: none; }
         html.ios-app .dm-chat-area { display: none; }
@@ -4893,7 +4912,7 @@
         html.ios-app.chat-open .dm-chat-area { display: flex; }
         html.ios-app .conv-item, html.ios-app .server-item, html.ios-app .channel-item { min-height: 52px; }
 
-        html.ios-app .chat-header { padding: calc(8px + env(safe-area-inset-top)) 12px 8px 6px; gap: 10px; }
+        html.ios-app .chat-header { padding: calc(8px + var(--safe-top)) 12px 8px 6px; gap: 10px; }
         html.ios-app .mobile-back-btn {
             display: flex;
             align-items: center;
@@ -4908,7 +4927,7 @@
             flex-shrink: 0;
         }
         html.ios-app .messages-container { padding: 14px 12px; }
-        html.ios-app .message-input-area { padding: 6px 10px calc(8px + env(safe-area-inset-bottom)); }
+        html.ios-app .message-input-area { padding: 6px 10px calc(8px + var(--safe-bottom)); }
         html.ios-app.keyboard-open .message-input-area { padding-bottom: 8px; }
         html.ios-app .input-hint { display: none; }
 
@@ -4917,20 +4936,20 @@
         html.ios-app .modal-content {
             width: 100%;
             max-width: 100%;
-            max-height: calc(var(--app-h, 100dvh) - env(safe-area-inset-top) - 10px);
+            max-height: calc(var(--app-h) - var(--safe-top) - 10px);
             border-radius: 18px 18px 0 0;
-            padding-bottom: env(safe-area-inset-bottom);
+            padding-bottom: var(--safe-bottom);
         }
 
-        html.ios-app #toast { bottom: calc(80px + env(safe-area-inset-bottom)); max-width: calc(100vw - 32px); }
+        html.ios-app #toast { bottom: calc(80px + var(--safe-bottom)); max-width: calc(100vw - 32px); }
 
         /* Calls: the small card sits under the status bar; no browser full screen on iOS */
-        html.ios-app .call-overlay { top: calc(8px + env(safe-area-inset-top)); bottom: auto; left: 10px; right: 10px; min-width: 0; max-width: none; }
-        html.ios-app .call-stage { padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom); }
+        html.ios-app .call-overlay { top: calc(8px + var(--safe-top)); bottom: auto; left: 10px; right: 10px; min-width: 0; max-width: none; }
+        html.ios-app .call-stage { padding: var(--safe-top) 0 var(--safe-bottom); }
         html.ios-app #callFullscreenBtn { display: none; }
         html.ios-app .call-stage-tiles { padding: 4px 12px; }
         html.ios-app .call-stage-controls { padding-bottom: 14px; }
-        html.ios-app .call-device-panel { top: calc(58px + env(safe-area-inset-top)); left: 12px; right: 12px; width: auto; max-width: none; }
+        html.ios-app .call-device-panel { top: calc(58px + var(--safe-top)); left: 12px; right: 12px; width: auto; max-width: none; }
     </style>
     <script>
         // Hide immediately — will be revealed only after token auth passes
@@ -6824,14 +6843,17 @@
 
     if (window.JITTER_IOS_APP) {
         // Size the app to the visible area so the keyboard pushes the composer up
+        // The app is full-screen by CSS; while the keyboard is up, shrink it by the keyboard's height
         const fitViewport = () => {
             const vv = window.visualViewport;
-            const h = vv ? vv.height : window.innerHeight;
-            document.documentElement.style.setProperty('--app-h', h + 'px');
-            document.documentElement.classList.toggle('keyboard-open', window.innerHeight - h > 120);
+            const kb = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
+            const open = kb > 120;
+            document.documentElement.style.setProperty('--kb', open ? kb + 'px' : '0px');
+            document.documentElement.classList.toggle('keyboard-open', open);
             window.scrollTo(0, 0);
         };
         (window.visualViewport || window).addEventListener('resize', fitViewport);
+        if (window.visualViewport) window.visualViewport.addEventListener('scroll', fitViewport);
         window.addEventListener('orientationchange', fitViewport);
         fitViewport();
 
@@ -6908,7 +6930,10 @@
 
     function describeDevice(d) {
         const cut = { island: 'Dynamic Island', notch: 'Notch', button: 'Home button' }[d.cutout] || 'Unknown screen';
-        return [d.device + (d.os ? ' · iOS ' + d.os : ''), cut, d.group].filter(Boolean).join(' · ');
+        const ins = safeAreaInsets();
+        const layout = `Safe area ${Math.round(ins.top)}/${Math.round(ins.bottom)} · view ${window.innerWidth}×${window.innerHeight}` +
+            (window.visualViewport ? ` (${Math.round(visualViewport.height)})` : '') + (navigator.standalone ? ' · Home Screen' : '');
+        return [d.device + (d.os ? ' · iOS ' + d.os : ''), cut, d.group, layout].filter(Boolean).join(' · ');
     }
 
     if (window.JITTER_IOS_APP) {
@@ -6918,6 +6943,12 @@
             window.JITTER_DEVICE = d;
             document.documentElement.classList.toggle('has-dynamic-island', d.dynamicIsland);
             document.documentElement.classList.toggle('has-notch', d.cutout === 'notch');
+            // If iOS reported no inset at all, use the usual status bar / home bar size for this kind of iPhone
+            const portrait = window.innerHeight >= window.innerWidth;
+            const fallbackTop = !portrait ? 0 : d.cutout === 'island' ? 59 : d.cutout === 'notch' ? 47 : d.cutout === 'button' ? 20 : 0;
+            const fallbackBottom = d.cutout === 'island' || d.cutout === 'notch' ? (portrait ? 34 : 21) : 0;
+            document.documentElement.style.setProperty('--sat', (d.method === 'inset' ? 0 : fallbackTop) + 'px');
+            document.documentElement.style.setProperty('--sab', (d.method === 'inset' ? 0 : fallbackBottom) + 'px');
         };
         window.addEventListener('load', markDevice);
         window.addEventListener('orientationchange', () => setTimeout(markDevice, 300));
@@ -7964,7 +7995,7 @@
     /* ── VERSION ─────────────────────────────────────────
        Shown under your name in the sidebar so you can tell which build is loaded.
        Bump it with every change to this file: date as YYMMDD, then a counter for that day. */
-    const JITTER_VERSION = '261027-14';
+    const JITTER_VERSION = '261027-15';
     document.getElementById('jitterVersion').textContent = 'Jitter v' + JITTER_VERSION;
 
     /* ── VERSION CHECK ───────────────────────────────────
