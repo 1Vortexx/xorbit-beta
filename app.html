@@ -3142,6 +3142,15 @@
           </div>
           <span>Games</span>
         </div>
+        <div class="desktop-folder-icon" onclick="openFolder('media', this)">
+          <div class="folder-icon-grid">
+            <div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="fas fa-headphones"></i></div>
+            <div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="fas fa-music"></i></div>
+            <div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="fab fa-spotify"></i></div>
+            <div class="folder-mini-app" style="background:rgba(255,255,255,0.08)"></div>
+          </div>
+          <span>Media</span>
+        </div>
         <div
           class="desktop-icon"
           data-app="Jitter"
@@ -3160,24 +3169,6 @@
         >
           <i class="fas fa-fire"></i>
           <span>Ember</span>
-        </div>
-        <div
-          class="desktop-icon"
-          data-app="Cadence"
-          data-src="cadence.html"
-          data-icon="fas fa-music"
-        >
-          <i class="fas fa-music"></i>
-          <span>Cadence</span>
-        </div>
-        <div
-          class="desktop-icon"
-          data-app="Spotify"
-          data-src="spotify.html"
-          data-icon="fab fa-spotify"
-        >
-          <i class="fab fa-spotify"></i>
-          <span>Spotify</span>
         </div>
         <!-- Minimalist theme folder – hidden in all other themes -->
         <div id="desktopFolder" class="desktop-icon">
@@ -3396,6 +3387,15 @@
       >
         <i class="fab fa-spotify"></i>
         <div class="tooltip">Spotify</div>
+      </div>
+      <div
+        class="dock-item"
+        data-app="Trackly"
+        data-src="trackly.html"
+        data-icon="fas fa-headphones"
+      >
+        <i class="fas fa-headphones"></i>
+        <div class="tooltip">Trackly</div>
       </div>
       <div
         class="dock-item"
@@ -5570,7 +5570,7 @@
         liteApps: true,      // tell apps to use their own lighter mode
       };
       // Apps that are never put to sleep: music keeps playing, live games and Jitter calls stay connected
-      const PERF_NEVER_SLEEP = ["cadence.html", "hangman.html", "spotify.html", "jittery.html"];
+      const PERF_NEVER_SLEEP = ["cadence.html", "hangman.html", "spotify.html", "jittery.html", "trackly.html"];
 
       let perf = (() => {
         try { return Object.assign({}, PERF_DEFAULTS, JSON.parse(localStorage.getItem(PERF_KEY) || "{}")); }
@@ -6566,7 +6566,18 @@
             { name: 'Web Dashers', src: 'web-dashers-main/index.html', icon: 'fas fa-running' },
           ],
         },
+        media: {
+          title: 'Media',
+          icon: 'fas fa-photo-film',
+          apps: [
+            { name: 'Trackly', src: 'trackly.html', icon: 'fas fa-headphones' },
+            { name: 'Cadence', src: 'cadence.html', icon: 'fas fa-music' },
+            { name: 'Spotify', src: 'spotify.html', icon: 'fab fa-spotify' },
+          ],
+        },
       };
+      // Media apps lived on the desktop before the folder, so Jitter share cards can still open them
+      FOLDERS.media.apps.forEach(a => { SHAREABLE_APPS[a.name] = { src: a.src, icon: a.icon }; });
 
       // ── Folder popup state ──────────────────────────────────────────────
       let _folderPopup    = null;
@@ -13414,11 +13425,15 @@
         let activeIdx  = -1;
 
         function getApps() {
-          return Array.from(document.querySelectorAll('.desktop-icon[data-app]')).map(el => ({
+          const apps = Array.from(document.querySelectorAll('.desktop-icon[data-app]')).map(el => ({
             name: el.dataset.app,
             src:  el.dataset.src,
             icon: el.dataset.icon || 'fas fa-window-maximize',
           })).filter(a => a.name && a.src);
+          Object.values(FOLDERS).forEach(f => f.apps.forEach(a => {
+            if (!apps.some(x => x.name === a.name)) apps.push(a);
+          }));
+          return apps;
         }
 
         function isUrl(str) {
