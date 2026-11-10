@@ -3147,7 +3147,7 @@
             <div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="fas fa-headphones"></i></div>
             <div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="fas fa-music"></i></div>
             <div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="fab fa-spotify"></i></div>
-            <div class="folder-mini-app" style="background:rgba(255,255,255,0.08)"></div>
+            <div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="fas fa-film"></i></div>
           </div>
           <span>Media</span>
         </div>
@@ -3396,6 +3396,15 @@
       >
         <i class="fas fa-headphones"></i>
         <div class="tooltip">Trackly</div>
+      </div>
+      <div
+        class="dock-item"
+        data-app="Jellyfin"
+        data-src="https://jelly.xorbit.org"
+        data-icon="fas fa-film"
+      >
+        <i class="fas fa-film"></i>
+        <div class="tooltip">Jellyfin</div>
       </div>
       <div
         class="dock-item"
@@ -5570,7 +5579,7 @@
         liteApps: true,      // tell apps to use their own lighter mode
       };
       // Apps that are never put to sleep: music keeps playing, live games and Jitter calls stay connected
-      const PERF_NEVER_SLEEP = ["cadence.html", "hangman.html", "spotify.html", "jittery.html", "trackly.html"];
+      const PERF_NEVER_SLEEP = ["cadence.html", "hangman.html", "spotify.html", "jittery.html", "trackly.html", "https://jelly.xorbit.org"];
 
       let perf = (() => {
         try { return Object.assign({}, PERF_DEFAULTS, JSON.parse(localStorage.getItem(PERF_KEY) || "{}")); }
@@ -6573,6 +6582,7 @@
             { name: 'Trackly', src: 'trackly.html', icon: 'fas fa-headphones' },
             { name: 'Cadence', src: 'cadence.html', icon: 'fas fa-music' },
             { name: 'Spotify', src: 'spotify.html', icon: 'fab fa-spotify' },
+            { name: 'Jellyfin', src: 'https://jelly.xorbit.org', icon: 'fas fa-film' },
           ],
         },
       };
@@ -6761,7 +6771,9 @@
           '<iframe src="' +
           src +
           // Jitter calls: mic, camera, screen sharing and the full-screen call view
-          (src === "jittery.html" ? '" allow="microphone; camera; display-capture; autoplay; fullscreen; speaker-selection"' : '"') +
+          (src === "jittery.html" ? '" allow="microphone; camera; display-capture; autoplay; fullscreen; speaker-selection"' :
+          // Jellyfin: video full screen, autoplay and picture-in-picture
+           src.startsWith("https://jelly.xorbit.org") ? '" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen' : '"') +
           '></iframe>' +
           "</div>";
 
@@ -12221,52 +12233,6 @@
               "Major version bump to v6.0 Sahara",
               "Complete UI refresh with neutral dark theme",
               "New software update check window with cleaner design"
-            ]}
-          ]
-        },
-        {
-          version: "v5.5.8",
-          name: "Ventas",
-          date: "August 18, 2026",
-          sections: [
-            { type: "added", items: [
-              "Powerwash trigger on login page for both regular and saved accounts",
-              "Lockdown email alert via notify-lockdown edge function"
-            ]},
-            { type: "changed", items: [
-              "Admin tag management and user tag editing improvements",
-              "Media removal actions and dev console enhancements"
-            ]}
-          ]
-        },
-        {
-          version: "v5.5.5",
-          name: "Ventas",
-          date: "August 4, 2026",
-          sections: [
-            { type: "added", items: [
-              "Gemini AI chat integration in the desktop",
-              "Dev console with runtime diagnostics"
-            ]},
-            { type: "fixed", items: [
-              "Settings panel scroll and layout fixes",
-              "Notification bell count accuracy improvements"
-            ]}
-          ]
-        },
-        {
-          version: "v5.5.0",
-          name: "Ventas",
-          date: "July 20, 2026",
-          sections: [
-            { type: "added", items: [
-              "Cloud Sync \u2014 settings and preferences saved to Supabase",
-              "Account management panel in settings",
-              "Spotlight search for apps and settings"
-            ]},
-            { type: "changed", items: [
-              "Settings UI restructured with sidebar navigation and subcategories",
-              "Dock animations refined with smoother transitions"
             ]}
           ]
         }
