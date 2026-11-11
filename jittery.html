@@ -6,14 +6,26 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <!-- iOS paints the status bar with this (white if missing); matches the top of the iPhone background -->
-    <meta name="theme-color" content="#0d1834">
+    <meta name="theme-color" content="#0c0c0e">
     <title>X-ORBIT Direct Messages</title>
     <script>
         /* iOS app mode: the Home Screen app installed from /jitter/ opens jittery.html?app=ios.
            It signs in on its own (no desktop), uses the phone layout (html.ios-app), and only
            runs as an installed Home Screen app; anything else goes back to /jitter/ for the
            install instructions. localhost skips that check so it can be previewed. */
-        window.JITTER_IOS_APP = new URLSearchParams(location.search).get('app') === 'ios';
+        const jitterAppMode = new URLSearchParams(location.search).get('app');
+        window.JITTER_IOS_APP = jitterAppMode === 'ios';
+        // The browser-installed Jitter PWA starts here from jitter-app.html. It uses the
+        // regular desktop layout and its own sign-in, rather than the X-ORBIT iframe token.
+        window.JITTER_PWA_APP = jitterAppMode === 'pwa';
+        if (window.JITTER_PWA_APP) {
+            const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+                navigator.standalone === true;
+            const preview = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+            if (!preview && !standalone) location.replace('/jitter-app.html');
+            // Same ban / lockout checks as the desktop.
+            document.write('<script src="/assets/device-gate.js"><\/script>');
+        }
         if (window.JITTER_IOS_APP) {
             const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -33,8 +45,19 @@
             // Same ban / lockout checks as the desktop
             document.write('<script src="/assets/device-gate.js"><\/script>');
         }
+
+        /* Theme (Settings › Appearance), saved on this device. Applied before anything paints;
+           no saved choice means Original. See THEMES in the main script. */
+        (function () {
+            const ids = ['gig', 'first', 'double', 'late'];
+            let id = null;
+            try { id = localStorage.getItem('jittery_theme'); } catch (_) {}
+            if (ids.includes(id)) document.documentElement.dataset.theme = id;
+        })();
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <!-- Theme type: Gig Listing (Barlow Condensed), Double Take (DM Sans), Late Night (Space Grotesk) -->
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -1754,6 +1777,82 @@
             color: #fff;
             border-bottom-right-radius: var(--r-sm);
         }
+
+        /* Links in messages, and the preview card for the first one */
+        .msg-link {
+            color: var(--accent-hi);
+            text-decoration: underline;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 2px;
+            word-break: break-all;
+        }
+        .message.mine .msg-link { color: #fff; }
+        .msg-link:hover { text-decoration-thickness: 2px; }
+
+        .link-card {
+            display: block;
+            white-space: normal;   /* bubbles keep line breaks (pre-wrap); the card's markup shouldn't */
+            width: 300px;
+            max-width: 100%;
+            margin: 8px 0 2px;
+            border-radius: 12px;
+            overflow: hidden;
+            text-decoration: none;
+            color: inherit;
+            background: var(--surface-3);
+            border: 1px solid var(--border-hi);
+            transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+        .link-card:hover { border-color: var(--text-ghost); }
+        .link-card:active { transform: scale(0.985); }
+        .message.mine .link-card { background: rgba(0, 0, 0, 0.2); border-color: rgba(255, 255, 255, 0.16); }
+        .message.mine .link-card:hover { border-color: rgba(255, 255, 255, 0.35); }
+        .lc-image { aspect-ratio: 1.91 / 1; background: rgba(0, 0, 0, 0.25); overflow: hidden; }
+        .lc-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .lc-body { padding: 9px 12px 10px; line-height: 1.35; }
+        .lc-site {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            color: var(--text-faint);
+            min-width: 0;
+        }
+        .lc-site span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .lc-favicon { width: 14px; height: 14px; border-radius: 3px; flex: 0 0 auto; }
+        .lc-title {
+            margin-top: 3px;
+            font-size: 0.86rem;
+            font-weight: 650;
+            color: var(--text);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .lc-desc {
+            margin-top: 3px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .message.mine .lc-site { color: rgba(255, 255, 255, 0.7); }
+        .message.mine .lc-title { color: #fff; }
+        .message.mine .lc-desc { color: rgba(255, 255, 255, 0.82); }
+        .lc-skel {
+            height: 10px;
+            margin-top: 8px;
+            border-radius: 5px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.18), rgba(255,255,255,0.08)) 0 0 / 200% 100%;
+            animation: lcShimmer 1.2s linear infinite;
+        }
+        .lc-skel.short { width: 60%; }
+        @keyframes lcShimmer { to { background-position: -200% 0; } }
 
         /* Hangman invite card (sent from hangman.html) */
         .message .game-invite {
@@ -4740,6 +4839,34 @@
             transition: box-shadow 0.12s, border-color 0.12s;
         }
         .call-tile.speaking { border-color: var(--success); box-shadow: 0 0 0 2px var(--success); }
+        /* Other person paused (iPhone in the background) */
+        .call-tile-away { display: none; }
+        .call-tile.away .call-tile-away {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 16px;
+            border-radius: inherit;
+            background: rgba(5,7,13,0.78);
+            text-align: center;
+        }
+        .call-tile-away i {
+            width: 52px; height: 52px;
+            display: grid; place-items: center;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            font-size: 1.2rem;
+            margin-bottom: 4px;
+        }
+        .call-tile-away b { font-size: 0.95rem; }
+        .call-tile-away span { font-size: 0.78rem; color: var(--text-muted); }
+        .call-tile.away { box-shadow: none !important; border-color: var(--border) !important; }
+        .call-tile.away .call-tile-avatar, .call-tile.away video { visibility: hidden; }
         .call-tile.waiting .call-tile-avatar { opacity: 0.45; }
         .call-tile-avatar {
             width: clamp(40px, 34%, 120px);
@@ -4793,6 +4920,74 @@
         .call-tile-label { z-index: 1; }
         .call-tile.screen video { object-fit: contain; }
         .call-action.on { background: var(--text); color: var(--bg); }
+
+        /* Split button: the action + a ⌃ that opens the device menu */
+        .call-split { position: relative; display: flex; }
+        .call-caret {
+            position: absolute;
+            right: -4px;
+            bottom: -4px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid var(--surface);
+            background: var(--surface-3);
+            color: var(--text);
+            font-size: 0.55rem;
+            display: grid;
+            place-items: center;
+            cursor: pointer;
+            padding: 0;
+        }
+        .call-stage .call-caret { width: 22px; height: 22px; border-color: #0b0d14; font-size: 0.6rem; }
+        .call-caret:hover { background: var(--accent); }
+        .call-device-menu {
+            position: fixed;
+            z-index: 5200;
+            display: none;
+            width: 280px;
+            max-width: calc(100vw - 16px);
+            max-height: 60vh;
+            overflow-y: auto;
+            padding: 6px;
+            border-radius: 14px;
+            background: var(--surface-2);
+            border: 1px solid var(--border-hi);
+            box-shadow: 0 18px 50px rgba(0,0,0,0.6);
+        }
+        .call-device-menu.show { display: block; animation: updatePromptIn 0.16s ease-out; }
+        .cdm-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px 4px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+        .cdm-title:not(:first-child) { margin-top: 6px; border-top: 1px solid var(--border); padding-top: 12px; }
+        .cdm-item {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border: none;
+            border-radius: 9px;
+            background: none;
+            color: var(--text);
+            font: inherit;
+            font-size: 0.85rem;
+            text-align: left;
+            cursor: pointer;
+        }
+        .cdm-item span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cdm-item i { color: var(--accent-hi); visibility: hidden; }
+        .cdm-item.on i { visibility: visible; }
+        .cdm-item.on span { font-weight: 600; }
+        .cdm-item:hover { background: rgba(255,255,255,0.06); }
         .call-device-panel {
             position: absolute;
             top: 58px;
@@ -5173,8 +5368,14 @@
         }
         /* Developer preview (/jitter/ → "developer"): no real home bar inside the frame, so fake its space */
         html.ios-app.ios-dev-preview { --safe-bottom: 34px; }
-        /* Starts at the theme-color navy so the status bar runs straight into the app */
-        html.ios-app body { background: linear-gradient(180deg, var(--ios-top) 0%, #0a1226 38%, #060a15 100%); }
+        /* iOS (Safari 26) colours the status bar and its fade from the page's background-colour,
+           not theme-color or a gradient, so both html and body get the navy as a solid colour,
+           with the gradient drawn over it */
+        html.ios-app { background-color: var(--ios-top); }
+        html.ios-app body {
+            background-color: var(--ios-top);
+            background-image: linear-gradient(180deg, var(--ios-top) 0%, #0a1226 38%, #060a15 100%);
+        }
         html.ios-app #dmDashboard { flex-direction: column; }
         html.ios-app .dm-body { flex: 1; min-height: 0; }
         html.ios-app .dm-sidebar,
@@ -5362,11 +5563,1226 @@
         html.ios-app .dm-sidebar,
         html.ios-app .dm-sidebar.collapsed { padding-bottom: 0; }
         html.ios-app .message-input-area { padding-bottom: 10px !important; }
+
+        /* ════════════════════════════════════════════════
+           THEMES (html[data-theme], see THEMES in the script)
+           No data-theme = Original: everything above. Each theme redefines the colour
+           tokens, then restyles the shapes that make it recognisable. The inbox and chat
+           markup always carries the optional parts below; themes show the ones they use.
+        ════════════════════════════════════════════════ */
+        .conv-day, .conv-clock, .avatar-stack, .chat-cover { display: none; }
+        .result-action { flex-shrink: 0; white-space: nowrap; }
+        .dm-sidebar.collapsed .conv-day,
+        .dm-sidebar.collapsed .conv-clock { display: none !important; }
+        .conv-item:focus-visible,
+        .server-item:focus-visible,
+        .channel-item:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: -2px; }
+
+        /* Group avatars: up to three members, overlapped (themes that use them) */
+        .stack-av {
+            position: absolute;
+            width: 68%;
+            height: 68%;
+            border-radius: 50%;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(180deg, #a5abb8, #858994);
+            border: 2px solid var(--surface);
+            color: #fff;
+            font-size: 0.6rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .stack-av img { width: 100%; height: 100%; object-fit: cover; border-radius: 0 !important; display: block; }
+        .stack-av:nth-child(1) { top: 0; left: 0; z-index: 3; }
+        .stack-av:nth-child(2) { bottom: 0; right: 0; z-index: 2; }
+        .stack-av:nth-child(3) { top: 0; right: 0; width: 46%; height: 46%; z-index: 1; }
+        .avatar-stack[data-count="1"] .stack-av { inset: 0; width: 100%; height: 100%; border: none; }
+        html[data-theme="first"] .group-conv-avatar:has(.avatar-stack),
+        html[data-theme="double"] .group-conv-avatar:has(.avatar-stack),
+        html[data-theme="late"] .group-conv-avatar:has(.avatar-stack),
+        html[data-theme="double"] .chat-header-avatar.is-group:has(.avatar-stack) {
+            background: none !important;
+            border: none;
+        }
+        html[data-theme="first"] .group-conv-avatar:has(.avatar-stack) > i,
+        html[data-theme="double"] .group-conv-avatar:has(.avatar-stack) > i,
+        html[data-theme="late"] .group-conv-avatar:has(.avatar-stack) > i,
+        html[data-theme="double"] .chat-header-avatar.is-group:has(.avatar-stack) > i { display: none; }
+        html[data-theme="first"] .avatar-stack,
+        html[data-theme="double"] .avatar-stack,
+        html[data-theme="late"] .avatar-stack { display: block; position: relative; width: 100%; height: 100%; }
+
+        /* ─── Appearance picker (Settings) ─── */
+        .theme-picker { display: flex; flex-direction: column; }
+        .theme-option {
+            position: relative;
+            display: grid;
+            grid-template-columns: 190px minmax(0, 1fr) 18px;
+            align-items: center;
+            gap: 14px;
+            min-height: 56px;
+            padding: 10px 14px 10px 10px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+        }
+        .theme-option:last-child { border-bottom: none; }
+        .theme-option:hover { background: var(--accent-dim); }
+        .theme-option input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+        .theme-option:has(input:focus-visible) { outline: 2px solid var(--accent-hi); outline-offset: -2px; }
+        .theme-option-preview {
+            display: block;
+            width: 190px;
+            height: 112px;
+            overflow: hidden;
+            border-radius: 8px;
+            border: 1px solid var(--border-hi);
+            background: #000;
+            pointer-events: none;
+        }
+        /* The frame lays out at 1/0.68 of the box, then shrinks to fit */
+        .theme-option-preview iframe {
+            display: block;
+            width: calc(190px / 0.68);
+            height: calc(112px / 0.68);
+            border: 0;
+            transform: scale(0.68);
+            transform-origin: 0 0;
+        }
+        .theme-option-name { display: block; font-size: 0.9rem; font-weight: 600; }
+        .theme-option-desc { display: block; margin-top: 2px; font-size: 0.75rem; line-height: 1.35; color: var(--text-muted); }
+        .theme-option-check { color: var(--accent); font-size: 0.85rem; visibility: hidden; }
+        .theme-option:has(input:checked) .theme-option-check { visibility: visible; }
+        .theme-option:has(input:checked) .theme-option-preview { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+        .settings-hint { margin: 6px 4px 0; font-size: 0.72rem; color: var(--text-muted); }
+
+        /* ─── Settings pages ─── */
+        .settings-page > .settings-group:first-child { margin-top: 10px; }
+        .settings-page > .settings-group + .settings-group { margin-top: 12px; }
+        .settings-categories .settings-row { min-height: 56px; }
+        .settings-back {
+            width: 36px; height: 36px;
+            margin: -6px 4px -6px -10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border: none;
+            border-radius: 50%;
+            background: none;
+            color: var(--accent);
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        .settings-back[hidden] { display: none; }
+        .settings-back:hover { background: var(--surface-2); }
+        .settings-back:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 1px; }
+        #settingsModal .modal-header { justify-content: flex-start; }
+        #settingsModal .modal-header .close-modal { margin-left: auto; }
+        html.ios-app .settings-back { width: 44px; height: 44px; }
+        html.ios-app .theme-option { grid-template-columns: minmax(0, 1fr) 18px; gap: 4px 12px; padding: 12px; }
+        html.ios-app .theme-option-preview { grid-column: 1 / -1; width: 100%; height: 118px; }
+        html.ios-app .theme-option-preview iframe { width: calc(100% / 0.8); height: calc(118px / 0.8); transform: scale(0.8); }
+
+        /* The miniature's own document: one inbox row above one sent message */
+        html.theme-preview-doc,
+        html.theme-preview-doc body {
+            position: static;
+            height: auto;
+            min-height: 100%;
+            overflow: hidden;
+            background-color: var(--bg);
+            background-image: none;
+        }
+        html.theme-preview-doc *, html.theme-preview-doc *::before, html.theme-preview-doc *::after { animation: none !important; transition: none !important; }
+        html.theme-preview-doc .tp-sidebar,
+        html.ios-app.theme-preview-doc .tp-sidebar { width: auto; height: auto; padding: 6px 0 0; border: none; overflow: visible; }
+        html.theme-preview-doc .conv-list { flex: none; overflow: visible; padding-top: 0; padding-bottom: 0; }
+        html.theme-preview-doc .tp-chat { flex: none; overflow: visible; padding-top: 6px; padding-bottom: 8px; background: var(--bg); }
+        html.theme-preview-doc .conv-item { pointer-events: none; }
+        html.theme-preview-doc .tp-sidebar .conv-list { padding-bottom: 0 !important; }
+        html.theme-preview-doc .tp-chat { padding-top: 4px !important; padding-bottom: 4px !important; }
+        html.theme-preview-doc .tp-chat .message { margin-top: 0 !important; }
+        html.theme-preview-doc .msg-meta { display: none !important; }
+
+        /* Reduced motion: messages and theme flourishes appear in place */
+        @media (prefers-reduced-motion: reduce) {
+            .message, .messages-container .msg { animation: none; }
+            .message.just-sent .message-bubble,
+            .messages-container .msg.just-sent .msg-text,
+            .just-sent .message-bubble::after { animation: none !important; }
+        }
+
+        /* Profile cards are painted with each person's own gradient (dark by default) and
+           written for light text, so the light themes keep light-on-dark tokens inside them */
+        html[data-theme="gig"] #profileModal .profile-card,
+        html[data-theme="double"] #profileModal .profile-card {
+            --surface:    #1c1c1e;
+            --surface-2:  rgba(255,255,255,0.08);
+            --surface-3:  rgba(255,255,255,0.14);
+            --border:     rgba(255,255,255,0.1);
+            --border-hi:  rgba(255,255,255,0.2);
+            --text:       #fff;
+            --text-dim:   rgba(255,255,255,0.84);
+            --text-muted: rgba(255,255,255,0.64);
+            --text-faint: rgba(255,255,255,0.5);
+            --text-ghost: rgba(255,255,255,0.36);
+            color: var(--text);
+            color-scheme: dark;
+        }
+        html[data-theme="gig"] #profileModal .profile-card { --accent: #ff6a45; --accent-hi: #ff8a6b; --accent-dim: rgba(255,106,69,0.16); }
+        html[data-theme="double"] #profileModal .profile-card { --accent: #aab4ff; --accent-hi: #c3caff; --accent-dim: rgba(170,180,255,0.16); }
+        html[data-theme="double"] #profileModal .profile-message-btn { color: #1c1b68; background: #aab4ff; box-shadow: 3px 3px 0 #5761c9; }
+        html[data-theme="gig"] #profileModal .profile-message-btn { color: #1a1714; background: #ff6a45; }
+        /* Names show exactly as people typed them */
+        html[data-theme] .profile-name,
+        html[data-theme] .group-info-name-display { text-transform: none; letter-spacing: -0.01em; }
+
+        /* ════════ 1. GIG LISTING ════════
+           A record shop's printed show schedule: warm paper, black ink, vermilion.
+           Condensed type for names and headings; messages stay in the readable sans. */
+        html[data-theme="gig"] {
+            --cond:       'Barlow Condensed', 'Arial Narrow', 'Helvetica Neue', sans-serif;
+            --bg:         #f4eee2;
+            --surface:    #f4eee2;
+            --surface-2:  #e9e0cf;
+            --surface-3:  #dcd1bc;
+            --bubble-in:  transparent;
+            --border:     rgba(26,23,20,0.14);
+            --border-hi:  rgba(26,23,20,0.3);
+            --text:       #1a1714;
+            --text-dim:   #2f2a25;
+            --text-muted: #5c534a;
+            --text-faint: #6a6156;
+            --text-ghost: #82786b;
+            --text-dead:  rgba(26,23,20,0.12);
+            --accent:     #d23c17;
+            --accent-hi:  #b3320f;
+            --accent-dim: rgba(210,60,23,0.1);
+            --online:     #2e7d32;
+            --away:       #b86a00;
+            --offline:    #9a9083;
+            --success:    #2e7d32;
+            --error:      #c62b10;
+            --r: 2px; --r-sm: 2px; --r-lg: 2px;
+            --ios-top:    #f4eee2;
+            --ios-row:    #f4eee2;
+            color-scheme: light;
+        }
+        html[data-theme="gig"] body,
+        html.ios-app[data-theme="gig"],
+        html.ios-app[data-theme="gig"] body { background: var(--bg); background-image: none; }
+        html[data-theme="gig"] ::-webkit-scrollbar-thumb { background: rgba(26,23,20,0.25); }
+
+        /* Header: condensed masthead over a double rule */
+        html[data-theme="gig"] .sidebar-header { border-bottom: 3px double var(--text); }
+        html[data-theme="gig"] .logo,
+        html.ios-app[data-theme="gig"] .sidebar-header .logo {
+            font-family: var(--cond);
+            font-weight: 700;
+            font-size: 1.7rem;
+            letter-spacing: 0.01em;
+            text-transform: uppercase;
+            color: var(--text);
+        }
+        html.ios-app[data-theme="gig"] .sidebar-header .logo { font-size: 2.2rem; }
+        html[data-theme="gig"] .logo::after { content: '•'; color: var(--accent); margin-left: 2px; }
+        html[data-theme="gig"] .compose-btn,
+        html.ios-app[data-theme="gig"] .compose-btn { background: none; border: 1px solid var(--text); border-radius: 2px; color: var(--text); }
+        html[data-theme="gig"] .compose-btn:hover,
+        html[data-theme="gig"] .collapse-btn:hover { background: var(--text); color: var(--bg); }
+        html[data-theme="gig"] .collapse-btn { border-radius: 2px; }
+
+        /* Friends / Servers: printed section tabs */
+        html[data-theme="gig"] .sidebar-tabs { background: none; margin: 8px 14px 10px; padding: 0; gap: 18px; border-radius: 0; }
+        html[data-theme="gig"] .sidebar-tab {
+            flex: none;
+            padding: 4px 0;
+            border-radius: 0;
+            border-bottom: 2px solid transparent;
+            color: var(--text-muted);
+            font-family: var(--cond);
+            font-size: 1.02rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        html[data-theme="gig"] .sidebar-tab.active { background: none; box-shadow: none; color: var(--text); border-bottom-color: var(--accent); }
+        html[data-theme="gig"] .sidebar-search,
+        html.ios-app[data-theme="gig"] .sidebar-search { background: transparent; border: 1px solid var(--border-hi); border-radius: 2px; color: var(--text); }
+        html[data-theme="gig"] .sidebar-search:focus { border-color: var(--text); }
+
+        /* Inbox: day headings with a fine rule, a narrow time column, then the act */
+        html[data-theme="gig"] .conv-list,
+        html.ios-app[data-theme="gig"] .conv-list { padding: 0 0 12px; gap: 0; }
+        html[data-theme="gig"] .conv-day {
+            display: block;
+            margin: 0 14px;
+            padding: 14px 0 5px;
+            border-bottom: 1px solid var(--text);
+            font-family: var(--cond);
+            font-size: 0.92rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--accent-hi);
+        }
+        html[data-theme="gig"] .conv-item,
+        html.ios-app[data-theme="gig"] .conv-item {
+            margin: 0 14px;
+            padding: 10px 0;
+            gap: 12px;
+            border: none;
+            border-bottom: 1px dotted var(--border-hi);
+            border-radius: 0;
+            background: none;
+        }
+        html[data-theme="gig"] .conv-item:hover { background: var(--accent-dim); }
+        html[data-theme="gig"] .conv-item.active,
+        html[data-theme="gig"] .dm-sidebar.collapsed .conv-item.active {
+            background: var(--surface-2);
+            border: none;
+            border-bottom: 1px dotted var(--border-hi);
+            border-radius: 0;
+            box-shadow: -14px 0 0 var(--surface-2), 14px 0 0 var(--surface-2), inset 3px 0 0 var(--accent);
+        }
+        html[data-theme="gig"] .conv-clock {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            align-self: stretch;
+            justify-content: center;
+            width: 46px;
+            flex-shrink: 0;
+            padding-right: 10px;
+            border-right: 1px solid var(--border-hi);
+            font-family: var(--cond);
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
+        html[data-theme="gig"] .conv-clock b { font-size: 1.05rem; font-weight: 600; color: var(--text); }
+        html[data-theme="gig"] .conv-clock span { margin-top: 3px; font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; color: var(--text-muted); }
+        html[data-theme="gig"] .conv-item.unread .conv-clock b { color: var(--accent-hi); }
+        html[data-theme="gig"] .conv-avatar,
+        html.ios-app[data-theme="gig"] .conv-avatar { width: 38px; height: 38px; }
+        html[data-theme="gig"] .conv-avatar,
+        html[data-theme="gig"] .chat-header-avatar,
+        html[data-theme="gig"] .msg-avatar,
+        html[data-theme="gig"] .typing-bubble-wrap .tb-avatar { background: var(--text); color: var(--bg); border: none !important; }
+        html[data-theme="gig"] .conv-name {
+            font-family: var(--cond);
+            font-size: 1.18rem;
+            font-weight: 600;
+            letter-spacing: 0.005em;
+            line-height: 1.15;
+            color: var(--text);
+        }
+        html[data-theme="gig"] .conv-item.unread .conv-name { font-weight: 700; }
+        html[data-theme="gig"] .conv-preview { font-size: 0.85rem; color: var(--text-muted); }
+        html[data-theme="gig"] .conv-item.unread .conv-preview { color: var(--text); }
+        html[data-theme="gig"] .conv-time { display: none; }
+        html[data-theme="gig"] .dm-sidebar.collapsed .conv-time { display: block; }
+        html[data-theme="gig"] .unread-badge {
+            padding: 1px 5px;
+            border-radius: 0;
+            background: var(--accent);
+            color: #fff;
+            font-family: var(--cond);
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+        html[data-theme="gig"] .conv-item.active .conv-preview,
+        html[data-theme="gig"] .conv-item.active .conv-time { color: var(--text-dim); }
+        html[data-theme="gig"] .conv-item.active .unread-badge { background: var(--accent); color: #fff; }
+        html[data-theme="gig"] .status-dot,
+        html[data-theme="gig"] .conv-item.active .status-dot,
+        html.ios-app[data-theme="gig"] .status-dot { border-color: var(--bg); }
+        html[data-theme="gig"] .conv-request-tag,
+        html[data-theme="gig"] .conv-item.active .conv-request-tag { background: none; border: 1px solid var(--accent); color: var(--accent-hi); border-radius: 0; }
+
+        /* Servers + channels: same ruled list */
+        html[data-theme="gig"] .server-item,
+        html[data-theme="gig"] .channel-item { border-radius: 0; border: none; border-bottom: 1px dotted var(--border-hi); }
+        html[data-theme="gig"] .server-item.active,
+        html[data-theme="gig"] .channel-item.active { background: var(--surface-2); border: none; border-bottom: 1px dotted var(--border-hi); box-shadow: inset 3px 0 0 var(--accent); }
+        html[data-theme="gig"] .server-name,
+        html[data-theme="gig"] .channel-server-name,
+        html[data-theme="gig"] .channel-item-name { font-family: var(--cond); font-size: 1.1rem; font-weight: 600; }
+        html[data-theme="gig"] .server-icon { border-radius: 2px; background: var(--text); color: var(--bg); }
+        html[data-theme="gig"] .channel-category-label { font-family: var(--cond); font-size: 0.9rem; letter-spacing: 0.06em; color: var(--accent-hi); }
+        html[data-theme="gig"] .create-server-btn,
+        html[data-theme="gig"] .add-channel-btn { border-radius: 2px; border: 1px solid var(--text); color: var(--text); background: none; font-family: var(--cond); font-size: 1rem; letter-spacing: 0.04em; text-transform: uppercase; }
+
+        /* Open conversation: a printed transcript */
+        html[data-theme="gig"] .chat-header,
+        html.ios-app[data-theme="gig"] .chat-header { background: var(--bg); border-bottom: 3px double var(--text); }
+        html[data-theme="gig"] .chat-header .chat-header-avatar .status-dot { border-color: var(--bg); }
+        html[data-theme="gig"] .chat-header .chat-header-avatar .status-dot.mobile::after { background: var(--bg); }
+        html[data-theme="gig"] .chat-header-avatar,
+        html.ios-app[data-theme="gig"] .chat-header-avatar { border-radius: 2px; }
+        html[data-theme="gig"] .chat-header-avatar img,
+        html[data-theme="gig"] .conv-avatar img,
+        html[data-theme="gig"] .msg-avatar img,
+        html[data-theme="gig"] .conv-avatar,
+        html[data-theme="gig"] .msg-avatar { border-radius: 2px; }
+        html[data-theme="gig"] .chat-header-name,
+        html.ios-app[data-theme="gig"] .chat-header-name { font-family: var(--cond); font-size: 1.45rem; font-weight: 700; letter-spacing: 0.005em; line-height: 1.1; }
+        html[data-theme="gig"] .chat-call-btn,
+        html.ios-app[data-theme="gig"] .chat-call-btn { border-radius: 2px; background: none; border: 1px solid var(--border-hi); color: var(--text); }
+        html[data-theme="gig"] .chat-call-btn:hover { border-color: var(--text); color: var(--text); background: var(--surface-2); }
+        html[data-theme="gig"] .profile-tag,
+        html[data-theme="gig"] .status-tag { border-radius: 0; }
+
+        html[data-theme="gig"] .messages-container { padding: 6px 28px 10px 18px; }
+        html.ios-app[data-theme="gig"] .messages-container { padding: 6px 14px 10px 8px; }
+        html[data-theme="gig"] .msg-day-separator { justify-content: flex-start; gap: 10px; margin: 18px 0 4px; padding: 0; }
+        html[data-theme="gig"] .msg-day-separator::after { display: block; content: ''; flex: 1; height: 1px; background: var(--text); }
+        html[data-theme="gig"] .msg-day-separator::before { display: none; }
+        html[data-theme="gig"] .msg-day-label {
+            font-family: var(--cond);
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--accent-hi);
+        }
+        /* Every line sits left; the time of each run prints in the gutter */
+        html[data-theme="gig"] .message,
+        html[data-theme="gig"] .messages-container .msg {
+            position: relative;
+            display: grid;
+            grid-template-columns: 24px minmax(0, 1fr);
+            column-gap: 10px;
+            align-items: start;
+            width: auto;
+            max-width: 760px;
+            margin: 0 0 0 64px;
+            align-self: stretch;
+        }
+        html.ios-app[data-theme="gig"] .message,
+        html.ios-app[data-theme="gig"] .messages-container .msg { margin-left: 52px; grid-template-columns: 20px minmax(0, 1fr); column-gap: 8px; }
+        html[data-theme="gig"] .message.grp-first,
+        html[data-theme="gig"] .messages-container .msg.grp-first { margin-top: 10px; padding-top: 10px; border-top: 1px dotted var(--border-hi); }
+        html[data-theme="gig"] .msg-day-separator + .message.grp-first,
+        html[data-theme="gig"] .msg-day-separator + .msg.grp-first { border-top: none; padding-top: 4px; }
+        html[data-theme="gig"] .message.grp-first::before,
+        html[data-theme="gig"] .messages-container .msg.grp-first::before {
+            content: attr(data-clock);
+            position: absolute;
+            top: 12px;
+            right: calc(100% + 10px);
+            width: 56px;
+            text-align: right;
+            font-family: var(--cond);
+            font-size: 0.92rem;
+            font-weight: 600;
+            line-height: 1.2;
+            color: var(--text-muted);
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+        html.ios-app[data-theme="gig"] .message.grp-first::before,
+        html.ios-app[data-theme="gig"] .messages-container .msg.grp-first::before { width: 44px; font-size: 0.82rem; right: calc(100% + 8px); }
+        html[data-theme="gig"] .msg-day-separator + .message.grp-first::before,
+        html[data-theme="gig"] .msg-day-separator + .msg.grp-first::before { top: 6px; }
+        html[data-theme="gig"] .msg-content,
+        html[data-theme="gig"] .msg-body { grid-column: 2; align-items: stretch !important; }
+        html[data-theme="gig"] .message .msg-avatar,
+        html[data-theme="gig"] .messages-container .msg .msg-avatar {
+            grid-column: 1;
+            width: 24px; height: 24px;
+            margin-top: 1px;
+            font-size: 0.62rem;
+            visibility: hidden;
+        }
+        html.ios-app[data-theme="gig"] .message .msg-avatar,
+        html.ios-app[data-theme="gig"] .messages-container .msg .msg-avatar { width: 20px; height: 20px; font-size: 0.55rem; }
+        html[data-theme="gig"] .message.grp-first .msg-avatar,
+        html[data-theme="gig"] .messages-container .msg.grp-first .msg-avatar { visibility: visible; }
+        html[data-theme="gig"] .messages-container .msg.msg-mine { flex-direction: row; }
+        html[data-theme="gig"] .messages-container .msg.msg-mine .msg-avatar { display: flex; }
+        /* Sender name above their lines, in 1:1 chats too */
+        html[data-theme="gig"] .message.grp-first .message-header,
+        html[data-theme="gig"] .messages-container .message.grp-first .message-header {
+            display: block;
+            margin: 0 0 2px;
+            font-family: var(--cond);
+            font-size: 1.08rem;
+            font-weight: 600;
+            line-height: 1.2;
+            color: var(--text);
+        }
+        html[data-theme="gig"] .message.mine .message-header,
+        html[data-theme="gig"] .msg-mine .msg-name { color: var(--accent-hi); text-align: left; }
+        html[data-theme="gig"] .message .msg-meta,
+        html[data-theme="gig"] .message.mine .msg-meta { flex-direction: row; justify-content: flex-start; }
+        html[data-theme="gig"] .messages-container .msg.grp-first .msg-sender,
+        html[data-theme="gig"] .msg-mine.grp-first .msg-sender { position: static; display: flex; margin: 0 0 2px; }
+        html[data-theme="gig"] .messages-container .msg.grp-first .msg-name,
+        html[data-theme="gig"] .msg-mine.grp-first .msg-name { display: inline; font-family: var(--cond); font-size: 1.08rem; font-weight: 600; }
+        html[data-theme="gig"] .messages-container .msg .msg-time { display: none; }
+        html[data-theme="gig"] .messages-container .msg:not(.grp-first) .msg-sender { display: none; }
+        html[data-theme="gig"] .message .message-bubble,
+        html[data-theme="gig"] .message.theirs .message-bubble,
+        html[data-theme="gig"] .message.mine .message-bubble,
+        html[data-theme="gig"] .messages-container .msg .msg-text,
+        html[data-theme="gig"] .msg-other .msg-text,
+        html[data-theme="gig"] .msg-mine .msg-text,
+        html.ios-app[data-theme="gig"] .message .message-bubble,
+        html.ios-app[data-theme="gig"] .message.mine .message-bubble,
+        html.ios-app[data-theme="gig"] .message.theirs .message-bubble {
+            padding: 1px 0 1px 10px;
+            background: none;
+            color: var(--text);
+            border-radius: 0;
+            border-left: 2px solid var(--border);
+            font-size: 1rem;
+            line-height: 1.45;
+            letter-spacing: 0;
+        }
+        html[data-theme="gig"] .message.mine .message-bubble,
+        html[data-theme="gig"] .msg-mine .msg-text,
+        html.ios-app[data-theme="gig"] .message.mine .message-bubble { border-left-color: var(--accent); }
+        html[data-theme="gig"] .message .message-bubble::before,
+        html[data-theme="gig"] .message .message-bubble::after,
+        html[data-theme="gig"] .messages-container .msg .msg-text::before,
+        html[data-theme="gig"] .messages-container .msg .msg-text::after { display: none !important; }
+        html[data-theme="gig"] .message .message-bubble.game-invite { border-left: none; padding: 0; }
+        html[data-theme="gig"] .msg-reply-quote,
+        html.ios-app[data-theme="gig"] .msg-reply-quote,
+        html.ios-app[data-theme="gig"] .message.theirs .msg-reply-quote {
+            margin: 2px 0 4px;
+            padding: 0 0 0 8px;
+            background: none;
+            border-left: 1px solid var(--text-ghost);
+            border-radius: 0;
+            color: var(--text-muted);
+        }
+        html[data-theme="gig"] .message.mine .msg-reply-quote-name,
+        html[data-theme="gig"] .message.mine .msg-reply-quote-text { color: var(--text-muted); }
+        html[data-theme="gig"] .msg-meta { bottom: auto; top: 1px; }
+        html[data-theme="gig"] .message.mine .msg-meta { left: auto; right: 0; padding: 0; }
+        html[data-theme="gig"] .message .msg-meta { left: auto; right: 0; background: var(--bg); padding-left: 8px; }
+        html[data-theme="gig"] .message-time { font-family: var(--cond); font-size: 0.85rem; }
+        /* Touch: the reply / react row sits under the line, flush with the text */
+        @media (hover: none) {
+            html[data-theme="gig"] .message .msg-meta,
+            html[data-theme="gig"] .message.mine .msg-meta { position: static; padding: 0 0 0 10px; background: none; }
+            html[data-theme="gig"] .message .message-time { display: none; }
+        }
+        html[data-theme="gig"] .seen-receipt,
+        html[data-theme="gig"] .sent-receipt { align-self: flex-start; padding-left: 10px; }
+        html[data-theme="gig"] .reactions-row,
+        html[data-theme="gig"] .msg-reactions { justify-content: flex-start; }
+        html[data-theme="gig"] .message.desktop-reply .message-bubble,
+        html.ios-app[data-theme="gig"] .message.desktop-reply .message-bubble { background: none !important; border: none; border-left: 2px solid var(--away); }
+        html[data-theme="gig"] .desktop-reply-banner,
+        html.ios-app[data-theme="gig"] .message.desktop-reply .desktop-reply-banner { margin: 0 0 2px; padding: 0; border: none; background: none; color: var(--away); font-family: var(--cond); font-size: 0.9rem; }
+
+        html[data-theme="gig"] .typing-bubble-wrap { padding-left: 98px; }
+        html.ios-app[data-theme="gig"] .typing-bubble-wrap { padding-left: 68px; }
+        html[data-theme="gig"] .typing-bubble { background: none; border: 1px dotted var(--border-hi); border-radius: 0; }
+        html[data-theme="gig"] .typing-dot { background: var(--text-muted); }
+
+        /* Composer: a ruled form field and a vermilion stamp */
+        html[data-theme="gig"] .message-input-area,
+        html.ios-app[data-theme="gig"] .message-input-area { background: var(--bg); border-top: 1px solid var(--text); }
+        html[data-theme="gig"] .message-input { border: 1px solid var(--border-hi); border-radius: 2px; color: var(--text); background: #fbf8f1; }
+        html[data-theme="gig"] .message-input:focus { border-color: var(--text); }
+        html.ios-app[data-theme="gig"] .composer-pill { border-radius: 2px; background: #fbf8f1; border: 1px solid var(--border-hi); }
+        html[data-theme="gig"] .send-btn,
+        html.ios-app[data-theme="gig"] .send-btn { border-radius: 2px; background: var(--accent); color: #fff; }
+        html[data-theme="gig"] .send-btn:hover:not(:disabled) { background: var(--accent-hi); box-shadow: none; }
+        html[data-theme="gig"] .image-upload-btn,
+        html.ios-app[data-theme="gig"] .composer-plus-btn { border-radius: 2px; background: none; border: 1px solid var(--border-hi); color: var(--text); }
+        html[data-theme="gig"] .reply-bar { border-radius: 0; background: var(--surface-2); border-left: 3px solid var(--accent); }
+        html[data-theme="gig"] .reply-bar-label { font-family: var(--cond); font-size: 0.88rem; color: var(--accent-hi); }
+        html.ios-app[data-theme="gig"] .emoji-palette { border-radius: 2px; background: var(--surface-2); }
+
+        /* iPhone tab bar */
+        html.ios-app[data-theme="gig"] .ios-tabbar { background: var(--bg); border-top: 3px double var(--text); backdrop-filter: none; -webkit-backdrop-filter: none; }
+        html.ios-app[data-theme="gig"] .ios-tab { color: var(--text-muted); font-family: var(--cond); font-size: 0.82rem; letter-spacing: 0.05em; text-transform: uppercase; }
+        html.ios-app[data-theme="gig"] .ios-tab.active { color: var(--accent-hi); }
+        html.ios-app[data-theme="gig"] .ios-header-btn,
+        html.ios-app[data-theme="gig"] .mobile-back-btn { color: var(--text); }
+
+        /* Sheets, modals, settings */
+        html[data-theme="gig"] .modal-content,
+        html[data-theme="gig"] .profile-card,
+        html[data-theme="gig"] .action-sheet-group,
+        html[data-theme="gig"] .action-sheet-cancel { background: var(--bg); border-color: var(--text); }
+        html[data-theme="gig"] .modal-title,
+        html[data-theme="gig"] .settings-section-label,
+        html[data-theme="gig"] .dm-section-label { font-family: var(--cond); font-size: 0.95rem; letter-spacing: 0.05em; color: var(--text); }
+        html[data-theme="gig"] .modal-title { font-size: 1.35rem; text-transform: uppercase; }
+        html[data-theme="gig"] .settings-group { background: none; border: 1px solid var(--border-hi); border-radius: 0; }
+        html[data-theme="gig"] .action-sheet-item { color: var(--text); }
+        html[data-theme="gig"] .action-sheet-save,
+        html[data-theme="gig"] .profile-message-btn,
+        html[data-theme="gig"] .start-dm-btn { border-radius: 2px; }
+        html[data-theme="gig"] .empty-welcome-title { font-family: var(--cond); font-size: 1.8rem; font-weight: 700; text-transform: uppercase; }
+        html[data-theme="gig"] .empty-icon-ring { border-radius: 2px; }
+
+        /* ════════ 2. MESSAGE FIRST ════════
+           Charcoal. The latest message is the headline; who sent it is the byline. */
+        html[data-theme="first"] {
+            --bg:         #151618;
+            --surface:    #151618;
+            --surface-2:  #202125;
+            --surface-3:  #2b2c31;
+            --bubble-in:  transparent;
+            --border:     rgba(236,234,228,0.07);
+            --border-hi:  rgba(236,234,228,0.14);
+            --text:       #ecebe6;
+            --text-dim:   rgba(236,234,228,0.86);
+            --text-muted: rgba(236,234,228,0.6);
+            --text-faint: rgba(236,234,228,0.48);
+            --text-ghost: rgba(236,234,228,0.34);
+            --accent:     #8fd3b6;
+            --accent-hi:  #a8e0c8;
+            --accent-dim: rgba(143,211,182,0.12);
+            --mint-ink:   #0f241b; /* text on mint */
+            --online:     #4cc46c;
+            --ios-top:    #151618;
+            --ios-row:    #151618;
+            --r: 12px; --r-lg: 18px;
+        }
+        html[data-theme="first"] body,
+        html.ios-app[data-theme="first"],
+        html.ios-app[data-theme="first"] body { background: var(--bg); background-image: none; }
+        html[data-theme="first"] .dm-sidebar { border-right-color: var(--border); }
+        html[data-theme="first"] .logo,
+        html.ios-app[data-theme="first"] .sidebar-header .logo { font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
+        html[data-theme="first"] .compose-btn,
+        html.ios-app[data-theme="first"] .compose-btn { color: var(--accent); }
+        html[data-theme="first"] .sidebar-tab.active { background: var(--surface-3); }
+        html[data-theme="first"] .sidebar-search,
+        html.ios-app[data-theme="first"] .sidebar-search { background: var(--surface-2); border-color: transparent; }
+
+        /* Inbox row: byline (small avatar · name · time) over the message itself */
+        html[data-theme="first"] .conv-list,
+        html.ios-app[data-theme="first"] .conv-list { padding: 2px 8px 12px; gap: 2px; }
+        html[data-theme="first"] .conv-item,
+        html.ios-app[data-theme="first"] .conv-item {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr) auto;
+            grid-template-areas: "av name time" "prev prev badge";
+            align-items: center;
+            column-gap: 8px;
+            row-gap: 5px;
+            margin: 0;
+            padding: 13px 14px 15px 18px;
+            border: none;
+            border-radius: 12px;
+            background: none;
+        }
+        html.ios-app[data-theme="first"] .conv-item { margin: 0 4px; padding: 14px 14px 16px 18px; }
+        html[data-theme="first"] .conv-details,
+        html[data-theme="first"] .conv-meta { display: contents; }
+        html[data-theme="first"] .conv-avatar,
+        html.ios-app[data-theme="first"] .conv-avatar { grid-area: av; width: 22px; height: 22px; border: none !important; font-size: 0.55rem; }
+        html[data-theme="first"] .group-conv-avatar:has(.avatar-stack) { width: 30px; }
+        html[data-theme="first"] .group-conv-avatar > i { font-size: 0.6rem; }
+        html[data-theme="first"] .stack-av { border-width: 1.5px; border-color: var(--bg); }
+        html[data-theme="first"] .conv-avatar .stack-av:nth-child(3) { display: none; }
+        html[data-theme="first"] .conv-avatar .status-dot.mobile { width: 7px !important; height: 11px !important; bottom: -3px !important; right: -3px !important; }
+        html[data-theme="first"] .conv-avatar .status-dot { width: 8px; height: 8px; border-width: 1.5px; bottom: -2px !important; right: -2px !important; }
+        html[data-theme="first"] .conv-name {
+            grid-area: name;
+            margin: 0;
+            font-size: 0.8rem;
+            font-weight: 500;
+            letter-spacing: 0;
+            color: var(--text-muted);
+        }
+        html[data-theme="first"] .conv-time { grid-area: time; font-size: 0.75rem; color: var(--text-muted); }
+        html[data-theme="first"] .conv-preview {
+            grid-area: prev;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            white-space: normal;
+            overflow: hidden;
+            overflow-wrap: anywhere;
+            font-size: 1.04rem;
+            line-height: 1.35;
+            color: var(--text-dim);
+        }
+        html.ios-app[data-theme="first"] .conv-preview { font-size: 1.08rem; }
+        html[data-theme="first"] .unread-badge { grid-area: badge; align-self: start; margin-top: 2px; padding: 0; min-width: 0; background: none; color: var(--accent); font-size: 0.78rem; font-weight: 600; }
+        html[data-theme="first"] .conv-preview:empty { display: none; }
+        /* Unread: a mint mark at the row's edge (shape and place differ from the round green online dot) */
+        html[data-theme="first"] .conv-item.unread::before {
+            content: '';
+            position: absolute;
+            left: 6px;
+            top: 50%;
+            width: 3px;
+            height: 22px;
+            margin-top: -4px;
+            border-radius: 2px;
+            background: var(--accent);
+        }
+        html[data-theme="first"] .conv-item.unread .conv-preview { color: var(--text); font-weight: 500; }
+        html[data-theme="first"] .conv-item.unread .conv-name { color: var(--text-dim); font-weight: 600; }
+        html[data-theme="first"] .conv-item:hover { background: #1b1c1f; }
+        html[data-theme="first"] .conv-item.active,
+        html[data-theme="first"] .dm-sidebar.collapsed .conv-item.active { background: var(--surface-2); border: none; }
+        html[data-theme="first"] .conv-item.active .conv-preview { color: var(--text); }
+        html[data-theme="first"] .conv-item.active .conv-time { color: var(--text-muted); }
+        html[data-theme="first"] .conv-item.active .unread-badge { background: none; color: var(--accent); }
+        html[data-theme="first"] .status-dot,
+        html[data-theme="first"] .conv-item.active .status-dot { border-color: var(--bg); }
+        html[data-theme="first"] .conv-item.active .status-dot { border-color: var(--surface-2); }
+        html[data-theme="first"] .conv-request-tag,
+        html[data-theme="first"] .conv-item.active .conv-request-tag { background: var(--accent-dim); color: var(--accent); }
+        /* Collapsed desktop sidebar: avatars only */
+        html[data-theme="first"] .dm-sidebar.collapsed .conv-item { display: flex; padding: 9px 0; justify-content: center; }
+        html[data-theme="first"] .dm-sidebar.collapsed .conv-avatar { width: 36px; height: 36px; font-size: 0.75rem; }
+
+        html[data-theme="first"] .server-item.active,
+        html[data-theme="first"] .channel-item.active { background: var(--surface-2); border-color: transparent; }
+        html[data-theme="first"] .channel-item.active i { color: var(--accent); }
+
+        /* Open conversation: same hierarchy, the words lead */
+        html[data-theme="first"] .chat-header,
+        html.ios-app[data-theme="first"] .chat-header { background: var(--bg); border-bottom: 1px solid var(--border); }
+        html[data-theme="first"] .chat-header .chat-header-avatar .status-dot { border-color: var(--bg); }
+        html[data-theme="first"] .chat-header .chat-header-avatar .status-dot.mobile::after { background: var(--bg); }
+        html[data-theme="first"] .chat-header-avatar { width: 30px; height: 30px; border: none !important; }
+        html[data-theme="first"] .chat-header-name { font-size: 0.92rem; font-weight: 600; color: var(--text); }
+        html[data-theme="first"] .chat-call-btn,
+        html.ios-app[data-theme="first"] .chat-call-btn { background: var(--surface-2); border-color: transparent; color: var(--text-dim); }
+        html[data-theme="first"] .messages-container { padding: 16px 28px 10px; }
+        html.ios-app[data-theme="first"] .messages-container { padding: 14px 16px 10px; }
+        html[data-theme="first"] .message.theirs {
+            flex-direction: column;
+            align-items: flex-start;
+            max-width: 78%;
+        }
+        html[data-theme="first"] .message.theirs.grp-first { margin-top: 16px; }
+        html[data-theme="first"] .message.theirs .msg-avatar,
+        html[data-theme="first"] .messages-container:not(.is-group) .message.theirs .msg-avatar { display: none; }
+        html[data-theme="first"] .message.theirs.grp-first .msg-avatar,
+        html[data-theme="first"] .messages-container:not(.is-group) .message.theirs.grp-first .msg-avatar {
+            display: flex;
+            visibility: visible;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 20px; height: 20px;
+            font-size: 0.5rem;
+        }
+        html[data-theme="first"] .message.theirs { position: relative; }
+        html[data-theme="first"] .message.theirs.grp-first .message-header,
+        html[data-theme="first"] .messages-container .message.theirs.grp-first .message-header {
+            display: block;
+            margin: 0 0 3px;
+            padding-left: 28px;
+            line-height: 20px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+        html[data-theme="first"] .message .message-bubble::before,
+        html[data-theme="first"] .message .message-bubble::after,
+        html[data-theme="first"] .messages-container .msg .msg-text::before,
+        html[data-theme="first"] .messages-container .msg .msg-text::after { display: none !important; }
+        html[data-theme="first"] .message.theirs .message-bubble,
+        html.ios-app[data-theme="first"] .message.theirs .message-bubble,
+        html[data-theme="first"] .msg-other .msg-text {
+            padding: 1px 0;
+            background: none;
+            border-radius: 0;
+            color: var(--text);
+            font-size: 1.06rem;
+            line-height: 1.42;
+        }
+        html[data-theme="first"] .message.mine .message-bubble,
+        html.ios-app[data-theme="first"] .message.mine .message-bubble,
+        html[data-theme="first"] .msg-mine .msg-text {
+            background: var(--surface-3);
+            color: var(--text);
+            border-radius: 18px;
+            font-size: 1rem;
+            line-height: 1.38;
+        }
+        html[data-theme="first"] .message.theirs .msg-reply-quote,
+        html.ios-app[data-theme="first"] .message.theirs .msg-reply-quote { margin-left: 0; border-left: 2px solid var(--accent); background: none; border-radius: 0; }
+        html[data-theme="first"] .message.theirs .msg-meta { left: auto; right: auto; position: static; padding: 0; margin-top: 2px; height: 0; overflow: visible; }
+        html[data-theme="first"] .msg-other.grp-first .msg-sender { margin-left: 0; }
+        html[data-theme="first"] .msg-other { flex-direction: column; align-items: flex-start; }
+        html[data-theme="first"] .msg-other .msg-avatar { display: none; }
+        html[data-theme="first"] .typing-bubble { background: var(--surface-2); }
+        html[data-theme="first"] .message-input-area,
+        html.ios-app[data-theme="first"] .message-input-area { background: var(--bg); }
+        html[data-theme="first"] .message-input { border-color: var(--border-hi); background: var(--surface-2); }
+        html.ios-app[data-theme="first"] .composer-pill { background: var(--surface-2); border-color: transparent; }
+        html[data-theme="first"] .send-btn,
+        html.ios-app[data-theme="first"] .send-btn,
+        html[data-theme="first"] .start-dm-btn,
+        html[data-theme="first"] .action-sheet-save,
+        html[data-theme="first"] .profile-message-btn,
+        html[data-theme="first"] .update-prompt-go { background: var(--accent); color: var(--mint-ink); }
+        html[data-theme="first"] .send-btn:hover:not(:disabled) { background: var(--accent-hi); box-shadow: none; }
+        html.ios-app[data-theme="first"] .ios-tabbar { background: rgba(21,22,24,0.94); }
+        html.ios-app[data-theme="first"] .ios-tab.active { color: var(--accent); }
+        html[data-theme="first"] .modal-content,
+        html[data-theme="first"] .profile-card { background: #1a1b1e; }
+        html[data-theme="first"] .settings-group { background: var(--surface-2); }
+        html[data-theme="first"] .action-sheet-item { color: var(--accent); }
+        html[data-theme="first"] .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
+
+        /* ════════ 3. DOUBLE TAKE ════════
+           Two slightly offset speech shapes, like adjacent frames of motion.
+           Ultramarine, pale periwinkle, warm ivory, apricot. Sentence case throughout. */
+        html[data-theme="double"] {
+            --font:       'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --bg:         #fbf6ea;
+            --surface:    #f7f0e0;
+            --surface-2:  #ebe8f7;
+            --surface-3:  #d9ddfb;
+            --bubble-in:  #dfe3fd;
+            --border:     rgba(28,27,104,0.1);
+            --border-hi:  rgba(28,27,104,0.22);
+            --text:       #1b1a3c;
+            --text-dim:   #2b2a55;
+            --text-muted: #55557c;
+            --text-faint: #646489;
+            --text-ghost: #8a8aac;
+            --text-dead:  rgba(28,27,104,0.12);
+            --accent:     #2b3bd6;
+            --accent-hi:  #2230b8;
+            --accent-dim: rgba(43,59,214,0.1);
+            --indigo:     #1c1b68;
+            --apricot:    #ffb27a;
+            --ivory-ink:  #fffaf0;
+            --online:     #1f9d55;
+            --away:       #c86a00;
+            --offline:    #a3a3bd;
+            --error:      #d22f2f;
+            --ios-top:    #fbf6ea;
+            --ios-row:    #fbf6ea;
+            --r: 14px; --r-lg: 20px;
+            color-scheme: light;
+        }
+        html[data-theme="double"] body,
+        html.ios-app[data-theme="double"],
+        html.ios-app[data-theme="double"] body { background: var(--bg); background-image: none; }
+        html[data-theme="double"] ::-webkit-scrollbar-thumb { background: rgba(28,27,104,0.2); }
+        html[data-theme="double"] .dm-sidebar { background: var(--surface); }
+        /* Logo mark: an ultramarine speech shape with its apricot double just behind */
+        html[data-theme="double"] .logo,
+        html.ios-app[data-theme="double"] .sidebar-header .logo { display: inline-flex; align-items: center; gap: 12px; font-weight: 700; letter-spacing: -0.03em; color: var(--indigo); }
+        html[data-theme="double"] .logo::before {
+            content: '';
+            width: 0.82em;
+            height: 0.66em;
+            border-radius: 0.36em 0.36em 0.36em 0.1em;
+            background: var(--accent);
+            box-shadow: 0.17em 0.14em 0 var(--apricot);
+            flex-shrink: 0;
+        }
+        html[data-theme="double"] .compose-btn,
+        html.ios-app[data-theme="double"] .compose-btn { background: var(--surface-3); color: var(--accent); }
+        html[data-theme="double"] .sidebar-tabs { background: var(--surface-2); border-radius: 14px; }
+        html[data-theme="double"] .sidebar-tab { color: var(--text-muted); border-radius: 11px; }
+        html[data-theme="double"] .sidebar-tab.active { background: var(--accent); color: var(--ivory-ink); box-shadow: 2px 2px 0 var(--indigo); }
+        html[data-theme="double"] .sidebar-search,
+        html.ios-app[data-theme="double"] .sidebar-search { background: #fffdf7; border: 1.5px solid var(--border-hi); border-radius: 14px; color: var(--text); }
+        html[data-theme="double"] .sidebar-search:focus { border-color: var(--accent); }
+
+        html[data-theme="double"] .conv-list,
+        html.ios-app[data-theme="double"] .conv-list { padding: 4px 16px 14px 10px; gap: 4px; }
+        html[data-theme="double"] .conv-item,
+        html.ios-app[data-theme="double"] .conv-item { margin: 0; padding: 10px 12px; border: 1.5px solid transparent; border-radius: 18px; background: none; }
+        html[data-theme="double"] .conv-item:hover { background: var(--surface-2); }
+        /* Selected row: periwinkle card with a visible ultramarine offset edge */
+        html[data-theme="double"] .conv-item.active,
+        html[data-theme="double"] .dm-sidebar.collapsed .conv-item.active {
+            background: var(--bubble-in);
+            border: 1.5px solid var(--accent);
+            border-radius: 18px;
+            box-shadow: 4px 4px 0 var(--accent);
+        }
+        html[data-theme="double"] .conv-avatar,
+        html.ios-app[data-theme="double"] .conv-avatar { width: 46px; height: 46px; border: none !important; }
+        html[data-theme="double"] .stack-av { border-color: var(--surface); }
+        html[data-theme="double"] .conv-item.active .stack-av { border-color: var(--bubble-in); }
+        html[data-theme="double"] .conv-avatar,
+        html[data-theme="double"] .chat-header-avatar,
+        html[data-theme="double"] .msg-avatar,
+        html[data-theme="double"] .typing-bubble-wrap .tb-avatar,
+        html[data-theme="double"] .stack-av { background: linear-gradient(180deg, #8a93e8, #5761c9); color: #fff; }
+        html[data-theme="double"] .conv-name { font-size: 0.98rem; font-weight: 600; letter-spacing: -0.01em; color: var(--text); }
+        html[data-theme="double"] .conv-item.unread .conv-name { font-weight: 700; color: var(--indigo); }
+        html[data-theme="double"] .conv-preview { font-size: 0.86rem; color: var(--text-muted); }
+        html[data-theme="double"] .conv-item.unread .conv-preview { color: var(--text); }
+        html[data-theme="double"] .conv-time { color: var(--text-faint); }
+        html[data-theme="double"] .unread-badge,
+        html[data-theme="double"] .conv-item.active .unread-badge { background: var(--apricot); color: var(--indigo); font-weight: 700; border-radius: 9px 9px 9px 3px; }
+        html[data-theme="double"] .conv-item.active .conv-preview { color: var(--text-dim); }
+        html[data-theme="double"] .conv-item.active .conv-time { color: var(--text-muted); }
+        html[data-theme="double"] .status-dot,
+        html.ios-app[data-theme="double"] .status-dot { border-color: var(--surface); }
+        html[data-theme="double"] .conv-item.active .status-dot { border-color: var(--bubble-in); }
+        html[data-theme="double"] .conv-request-tag,
+        html[data-theme="double"] .conv-item.active .conv-request-tag { background: var(--apricot); color: var(--indigo); }
+
+        html[data-theme="double"] .server-item.active,
+        html[data-theme="double"] .channel-item.active { background: var(--bubble-in); border: 1.5px solid var(--accent); box-shadow: 3px 3px 0 var(--accent); }
+        html[data-theme="double"] .server-icon { background: var(--accent); color: var(--ivory-ink); }
+
+        html[data-theme="double"] .chat-header,
+        html.ios-app[data-theme="double"] .chat-header { background: var(--bg); border-bottom: 1.5px solid var(--border-hi); }
+        html[data-theme="double"] .chat-header .chat-header-avatar .status-dot { border-color: var(--bg); }
+        html[data-theme="double"] .chat-header .chat-header-avatar .status-dot.mobile::after { background: var(--bg); }
+        html[data-theme="double"] .chat-header-avatar { border: none !important; }
+        html[data-theme="double"] .chat-header-avatar.is-group:has(.avatar-stack) { overflow: visible; }
+        html[data-theme="double"] .chat-header-name { font-weight: 700; color: var(--indigo); }
+        html[data-theme="double"] .chat-call-btn,
+        html.ios-app[data-theme="double"] .chat-call-btn { background: var(--surface-2); border: none; color: var(--accent); }
+        html[data-theme="double"] .chat-call-btn:hover { background: var(--surface-3); color: var(--accent-hi); }
+        html.ios-app[data-theme="double"] .mobile-back-btn { color: var(--accent); }
+        html[data-theme="double"] .msg-day-label { color: var(--text-muted); }
+
+        /* Bubbles: speech shapes, theirs periwinkle, yours ultramarine on a crisp indigo backing */
+        html[data-theme="double"] .message .message-bubble::before,
+        html[data-theme="double"] .message .message-bubble::after,
+        html[data-theme="double"] .messages-container .msg .msg-text::before,
+        html[data-theme="double"] .messages-container .msg .msg-text::after { display: none !important; }
+        html[data-theme="double"] .message .message-bubble,
+        html.ios-app[data-theme="double"] .message .message-bubble,
+        html[data-theme="double"] .messages-container .msg .msg-text { border-radius: 20px; font-size: 1rem; line-height: 1.4; letter-spacing: -0.005em; }
+        html[data-theme="double"] .message.theirs .message-bubble,
+        html.ios-app[data-theme="double"] .message.theirs .message-bubble,
+        html[data-theme="double"] .msg-other .msg-text { background: var(--bubble-in); color: var(--text); }
+        html[data-theme="double"] .message.theirs.grp-last .message-bubble,
+        html.ios-app[data-theme="double"] .message.theirs.grp-last .message-bubble,
+        html[data-theme="double"] .msg-other.grp-last .msg-text { border-bottom-left-radius: 6px; }
+        html[data-theme="double"] .message.mine .message-bubble,
+        html.ios-app[data-theme="double"] .message.mine .message-bubble,
+        html[data-theme="double"] .msg-mine .msg-text {
+            margin: 0 4px 4px 0;
+            background: var(--accent);
+            color: var(--ivory-ink);
+            box-shadow: 4px 4px 0 var(--indigo);
+        }
+        html[data-theme="double"] .message.mine.grp-last .message-bubble,
+        html.ios-app[data-theme="double"] .message.mine.grp-last .message-bubble,
+        html[data-theme="double"] .msg-mine.grp-last .msg-text { border-bottom-right-radius: 6px; }
+        html[data-theme="double"] .message.mine .message-bubble.game-invite { color: var(--text); }
+        /* On send, the backing settles into place once */
+        @keyframes dtSettle {
+            from { box-shadow: 0 0 0 var(--indigo); transform: translate(3px, 3px); }
+            to   { box-shadow: 4px 4px 0 var(--indigo); transform: none; }
+        }
+        html[data-theme="double"] .message.just-sent .message-bubble,
+        html[data-theme="double"] .messages-container .msg.just-sent .msg-text {
+            animation: dtSettle 0.4s cubic-bezier(0.25, 0.9, 0.35, 1.25) both;
+            animation-delay: var(--settle-delay, 0ms);
+        }
+        html[data-theme="double"] .message.just-sent { animation: none; }
+        html[data-theme="double"] .message.mine .msg-reply-quote,
+        html.ios-app[data-theme="double"] .msg-reply-quote { background: rgba(255,250,240,0.16); border-left: 3px solid var(--apricot); }
+        html[data-theme="double"] .message.theirs .msg-reply-quote,
+        html.ios-app[data-theme="double"] .message.theirs .msg-reply-quote { background: rgba(43,59,214,0.08); border-left-color: var(--accent); }
+        html[data-theme="double"] .message.mine .msg-reply-quote-name,
+        html[data-theme="double"] .message.mine .msg-reply-quote-text { color: rgba(255,250,240,0.85); }
+        html[data-theme="double"] .message-header { color: var(--text-muted); font-weight: 500; }
+        html[data-theme="double"] .typing-bubble { background: var(--bubble-in); border-radius: 18px 18px 18px 6px; }
+        html[data-theme="double"] .typing-dot { background: var(--accent); }
+        html[data-theme="double"] .message.desktop-reply .message-bubble,
+        html.ios-app[data-theme="double"] .message.desktop-reply .message-bubble { background: #ffe2c7 !important; color: var(--text); border: none; box-shadow: 4px 4px 0 #e08a3c; }
+
+        html[data-theme="double"] .message-input-area,
+        html.ios-app[data-theme="double"] .message-input-area { background: var(--bg); }
+        html[data-theme="double"] .message-input { background: #fffdf7; border: 1.5px solid var(--border-hi); color: var(--text); border-radius: 20px; }
+        html[data-theme="double"] .message-input:focus { border-color: var(--accent); }
+        html.ios-app[data-theme="double"] .composer-pill { background: #fffdf7; border: 1.5px solid var(--border-hi); }
+        html[data-theme="double"] .send-btn,
+        html.ios-app[data-theme="double"] .send-btn { background: var(--accent); color: var(--ivory-ink); box-shadow: 3px 3px 0 var(--indigo); }
+        html[data-theme="double"] .send-btn:hover:not(:disabled) { background: var(--accent-hi); box-shadow: 3px 3px 0 var(--indigo); transform: none; }
+        html[data-theme="double"] .send-btn:active:not(:disabled) { box-shadow: 0 0 0 var(--indigo); transform: translate(3px, 3px); }
+        html[data-theme="double"] .image-upload-btn,
+        html.ios-app[data-theme="double"] .composer-plus-btn { background: var(--surface-2); color: var(--accent); }
+        html[data-theme="double"] .reply-bar { background: var(--surface-2); }
+        html.ios-app[data-theme="double"] .emoji-palette { background: #fffdf7; }
+        html.ios-app[data-theme="double"] .ios-tabbar { background: rgba(251,246,234,0.94); }
+        html.ios-app[data-theme="double"] .ios-tab { color: var(--text-muted); }
+        html.ios-app[data-theme="double"] .ios-tab.active { color: var(--accent); }
+        html[data-theme="double"] .modal-content,
+        html[data-theme="double"] .profile-card,
+        html[data-theme="double"] .action-sheet-group,
+        html[data-theme="double"] .action-sheet-cancel { background: var(--bg); }
+        html[data-theme="double"] .settings-group { background: #fffdf7; border: 1.5px solid var(--border); }
+        html[data-theme="double"] .start-dm-btn,
+        html[data-theme="double"] .action-sheet-save,
+        html[data-theme="double"] .profile-message-btn { background: var(--accent); color: var(--ivory-ink); box-shadow: 3px 3px 0 var(--indigo); }
+        html[data-theme="double"] .action-sheet-item { color: var(--accent); }
+
+        /* ════════ 4. LATE NIGHT ════════
+           Near-black plum, off-white, signal red. One clipped lower-right corner on the
+           active thread, your bubbles and the send button. Group covers as a photo strip. */
+        html[data-theme="late"] {
+            --grot:       'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --bg:         #140a14;
+            --surface:    #180d19;
+            --surface-2:  #24142a;
+            --surface-3:  #341e3a;
+            --bubble-in:  #27172d;
+            --border:     rgba(243,237,230,0.08);
+            --border-hi:  rgba(243,237,230,0.16);
+            --text:       #f3ede6;
+            --text-dim:   rgba(243,237,230,0.86);
+            --text-muted: rgba(243,237,230,0.62);
+            --text-faint: rgba(243,237,230,0.48);
+            --text-ghost: rgba(243,237,230,0.34);
+            --accent:     #df1f2b;   /* fills behind off-white text */
+            --accent-hi:  #ff4b40;   /* small marks and text on plum */
+            --accent-dim: rgba(255,75,64,0.12);
+            --clip:       polygon(0 0, 100% 0, 100% calc(100% - 11px), calc(100% - 11px) 100%, 0 100%);
+            --ios-top:    #140a14;
+            --ios-row:    #140a14;
+            --r: 6px; --r-sm: 4px; --r-lg: 8px;
+        }
+        html[data-theme="late"] body,
+        html.ios-app[data-theme="late"],
+        html.ios-app[data-theme="late"] body { background: var(--bg); background-image: none; }
+        html[data-theme="late"] .dm-sidebar { background: var(--surface); }
+        html[data-theme="late"] .logo,
+        html.ios-app[data-theme="late"] .sidebar-header .logo { display: inline-flex; align-items: baseline; gap: 2px; font-family: var(--grot); font-weight: 700; letter-spacing: -0.03em; color: var(--text); }
+        html[data-theme="late"] .logo::after { content: ''; width: 0.3em; height: 0.3em; background: var(--accent-hi); clip-path: polygon(0 0, 100% 0, 100% 45%, 45% 100%, 0 100%); }
+        html[data-theme="late"] .compose-btn,
+        html.ios-app[data-theme="late"] .compose-btn { color: var(--text); background: var(--surface-2); border-radius: var(--r-sm); }
+        html[data-theme="late"] .sidebar-tabs { background: var(--surface-2); border-radius: 6px; }
+        html[data-theme="late"] .sidebar-tab { border-radius: 4px; font-family: var(--grot); }
+        html[data-theme="late"] .sidebar-tab.active { background: var(--surface-3); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent-hi); }
+        html[data-theme="late"] .sidebar-search,
+        html.ios-app[data-theme="late"] .sidebar-search { background: var(--surface-2); border-color: transparent; border-radius: 6px; }
+
+        html[data-theme="late"] .conv-list,
+        html.ios-app[data-theme="late"] .conv-list { padding: 2px 8px 12px; gap: 2px; }
+        html[data-theme="late"] .conv-item,
+        html.ios-app[data-theme="late"] .conv-item { margin: 0; border: none; border-radius: 6px; background: none; }
+        html[data-theme="late"] .conv-item:hover { background: rgba(243,237,230,0.04); }
+        html[data-theme="late"] .conv-item.active,
+        html[data-theme="late"] .dm-sidebar.collapsed .conv-item.active {
+            background: var(--surface-3);
+            border: none;
+            border-radius: 6px 6px 0 6px;
+            clip-path: var(--clip);
+            box-shadow: inset 3px 0 0 var(--accent-hi);
+        }
+        html[data-theme="late"] .conv-avatar,
+        html.ios-app[data-theme="late"] .conv-avatar { border: none !important; }
+        html[data-theme="late"] .conv-avatar,
+        html[data-theme="late"] .chat-header-avatar,
+        html[data-theme="late"] .msg-avatar,
+        html[data-theme="late"] .typing-bubble-wrap .tb-avatar,
+        html[data-theme="late"] .stack-av { background: linear-gradient(180deg, #5a3a5e, #3b2340); color: var(--text); }
+        html[data-theme="late"] .stack-av { border-color: var(--surface); }
+        html[data-theme="late"] .conv-name { font-family: var(--grot); font-weight: 600; letter-spacing: -0.01em; }
+        html[data-theme="late"] .conv-item.unread .conv-name { font-weight: 700; }
+        html[data-theme="late"] .conv-preview { color: var(--text-muted); }
+        html[data-theme="late"] .conv-item.unread .conv-preview { color: var(--text); }
+        html[data-theme="late"] .conv-time { font-family: var(--grot); color: var(--text-faint); }
+        html[data-theme="late"] .conv-item.unread .conv-time { color: var(--accent-hi); }
+        html[data-theme="late"] .unread-badge,
+        html[data-theme="late"] .conv-item.active .unread-badge { background: var(--accent); color: #fff; border-radius: 4px; font-family: var(--grot); }
+        html[data-theme="late"] .conv-item.active .conv-preview { color: var(--text-dim); }
+        html[data-theme="late"] .conv-item.active .conv-time { color: var(--text-muted); }
+        html[data-theme="late"] .status-dot,
+        html.ios-app[data-theme="late"] .status-dot { border-color: var(--surface); }
+        html[data-theme="late"] .conv-item.active .status-dot { border-color: var(--surface-3); }
+        html[data-theme="late"] .conv-request-tag,
+        html[data-theme="late"] .conv-item.active .conv-request-tag { background: var(--accent-dim); color: var(--accent-hi); }
+
+        /* iPhone inbox: a group row becomes a shallow strip of its members' photos
+           (groups have no cover image of their own) with the name across it */
+        html.ios-app[data-theme="late"] .conv-item.is-group {
+            position: relative;
+            min-height: 78px;
+            margin: 6px 0;
+            padding: 12px 14px;
+            overflow: hidden;
+            isolation: isolate;
+            border-radius: 6px 6px 0 6px;
+            clip-path: var(--clip);
+            background: var(--surface-2);
+        }
+        html.ios-app[data-theme="late"] .conv-item.is-group .group-conv-avatar:has(.avatar-stack) {
+            position: absolute;
+            inset: 0 0 0 38%;
+            width: auto;
+            height: auto;
+            z-index: -1;
+            border-radius: 0;
+            overflow: hidden;
+            -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 55%);
+            mask-image: linear-gradient(90deg, transparent 0%, #000 55%);
+        }
+        html.ios-app[data-theme="late"] .conv-item.is-group .avatar-stack { display: flex; justify-content: flex-end; }
+        html.ios-app[data-theme="late"] .conv-item.is-group .stack-av { max-width: 104px; }
+        html.ios-app[data-theme="late"] .conv-item.is-group .stack-av {
+            position: static;
+            flex: 1;
+            width: auto;
+            height: 100%;
+            border: none;
+            border-radius: 0;
+            font-size: 1.3rem;
+            filter: saturate(0.85) brightness(0.62);
+        }
+        html.ios-app[data-theme="late"] .conv-item.is-group .stack-av + .stack-av { border-left: 2px solid var(--bg); }
+        html.ios-app[data-theme="late"] .conv-item.is-group .stack-av:not(:has(img)) { color: rgba(243,237,230,0.22); font-size: 1rem; }
+        html.ios-app[data-theme="late"] .conv-item.is-group .conv-meta { position: relative; z-index: 1; }
+        html.ios-app[data-theme="late"] .conv-item.is-group .conv-name { font-size: 1.12rem; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
+        html.ios-app[data-theme="late"] .conv-item.is-group .conv-preview { color: var(--text-dim); text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+        html.ios-app[data-theme="late"] .conv-item.is-group .conv-time { color: var(--text-dim); }
+        html.ios-app[data-theme="late"] .conv-item.is-group.active { box-shadow: inset 3px 0 0 var(--accent-hi); }
+
+        html[data-theme="late"] .server-item.active,
+        html[data-theme="late"] .channel-item.active { background: var(--surface-3); border-color: transparent; clip-path: var(--clip); box-shadow: inset 3px 0 0 var(--accent-hi); }
+        html[data-theme="late"] .channel-item.active i { color: var(--accent-hi); }
+        html[data-theme="late"] .server-icon { border-radius: 4px; }
+        html[data-theme="late"] .server-name,
+        html[data-theme="late"] .channel-server-name { font-family: var(--grot); }
+
+        html[data-theme="late"] .chat-header,
+        html.ios-app[data-theme="late"] .chat-header { background: var(--bg); border-bottom: 1px solid var(--border-hi); }
+        html[data-theme="late"] .chat-header .chat-header-avatar .status-dot { border-color: var(--bg); }
+        html[data-theme="late"] .chat-header .chat-header-avatar .status-dot.mobile::after { background: var(--bg); }
+        html[data-theme="late"] .chat-header-avatar { border: none !important; }
+        html[data-theme="late"] .chat-header-name,
+        html.ios-app[data-theme="late"] .chat-header-name { font-family: var(--grot); font-weight: 700; letter-spacing: -0.015em; }
+        html[data-theme="late"] .chat-call-btn,
+        html.ios-app[data-theme="late"] .chat-call-btn { border-radius: 4px; background: var(--surface-2); border: none; color: var(--text); }
+        html[data-theme="late"] .chat-call-btn:hover { color: var(--accent-hi); }
+        html.ios-app[data-theme="late"] .mobile-back-btn { color: var(--text); }
+        html[data-theme="late"] .msg-day-label { font-family: var(--grot); letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+
+        /* Group cover strip at the top of the open group chat; it scrolls away with the messages */
+        html[data-theme="late"] .chat-cover {
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            flex-shrink: 0;
+            height: 132px;
+            margin: -14px -20px 12px;
+            overflow: hidden;
+            isolation: isolate;
+            background: var(--surface-2);
+        }
+        html[data-theme="late"] .chat-cover-art {
+            position: absolute;
+            inset: 0 0 0 30%;
+            z-index: -1;
+            -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 40%);
+            mask-image: linear-gradient(90deg, transparent 0%, #000 40%);
+        }
+        html[data-theme="late"] .chat-cover-art .avatar-stack { display: flex; justify-content: flex-end; }
+        html[data-theme="late"] .chat-cover-art .stack-av {
+            position: static;
+            flex: 1;
+            width: auto;
+            height: 100%;
+            border: none;
+            border-radius: 0;
+            font-family: var(--grot);
+            max-width: 220px;
+            font-size: 1.6rem;
+            filter: saturate(0.85) brightness(0.6);
+        }
+        html[data-theme="late"] .chat-cover-art .stack-av:not(:has(img)) { color: rgba(243,237,230,0.25); }
+        html[data-theme="late"] .chat-cover-art .stack-av + .stack-av { border-left: 2px solid var(--bg); }
+        html[data-theme="late"] .chat-cover::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: -1;
+            background: linear-gradient(180deg, rgba(20,10,20,0) 30%, rgba(20,10,20,0.92) 100%);
+        }
+        html[data-theme="late"] .chat-cover-text { padding: 0 24px 14px; min-width: 0; }
+        html[data-theme="late"] .chat-cover-name {
+            font-family: var(--grot);
+            font-size: 1.7rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            line-height: 1.1;
+            color: var(--text);
+            overflow-wrap: anywhere;
+        }
+        html[data-theme="late"] .chat-cover-sub { margin-top: 3px; font-size: 0.8rem; color: var(--text-muted); }
+        html[data-theme="late"] .chat-cover-name::after { content: ''; display: inline-block; width: 0.28em; height: 0.28em; margin-left: 3px; background: var(--accent-hi); clip-path: polygon(0 0, 100% 0, 100% 45%, 45% 100%, 0 100%); }
+        html.ios-app[data-theme="late"] .chat-cover { display: none; }
+
+        html[data-theme="late"] .message .message-bubble::before,
+        html[data-theme="late"] .message .message-bubble::after,
+        html[data-theme="late"] .messages-container .msg .msg-text::before,
+        html[data-theme="late"] .messages-container .msg .msg-text::after { display: none !important; }
+        html[data-theme="late"] .message .message-bubble,
+        html.ios-app[data-theme="late"] .message .message-bubble,
+        html[data-theme="late"] .messages-container .msg .msg-text { border-radius: 8px; }
+        html[data-theme="late"] .message.theirs .message-bubble,
+        html.ios-app[data-theme="late"] .message.theirs .message-bubble,
+        html[data-theme="late"] .msg-other .msg-text { background: var(--bubble-in); color: var(--text); }
+        html[data-theme="late"] .message.theirs.grp-last .message-bubble,
+        html.ios-app[data-theme="late"] .message.theirs.grp-last .message-bubble { border-bottom-left-radius: 2px; }
+        html[data-theme="late"] .message.mine .message-bubble,
+        html.ios-app[data-theme="late"] .message.mine .message-bubble,
+        html[data-theme="late"] .msg-mine .msg-text {
+            background: var(--accent);
+            color: #fff;
+            border-radius: 8px 8px 0 8px;
+            padding-right: 16px;
+            clip-path: var(--clip);
+        }
+        html[data-theme="late"] .message.mine .message-bubble.game-invite { clip-path: none; color: var(--text); }
+        html[data-theme="late"] .message.mine .msg-reply-quote,
+        html.ios-app[data-theme="late"] .msg-reply-quote { background: rgba(0,0,0,0.18); border-left: 3px solid rgba(255,255,255,0.6); border-radius: 4px; }
+        html[data-theme="late"] .message.theirs .msg-reply-quote,
+        html.ios-app[data-theme="late"] .message.theirs .msg-reply-quote { background: rgba(243,237,230,0.05); border-left-color: var(--accent-hi); }
+        html[data-theme="late"] .message-header { font-family: var(--grot); color: var(--text-muted); }
+        html[data-theme="late"] .typing-bubble { background: var(--bubble-in); border-radius: 8px; }
+        html[data-theme="late"] .typing-dot { background: var(--accent-hi); }
+
+        html[data-theme="late"] .message-input-area,
+        html.ios-app[data-theme="late"] .message-input-area { background: var(--bg); }
+        html[data-theme="late"] .message-input { background: var(--surface-2); border-color: transparent; border-radius: 6px; }
+        html[data-theme="late"] .message-input:focus { border-color: var(--border-hi); }
+        html.ios-app[data-theme="late"] .composer-pill { background: var(--surface-2); border-color: transparent; border-radius: 8px; }
+        /* clip-path would cut off a focus ring, so focus shows as an inset off-white edge */
+        html[data-theme="late"] .send-btn,
+        html.ios-app[data-theme="late"] .send-btn { border-radius: 4px 4px 0 4px; background: var(--accent); color: #fff; clip-path: var(--clip); }
+        html[data-theme="late"] .send-btn:hover:not(:disabled) { background: #f0303a; box-shadow: none; transform: none; }
+        html[data-theme="late"] .send-btn:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--text); }
+        html[data-theme="late"] .conv-item.active:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--text); }
+        html[data-theme="late"] .image-upload-btn,
+        html.ios-app[data-theme="late"] .composer-plus-btn { border-radius: 4px; background: var(--surface-2); }
+        html[data-theme="late"] .reply-bar { background: var(--surface-2); border-radius: 6px; }
+        html.ios-app[data-theme="late"] .emoji-palette { background: var(--surface-2); border-radius: 8px; }
+        html.ios-app[data-theme="late"] .ios-tabbar { background: rgba(20,10,20,0.94); }
+        html.ios-app[data-theme="late"] .ios-tab { font-family: var(--grot); }
+        html.ios-app[data-theme="late"] .ios-tab.active { color: var(--accent-hi); }
+        html[data-theme="late"] .modal-content,
+        html[data-theme="late"] .profile-card { background: var(--surface); }
+        html[data-theme="late"] .modal-title { font-family: var(--grot); }
+        html[data-theme="late"] .settings-group { background: var(--surface-2); }
+        html[data-theme="late"] .start-dm-btn,
+        html[data-theme="late"] .action-sheet-save,
+        html[data-theme="late"] .profile-message-btn { background: var(--accent); color: #fff; border-radius: 4px 4px 0 4px; clip-path: var(--clip); }
+        html[data-theme="late"] .action-sheet-item { color: var(--text); }
+        html[data-theme="late"] .toggle-switch input:checked + .toggle-slider { background: var(--accent); }
     </style>
     <script>
         // Hide immediately — will be revealed only after token auth passes
         document.documentElement.style.visibility = 'hidden';
     </script>
+    <link rel="stylesheet" href="assets/jitter-workspace.css">
+    <link rel="stylesheet" href="assets/jitter-controls.css">
 </head>
 <body>
 
@@ -5475,17 +6891,27 @@
 <!-- ══ DM DASHBOARD ════════════════════════════════════ -->
 <div id="dmDashboard">
     <div class="dm-body">
+        <nav class="workspace-rail" aria-label="Workspace">
+            <button class="rail-brand" onclick="workspaceTab('friends')" aria-label="Jitter home">J</button>
+            <button data-work-tab="friends" onclick="workspaceTab('friends')" aria-label="Chats" title="Chats"><i class="far fa-message"></i></button>
+            <button data-work-tab="servers" onclick="workspaceTab('servers')" aria-label="Servers" title="Servers"><i class="fas fa-border-all"></i></button>
+            <button data-work-tab="calls" onclick="workspaceTab('calls')" aria-label="Calls" title="Calls"><i class="fas fa-phone"></i></button>
+            <button class="notif-btn" onclick="openFriendRequestsModal()" aria-label="Friend requests" title="Friend requests"><i class="fas fa-user-plus"></i><span id="railRequests" class="notif-badge"></span></button>
+            <button class="rail-settings" onclick="openSettingsModal()" aria-label="Settings" title="Settings"><i class="fas fa-gear"></i></button>
+            <button class="workspace-self" onclick="openProfile(currentUser.email)" aria-label="Your profile"></button>
+        </nav>
 
         <!-- ── SIDEBAR ─────────────────────────────────── -->
         <div class="dm-sidebar" id="dmSidebar">
 
             <!-- Logo + Compose + Collapse toggle -->
             <div class="sidebar-header">
-                <div class="logo">Jitter</div>
+                <button class="workspace-self phone-self" onclick="workspaceTab('you')" aria-label="Open You"></button>
+                <div class="logo" id="workspaceHeading">Chats</div>
                 <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
                     <button class="compose-btn ios-header-btn" onclick="openFriendRequestsModal()" title="Friend requests"><i class="fas fa-user-plus"></i><span class="notif-badge" id="friendReqBadgeMobile"></span></button>
                     <button class="compose-btn" onclick="openNewDMModal()" title="New Message">
-                        <i class="fas fa-edit"></i>
+                        <i class="fas fa-plus"></i>
                     </button>
                     <button class="collapse-btn" id="sidebarCollapseBtn" onclick="toggleSidebar()" title="Collapse sidebar">
                         <i class="fas fa-chevron-left" id="collapseIcon"></i>
@@ -5519,6 +6945,10 @@
                     </div>
                 </div>
 
+                <div class="inbox-filters" aria-label="Filter chats">
+                    <button data-filter="all" aria-pressed="true">All</button><button data-filter="unread" aria-pressed="false">Unread</button><button data-filter="groups" aria-pressed="false">Groups</button><button data-filter="requests" aria-pressed="false">Requests</button>
+                </div>
+                <div id="peopleStrip" aria-label="Recent contacts"></div>
                 <!-- Conversation list -->
                 <div class="conv-list" id="convList">
                     <div class="sidebar-empty">
@@ -5560,6 +6990,25 @@
                 </div>
             </div>
 
+            <div id="workspaceExtra" hidden></div>
+            <section class="calls-page" id="callsPage" aria-labelledby="callsTitle" hidden>
+                <header class="calls-page-head">
+                    <h1 id="callsTitle">Calls</h1>
+                    <button type="button" class="new-call" onclick="showCallPicker(true)">+ New call</button>
+                </header>
+                <div id="callRecents">
+                    <div class="calls-tabs" role="group" aria-label="Call history filter">
+                        <button type="button" data-call-filter="all" aria-pressed="true">All calls</button>
+                        <button type="button" data-call-filter="missed" aria-pressed="false">Missed</button>
+                    </div>
+                    <div id="callHistoryList"></div>
+                </div>
+                <div id="callPicker" hidden>
+                    <div class="picker-head"><h2>Choose a contact</h2><button type="button" onclick="showCallPicker(false)">Cancel</button></div>
+                    <input type="search" id="callSearch" placeholder="Search people" aria-label="Search people" oninput="renderCallContacts()">
+                    <div id="callContacts"></div>
+                </div>
+            </section>
             <!-- User panel (bottom of sidebar) -->
             <div class="user-panel">
                 <div class="header-avatar" id="headerAvatar" onclick="openProfile(currentUser.email)" title="View / edit your profile">
@@ -5616,7 +7065,13 @@
                     <button class="chat-call-btn" id="chatCallBtn" type="button" style="display:none" onclick="startCall()" title="Voice call"><i class="fas fa-phone"></i></button>
                     <button class="chat-call-btn" id="chatVideoBtn" type="button" style="display:none" onclick="startCall({ video: true })" title="Video call"><i class="fas fa-video"></i></button>
                     <button class="chat-call-btn" id="chatMoreBtn" type="button" style="display:none" onclick="openChatMore()" title="More"><i class="fas fa-ellipsis"></i></button>
+                    <button class="chat-call-btn thread-find" onclick="toggleThreadSearch()" title="Find in conversation" aria-label="Find in conversation"><i class="fas fa-search"></i></button>
+                    <button class="chat-call-btn detail-toggle" onclick="toggleWorkspaceDetails()" title="Conversation details" aria-label="Conversation details" aria-controls="workspaceDetails"><i class="fas fa-table-columns"></i></button>
                 </div>
+                <form id="threadSearch" hidden onsubmit="event.preventDefault(); findThreadMessage()">
+                    <input aria-label="Find in conversation" placeholder="Find in conversation" type="search"><button>Find next</button>
+                    <span role="status"></span><button type="button" onclick="toggleThreadSearch()" aria-label="Close search">×</button>
+                </form>
 
                 <!-- Shown when a non-friend started this conversation -->
                 <div class="request-banner" id="requestBanner" style="display:none">
@@ -5674,11 +7129,20 @@
         </div>
     </div>
 
+    <aside id="workspaceDetails" hidden aria-label="Conversation details">
+        <div class="detail-cover"></div><div class="detail-body">
+            <div id="detailAvatar" class="work-avatar"></div><h2 id="detailName"></h2><p id="detailHandle"></p><p id="detailBio"></p>
+            <div class="detail-actions"><button onclick="document.getElementById('chatAvatar').click()"><i class="far fa-user"></i>Profile</button><button onclick="chatActionMute(); updateDetailMute()"><i class="far fa-bell-slash"></i><span id="detailMute">Mute</span></button><button onclick="openChatMore()"><i class="fas fa-ellipsis"></i>More</button></div>
+            <h3>Shared media</h3><div id="detailMedia"></div>
+            <h3>Servers in common</h3><div id="detailServers"></div>
+        </div>
+    </aside>
     <!-- iPhone app tab bar -->
     <nav class="ios-tabbar" aria-label="Jitter">
         <button type="button" class="ios-tab active" id="iosTabChats" onclick="iosTab('friends')"><i class="fas fa-comment-dots"></i><span>Chats</span></button>
         <button type="button" class="ios-tab" id="iosTabServers" onclick="iosTab('servers')"><i class="fas fa-server"></i><span>Servers</span></button>
-        <button type="button" class="ios-tab" id="iosTabYou" onclick="iosTab('you')"><i class="far fa-user"></i><span>You</span><span class="ios-tab-badge" id="iosTabYouBadge"></span></button>
+        <button type="button" class="ios-tab" id="iosTabCalls" onclick="workspaceTab('calls')"><i class="fas fa-phone"></i><span>Calls</span></button>
+        <button type="button" class="ios-tab" id="iosTabYou" onclick="workspaceTab('you')"><i class="far fa-user"></i><span>You</span><span class="ios-tab-badge" id="iosTabYouBadge"></span></button>
     </nav>
 </div>
 
@@ -5933,14 +7397,78 @@
 <div id="settingsModal" class="modal" onclick="if(event.target===this)closeSettingsModal()">
     <div class="modal-content">
         <div class="modal-header">
-            <div class="modal-title">Settings</div>
+            <button class="settings-back" id="settingsBack" type="button" onclick="settingsGo('root')" aria-label="Back to Settings" hidden>
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <div class="modal-title" id="settingsTitle">Settings</div>
             <button class="close-modal" onclick="closeSettingsModal()">
                 <i class="fas fa-times"></i>
             </button>
         </div>
-        <div class="settings-body">
+        <div class="settings-body" id="settingsBody">
+            <section class="settings-page active" data-page="root" data-title="Settings">
+            <div class="settings-group settings-categories">
+                <button class="settings-row" type="button" onclick="settingsGo('account')">
+                    <i class="fas fa-user-pen"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Account</span>
+                        <span class="settings-row-desc">Profile, real name and email</span>
+                    </span>
+                    <i class="fas fa-chevron-right settings-row-chevron"></i>
+                </button>
+                <button class="settings-row" type="button" onclick="settingsGo('appearance')">
+                    <i class="fas fa-palette"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Appearance</span>
+                        <span class="settings-row-desc" id="settingsAppearanceSummary">Original</span>
+                    </span>
+                    <i class="fas fa-chevron-right settings-row-chevron"></i>
+                </button>
+                <button class="settings-row" type="button" onclick="settingsGo('privacy')">
+                    <i class="fas fa-shield-halved"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Privacy &amp; safety</span>
+                        <span class="settings-row-desc">Status, friend and message requests, blocked users</span>
+                    </span>
+                    <i class="fas fa-chevron-right settings-row-chevron"></i>
+                </button>
+                <button class="settings-row" type="button" onclick="settingsGo('chat')">
+                    <i class="fas fa-comment-dots"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Chat</span>
+                        <span class="settings-row-desc">Message privacy, filter, images, hidden chats</span>
+                    </span>
+                    <i class="fas fa-chevron-right settings-row-chevron"></i>
+                </button>
+                <button class="settings-row ios-only" type="button" onclick="settingsGo('device')">
+                    <i class="fas fa-mobile-button"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">This iPhone</span>
+                        <span class="settings-row-desc">Privacy screen and call notifications</span>
+                    </span>
+                    <i class="fas fa-chevron-right settings-row-chevron"></i>
+                </button>
+                <button class="settings-row" type="button" onclick="settingsGo('calls')">
+                    <i class="fas fa-microphone"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Voice &amp; video</span>
+                        <span class="settings-row-desc">Microphone, camera and speaker</span>
+                    </span>
+                    <i class="fas fa-chevron-right settings-row-chevron"></i>
+                </button>
+            </div>
+            <div class="settings-group">
+                <button class="settings-row danger" type="button" onclick="closeSettingsModal(); logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Sign out</span>
+                    </span>
+                </button>
+            </div>
+            <div class="settings-version" id="settingsVersion"></div>
+            </section>
 
-            <div class="settings-section-label">Account</div>
+            <section class="settings-page" data-page="account" data-title="Account" hidden>
             <div class="settings-group">
                 <button class="settings-row" type="button" onclick="closeSettingsModal(); openProfile(currentUser.email)">
                     <i class="fas fa-user-pen"></i>
@@ -5950,9 +7478,37 @@
                     </span>
                     <i class="fas fa-chevron-right settings-row-chevron"></i>
                 </button>
+                <div class="settings-row">
+                    <i class="fas fa-id-card"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Show real name</span>
+                        <span class="settings-row-desc">Others see your full name below your display name</span>
+                    </span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="settingsShowName" onchange="setProfileVisibility('show_name', this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <i class="fas fa-at"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Show email address</span>
+                        <span class="settings-row-desc">Others see your email on your profile</span>
+                    </span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="settingsShowEmail" onchange="setProfileVisibility('show_email', this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
             </div>
+            </section>
 
-            <div class="settings-section-label">Privacy</div>
+            <section class="settings-page" data-page="appearance" data-title="Appearance" hidden>
+            <div class="settings-group theme-picker" id="themePicker" role="radiogroup" aria-label="Theme"></div>
+            <div class="settings-hint">Applies straight away. Saved on this device.</div>
+            </section>
+
+            <section class="settings-page" data-page="privacy" data-title="Privacy &amp; safety" hidden>
             <div class="settings-group">
                 <div class="settings-row">
                     <i class="fas fa-signal"></i>
@@ -5977,28 +7533,6 @@
                     </label>
                 </div>
                 <div class="settings-row">
-                    <i class="fas fa-id-card"></i>
-                    <span class="settings-row-main">
-                        <span class="settings-row-label">Show real name</span>
-                        <span class="settings-row-desc">Others see your full name below your display name</span>
-                    </span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="settingsShowName" onchange="setProfileVisibility('show_name', this.checked)">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="settings-row">
-                    <i class="fas fa-at"></i>
-                    <span class="settings-row-main">
-                        <span class="settings-row-label">Show email address</span>
-                        <span class="settings-row-desc">Others see your email on your profile</span>
-                    </span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="settingsShowEmail" onchange="setProfileVisibility('show_email', this.checked)">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="settings-row">
                     <i class="fas fa-envelope-open-text"></i>
                     <span class="settings-row-main">
                         <span class="settings-row-label">Message requests</span>
@@ -6006,35 +7540,6 @@
                     </span>
                     <label class="toggle-switch">
                         <input type="checkbox" id="privacyMessageRequests" checked onchange="setMessageRequests(this.checked)">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="settings-row ios-only" onclick="toggleLayoutDebug()" style="cursor:pointer">
-                    <i class="fas fa-mobile-button"></i>
-                    <span class="settings-row-main">
-                        <span class="settings-row-label">This iPhone</span>
-                        <span class="settings-row-desc" id="deviceInfoText">—</span>
-                    </span>
-                </div>
-                <div class="settings-row ios-only">
-                    <i class="fas fa-mobile-screen"></i>
-                    <span class="settings-row-main">
-                        <span class="settings-row-label">Privacy screen</span>
-                        <span class="settings-row-desc">Darkens the screen when the phone tilts away from how you're holding it, so people beside you can't read it</span>
-                    </span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="privacyScreenToggle" onchange="setPrivacyScreen(this.checked)">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                <div class="settings-row ios-only">
-                    <i class="fas fa-bell"></i>
-                    <span class="settings-row-main">
-                        <span class="settings-row-label">Call notifications</span>
-                        <span class="settings-row-desc">Get notified when someone calls, even when Jitter is closed</span>
-                    </span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="callPushToggle" onchange="setCallPush(this.checked)">
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
@@ -6047,8 +7552,9 @@
                     <i class="fas fa-chevron-right settings-row-chevron"></i>
                 </button>
             </div>
+            </section>
 
-            <div class="settings-section-label">Chat</div>
+            <section class="settings-page" data-page="chat" data-title="Chat" hidden>
             <div class="settings-group">
                 <div class="settings-row">
                     <i class="fas fa-user-secret"></i>
@@ -6093,8 +7599,43 @@
                     <i class="fas fa-chevron-right settings-row-chevron"></i>
                 </button>
             </div>
+            </section>
 
-            <div class="settings-section-label">Voice &amp; video</div>
+            <section class="settings-page" data-page="device" data-title="This iPhone" hidden>
+            <div class="settings-group">
+                <div class="settings-row ios-only" onclick="toggleLayoutDebug()" style="cursor:pointer">
+                    <i class="fas fa-mobile-button"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">This iPhone</span>
+                        <span class="settings-row-desc" id="deviceInfoText">—</span>
+                    </span>
+                </div>
+                <div class="settings-row ios-only">
+                    <i class="fas fa-mobile-screen"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Privacy screen</span>
+                        <span class="settings-row-desc">Darkens the screen when the phone tilts away from how you're holding it, so people beside you can't read it</span>
+                    </span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="privacyScreenToggle" onchange="setPrivacyScreen(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-row ios-only">
+                    <i class="fas fa-bell"></i>
+                    <span class="settings-row-main">
+                        <span class="settings-row-label">Call notifications</span>
+                        <span class="settings-row-desc">Get notified when someone calls, even when Jitter is closed</span>
+                    </span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="callPushToggle" onchange="setCallPush(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            </section>
+
+            <section class="settings-page" data-page="calls" data-title="Voice &amp; video" hidden>
             <div class="settings-group">
                 <div class="settings-row">
                     <i class="fas fa-microphone"></i>
@@ -6126,18 +7667,9 @@
                     <i class="fas fa-chevron-right settings-row-chevron"></i>
                 </button>
             </div>
+            </section>
 
-            <div class="settings-section-label">Session</div>
-            <div class="settings-group">
-                <button class="settings-row danger" type="button" onclick="closeSettingsModal(); logout()">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span class="settings-row-main">
-                        <span class="settings-row-label">Sign out</span>
-                    </span>
-                </button>
-            </div>
-
-            <div class="settings-version" id="settingsVersion"></div>
+        
         </div>
     </div>
 </div>
@@ -6183,6 +7715,7 @@
 
 <!-- ══ CONV CONTEXT MENU ════════════════════════════════ -->
 <div id="convContextMenu">
+    <button class="ctx-item" id="workspacePin" onclick="toggleWorkspacePin()">Pin chat</button>
     <div class="ctx-item" onclick="setNicknameCtx()">
         <i class="fas fa-tag"></i> Set Nickname
     </div>
@@ -6576,22 +8109,28 @@
 <!-- Voice call (incoming, ringing, or in progress) -->
 <div id="callOverlay" class="call-overlay">
     <div class="call-avatar" id="callAvatar" onclick="openCallStage()" title="Open call"></div>
-    <div class="call-info" onclick="openCallStage()" title="Open call">
-        <div class="call-name" id="callName"></div>
-        <div class="call-status" id="callStatus"></div>
-    </div>
+    <button class="call-info" onclick="openCallStage()" title="Open call">
+        <span class="call-name" id="callName"></span>
+        <span class="call-status" id="callStatus"></span>
+    </button>
     <div class="call-actions" id="callActions"></div>
 </div>
 <audio id="callRemoteAudio" autoplay></audio>
 
+<!-- Mic / speaker / camera quick menu (⌃ on the call buttons) -->
+<div id="callDeviceMenu" class="call-device-menu"></div>
+
 <!-- Full-screen call view -->
 <div id="callStage" class="call-stage">
+    <aside id="callChatDock" hidden><header>Chat<button onclick="dockCallChat(false)" title="Close chat" aria-label="Close chat">×</button></header></aside>
     <div class="call-stage-top">
         <div class="call-stage-title">
+            <span id="callStageKind">Jitter call</span>
             <div class="call-stage-name" id="callStageName"></div>
             <div class="call-stage-status" id="callStageStatus"></div>
         </div>
         <button class="call-stage-icon-btn" onclick="toggleCallDevicePanel()" title="Devices"><i class="fas fa-gear"></i></button>
+        <span id="callLinkQuality" hidden></span>
         <button class="call-stage-icon-btn" id="callFullscreenBtn" onclick="toggleCallFullscreen()" title="Full screen"><i class="fas fa-expand" id="callFullscreenIcon"></i></button>
         <button class="call-stage-icon-btn" onclick="closeCallStage()" title="Minimize"><i class="fas fa-down-left-and-up-right-to-center"></i></button>
     </div>
@@ -6599,6 +8138,10 @@
         <label>Microphone<select class="settings-select call-device-select" data-kind="audioinput" onchange="setCallDevice('audioinput', this.value)"></select></label>
         <label>Camera<select class="settings-select call-device-select" data-kind="videoinput" onchange="setCallDevice('videoinput', this.value)"></select></label>
         <label class="call-speaker-row">Speaker<select class="settings-select call-device-select" data-kind="audiooutput" onchange="setCallDevice('audiooutput', this.value)"></select></label>
+    </div>
+    <div class="call-lobby">
+        <div id="callLobbyAvatar" class="call-lobby-avatar"></div>
+        <h2 id="callLobbyName"></h2><p id="callLobbyStatus" role="status"></p>
     </div>
     <div class="call-stage-tiles">
         <div class="call-stage-screens">
@@ -6615,6 +8158,7 @@
         <div class="call-tile" id="callTilePeer">
             <div class="call-tile-avatar" id="callTilePeerAvatar"></div>
             <video id="callPeerCamVideo" autoplay playsinline muted></video>
+            <div class="call-tile-away" id="callTilePeerAway"></div>
             <div class="call-tile-label" id="callTilePeerLabel"></div>
         </div>
         <div class="call-tile" id="callTileMe">
@@ -6659,7 +8203,9 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ1anZtdHZvem9yeWxmenNxcHBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc0NjQxNDEsImV4cCI6MjA3MzA0MDE0MX0.b7jJz3Se_oXXDwwd0dWQ8-rEvhY0aU4JDHQVioE39iY';
 
     const { createClient } = supabase;
-    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Realtime's heartbeat runs in a Web Worker so a background tab (Jitter not in front)
+    // doesn't throttle it and drop call signalling: hangups, mute / video state, ICE
+    const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { realtime: { worker: true } });
 
     /* ──────────────────────────────────────────────────
        STATE
@@ -6805,9 +8351,10 @@
     ────────────────────────────────────────────────── */
     window.addEventListener('load', () => {
         if (window.JITTER_IOS_APP) { initApp(); return; }
-        // Must be inside an iframe
+        if (window.JITTER_PWA_APP) { initApp(); return; }
+        // Opened directly (not framed by the desktop): use Jitter's own sign-in
         if (window.self === window.top) {
-            showBlockedPage();
+            initApp();
             return;
         }
         waitForAuthentication();
@@ -7029,12 +8576,13 @@
         try {
             const { data: uRow } = await sb
                 .from('clients')
-                .select('username, display_name')
+                .select('username, display_name, banner_url')
                 .eq('email', currentUser.email)
                 .single();
             if (uRow) {
                 currentUser.username      = uRow.username || null;
                 currentUser.display_name  = uRow.display_name || null;
+                updateOwnBanner(uRow.banner_url);
                 usernameCache[currentUser.email] = uRow.username || null;
             }
         } catch (_) {}
@@ -7049,6 +8597,8 @@
     }
 
     async function finishShowDashboard() {
+        workspaceTab('friends');
+        detailPanel.hidden = true;
         document.getElementById('systemExplain').style.display = 'none';
         document.getElementById('usernameSetup').style.display = 'none';
         document.getElementById('dmDashboard').style.display   = 'flex';
@@ -7139,7 +8689,10 @@
                 new Date(b.last_message_at || 0) - new Date(a.last_message_at || 0));
 
             const otherEmails = direct.map(c => getOtherEmail(c)).filter(Boolean);
-            await loadAvatarsForEmails(otherEmails);
+            // Group members too: their avatars stack on the group's row
+            groups.forEach(g => (Array.isArray(g.participants) ? g.participants : []).slice(0, 4)
+                .forEach(e => { if (e && e !== currentUser.email) otherEmails.push(e); }));
+            await loadAvatarsForEmails([...new Set(otherEmails)]);
             renderConversations(conversations);
             refreshActiveChatHeader();
             updateSeenTick();
@@ -7150,46 +8703,97 @@
     }
 
     function renderConversations(list) {
+        renderWorkspacePeople();
+        list = workspaceInbox(list);
         const container = document.getElementById('convList');
         if (list.length === 0) {
             container.innerHTML = `
                 <div class="sidebar-empty">
                     <i class="fas fa-comment-slash"></i>
-                    <p>No conversations yet.<br>Click + to start one.</p>
+                    <p>No matching chats.</p>
                 </div>
             `;
             return;
         }
 
+        // Day headings (.conv-day) are always in the list; only themes that group by day show them
+        let lastDay = null;
+        let lastGroup = null;
         container.innerHTML = list.map(conv => {
-            const otherName  = getOtherName(conv);
-            const otherEmail = getOtherEmail(conv);
-            const unread     = conv.unread_count > 0;
-            const isActive   = conv.id === activeConvId;
-            const convStatus = !conv.is_group ? effectiveStatus(otherEmail) : 'offline';
-
-            const avatarContent = conv.is_group
-                ? '<i class="fas fa-users"></i>'
-                : `${avatarHTML(otherName, otherEmail)}<span class="${statusDotClass(convStatus, otherEmail)}"></span>`;
-            const avatarClass = `conv-avatar${convStatus !== 'offline' ? ` avatar-${convStatus}` : ''}${conv.is_group ? ' group-conv-avatar' : ''}`;
-
-            return `
-                <div class="conv-item${isActive ? ' active' : ''}${unread ? ' unread' : ''}"
-                     id="conv-${conv.id}"
-                     onclick="openConversation('${conv.id}')"
-                     oncontextmenu="showConvContextMenu(event,'${conv.id}')">
-                    <div class="${avatarClass}">${avatarContent}</div>
-                    <div class="conv-details">
-                        <div class="conv-name">${escHtml(otherName)}${isMuted(conv.id) ? ' <i class="fas fa-bell-slash conv-muted" title="Muted"></i>' : ''}</div>
-                        <div class="conv-preview">${isMessageRequest(conv) ? '<span class="conv-request-tag">Request</span>' : ''}${escHtml(filteredPreview(conv.last_message_preview) || 'No messages yet')}</div>
-                    </div>
-                    <div class="conv-meta">
-                        <div class="conv-time">${conv.last_message_at ? fmtTime(conv.last_message_at) : ''}</div>
-                        <div class="unread-badge${unread ? ' show' : ''}">${conv.unread_count || ''}</div>
-                    </div>
-                </div>
-            `;
+            const day = conv.last_message_at ? new Date(conv.last_message_at).toDateString() : '';
+            const heading = day !== lastDay
+                ? `<div class="conv-day" aria-hidden="true">${conv.last_message_at ? escHtml(fmtDay(conv.last_message_at)) : 'Earlier'}</div>`
+                : '';
+            lastDay = day;
+            const group = workspacePins().includes(conv.id) ? 'Pinned' : 'Recent';
+            const section = group !== lastGroup ? '<div class="inbox-heading">' + group + '</div>' : '';
+            lastGroup = group;
+            return section + heading + convRowHTML(conv);
         }).join('');
+    }
+
+    // One inbox row. Every theme uses this markup; each shows the parts it needs
+    // (.conv-clock: Gig Listing's time column, .avatar-stack: group avatars).
+    function convRowHTML(conv, { preview = false } = {}) {
+        const otherName  = getOtherName(conv);
+        const otherEmail = getOtherEmail(conv);
+        const unread     = conv.unread_count > 0;
+        const isActive   = !preview && conv.id === activeConvId;
+        const convStatus = !conv.is_group ? effectiveStatus(otherEmail) : 'offline';
+        const muted      = !preview && isMuted(conv.id);
+
+        const avatarContent = conv.is_group
+            ? `<i class="fas fa-users"></i>${groupStackHTML(conv)}`
+            : `${avatarHTML(otherName, otherEmail)}<span class="${statusDotClass(convStatus, otherEmail)}"></span>`;
+        const avatarClass = `conv-avatar${convStatus !== 'offline' ? ` avatar-${convStatus}` : ''}${conv.is_group ? ' group-conv-avatar' : ''}`;
+        const clock = conv.last_message_at ? fmtClockParts(conv.last_message_at) : null;
+        const events = preview ? '' : `
+                 tabindex="0" role="button"
+                 onclick="openConversation('${conv.id}')"
+                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openConversation('${conv.id}')}"
+                 oncontextmenu="showConvContextMenu(event,'${conv.id}')"`;
+
+        return `
+            <div class="conv-item${isActive ? ' active' : ''}${unread ? ' unread' : ''}${conv.is_group ? ' is-group' : ''}"
+                 ${preview ? '' : `id="conv-${conv.id}"`}${events}>
+                <div class="conv-clock" aria-hidden="true">${clock ? `<b>${clock.time}</b>${clock.period ? `<span>${clock.period}</span>` : ''}` : ''}</div>
+                <div class="${avatarClass}" style="--avatar-color:${workspaceTint(otherEmail || conv.id)}">${avatarContent}</div>
+                <div class="conv-details">
+                    <div class="conv-name">${escHtml(otherName)}${muted ? ' <i class="fas fa-bell-slash conv-muted" title="Muted"></i>' : ''}</div>
+                    <div class="conv-preview">${isMessageRequest(conv) ? '<span class="conv-request-tag">Request</span>' : ''}${escHtml(filteredPreview(conv.last_message_preview) || 'No messages yet')}</div>
+                </div>
+                <div class="conv-meta">
+                    <div class="conv-time">${conv.last_message_at ? fmtTime(conv.last_message_at) : ''}</div>
+                    <div class="unread-badge${unread ? ' show' : ''}">${conv.unread_count || ''}</div>
+                </div>
+            </div>
+        `;
+    }
+
+    // Up to three of a group's other members, overlapped
+    function groupStackHTML(conv, max = 3) {
+        const others = (Array.isArray(conv.participants) ? conv.participants : [])
+            .filter(e => e && e !== currentUser.email);
+        if (!others.length) return '';
+        const shown = others.slice(0, max).map(e => {
+            const name = nicknameFor(e) || displayNameCache[e] || usernameCache[e] || e;
+            return `<span class="stack-av">${avatarHTML(name, e)}</span>`;
+        }).join('');
+        return `<span class="avatar-stack" data-count="${Math.min(others.length, max)}">${shown}</span>`;
+    }
+
+    function clockLabel(ts) {
+        const { time, period } = fmtClockParts(ts);
+        return period ? `${time} ${period}` : time;
+    }
+
+    // "9:41" + "PM" for the inbox time column (24-hour locales get no period)
+    function fmtClockParts(ts) {
+        const parts = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' }).formatToParts(new Date(ts));
+        const period = (parts.find(p => p.type === 'dayPeriod') || {}).value || '';
+        const time = parts.filter(p => p.type === 'hour' || p.type === 'minute' || (p.type === 'literal' && p.value.trim() === ':'))
+            .map(p => p.value).join('');
+        return { time, period };
     }
 
     function renderConversationsError() {
@@ -7227,6 +8831,7 @@
        OPEN CONVERSATION
     ────────────────────────────────────────────────── */
     async function openConversation(convId) {
+        resetThreadSearch();
         // Clear server state when opening a DM
         activeServerId = null;
         activeChannelId = null;
@@ -7244,8 +8849,8 @@
 
         if (conv.is_group) {
             const memberCount = Array.isArray(conv.participants) ? conv.participants.length : '';
-            chatAvatarEl.innerHTML = '<i class="fas fa-users" style="font-size:0.85rem;color:var(--text-muted)"></i>';
-            chatAvatarEl.className = 'chat-header-avatar clickable';
+            chatAvatarEl.innerHTML = '<i class="fas fa-users" style="font-size:0.85rem;color:var(--text-muted)"></i>' + groupStackHTML(conv);
+            chatAvatarEl.className = 'chat-header-avatar clickable is-group';
             chatAvatarEl.onclick   = () => openGroupModal(convId);
             chatAvatarEl.title     = conv.participant_1_email === currentUser.email ? 'Edit group' : 'View group info';
             document.getElementById('chatRecipientName').textContent  = conv.group_name || 'Group';
@@ -7266,6 +8871,7 @@
         document.getElementById('emptyState').style.display = 'none';
         document.getElementById('chatArea').style.display   = 'flex';
         setMobileChatOpen(true);
+        selectWorkspaceDetails(conv);
         updateRequestBanner();
 
         hideTypingIndicator();
@@ -7278,9 +8884,7 @@
 
     /* ── iPhone app: tab bar, header "more", composer + and emoji ── */
     function iosTab(tab) {
-        if (tab === 'you') { openProfile(currentUser.email, { viewOnly: true }); return; }
-        if (document.documentElement.classList.contains('chat-open')) mobileBack();
-        if (tab !== currentSidebarTab) switchSidebarTab(tab);
+        workspaceTab(tab);
     }
 
     /* ── The header's ⋯ (iPhone app): an action sheet ──
@@ -7776,6 +9380,7 @@
     }
 
     function hideChatArea() {
+        document.getElementById('workspaceDetails').hidden = true;
         document.getElementById('emptyState').style.display = 'flex';
         document.getElementById('chatArea').style.display   = 'none';
     }
@@ -7797,10 +9402,134 @@
                 ? await messageFilterFor(getOtherEmail(filterConv)) : 'off';
             const all = [...(data || []), ...undeliveredFor(convId)]
                 .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            if (activeConvId !== convId) return;
             renderMessages(all, keepScroll);
+            if (!window.JITTER_IOS_APP) renderSharedMedia(all);
         } catch (err) {
             console.error('Error loading messages:', err);
         }
+    }
+
+    /* ── Links in messages: clickable, plus a preview card for the first one ──
+       Previews come from the link-preview edge function (a browser can't read other
+       sites' pages) and are kept here and in localStorage for a week. */
+    // https://…, www.…, or a bare domain like beta.xorbit.org. Bare domains need a common
+    // ending, so "e.g.", "v6.5.0", "readme.md" or "main.py" don't turn into links, and a
+    // domain right after @ (an email address) is left alone.
+    const LINK_TLDS = 'com|org|net|edu|gov|io|dev|app|co|ai|gg|me|tv|us|uk|ca|au|de|fr|nl|eu|info|xyz|site|online|space|store|tech|link|page|blog|live|news|ly|fm|wiki|club|art|games|social|chat|cloud|world';
+    const LINK_RE = new RegExp(
+        '(?<![\\w@./-])(?:' +
+            'https?:\\/\\/[^\\s<>"]+' +
+            '|www\\.[^\\s<>"]+' +
+            '|(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+(?:' + LINK_TLDS + ')(?::\\d{2,5})?(?:[/?#][^\\s<>"]*)?(?![\\w-])' +
+        ')', 'gi');
+    const LINK_CACHE_KEY = 'jittery_link_previews';
+    const LINK_CACHE_MAX = 150;
+    const LINK_CACHE_MS = 7 * 86400000;
+    const linkPreviews = new Map();   // href -> { p: preview or null, t: saved at }
+    const linkPending = new Set();
+    try {
+        const saved = JSON.parse(localStorage.getItem(LINK_CACHE_KEY) || '{}');
+        for (const [u, e] of Object.entries(saved)) if (e && Date.now() - e.t < LINK_CACHE_MS) linkPreviews.set(u, e);
+    } catch { /* ignore */ }
+
+    const escUrlAttr = (s) => escHtml(s).replace(/"/g, '&quot;');
+    // Sentence punctuation and an unmatched closing bracket stay outside the link
+    function trimLink(raw) {
+        let url = raw;
+        while (/[.,:;!?'")\]}*]$/.test(url)) {
+            if (url.endsWith(')') && (url.match(/\(/g) || []).length >= (url.match(/\)/g) || []).length) break;
+            url = url.slice(0, -1);
+        }
+        return url;
+    }
+    const linkHref = (url) => (/^https?:\/\//i.test(url) ? url : 'https://' + url);
+
+    function linkifyText(text) {
+        const s = String(text || '');
+        let out = '', last = 0;
+        for (const m of s.matchAll(LINK_RE)) {
+            const url = trimLink(m[0]);
+            if (url.replace(/^(https?:\/\/|www\.)/i, '').length < 3) continue;
+            out += escHtml(s.slice(last, m.index));
+            out += `<a class="msg-link" href="${escUrlAttr(linkHref(url))}" target="_blank" rel="noopener noreferrer">${escHtml(url)}</a>`;
+            last = m.index + url.length;
+        }
+        return out + escHtml(s.slice(last));
+    }
+    function firstLink(text) {
+        for (const m of String(text || '').matchAll(LINK_RE)) {
+            const url = trimLink(m[0]);
+            if (url.replace(/^(https?:\/\/|www\.)/i, '').length >= 3) return linkHref(url);
+        }
+        return null;
+    }
+    function linkHost(href) {
+        try { return new URL(href).hostname.replace(/^www\./, ''); } catch { return href; }
+    }
+
+    function linkCardHTML(href) {
+        const entry = linkPreviews.get(href);
+        const open = `href="${escUrlAttr(href)}" target="_blank" rel="noopener noreferrer" data-preview-url="${escUrlAttr(href)}"`;
+        if (entry === undefined) {
+            requestLinkPreview(href);
+            return `<a class="link-card loading" ${open}>
+                <div class="lc-body"><div class="lc-site">${escHtml(linkHost(href))}</div><div class="lc-skel"></div><div class="lc-skel short"></div></div>
+            </a>`;
+        }
+        const p = entry.p;
+        if (!p || !(p.title || p.description || p.image)) return '';
+        // "Hide images until clicked" covers preview pictures too
+        const image = p.image && !hideChatImages
+            ? `<div class="lc-image"><img src="${escUrlAttr(p.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.remove()"></div>`
+            : '';
+        const favicon = p.favicon
+            ? `<img class="lc-favicon" src="${escUrlAttr(p.favicon)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`
+            : '';
+        return `<a class="link-card${image ? '' : ' no-image'}" ${open}>
+            ${image}
+            <div class="lc-body">
+                <div class="lc-site">${favicon}<span>${escHtml(p.siteName || linkHost(href))}</span></div>
+                ${p.title ? `<div class="lc-title">${escHtml(p.title)}</div>` : ''}
+                ${p.description ? `<div class="lc-desc">${escHtml(p.description)}</div>` : ''}
+            </div>
+        </a>`;
+    }
+
+    async function requestLinkPreview(href) {
+        if (linkPending.has(href)) return;
+        linkPending.add(href);
+        let p = null, keep = true;
+        try {
+            const { data, error } = await sb.functions.invoke('link-preview', { body: { url: href } });
+            if (error) keep = false;          // try again next time Jitter opens
+            else p = data && !data.error ? data : null;
+        } catch { keep = false; }
+        linkPending.delete(href);
+        linkPreviews.set(href, { p, t: Date.now() });
+        if (keep) {
+            try {
+                const obj = {};
+                [...linkPreviews.entries()].filter(([, e]) => e.p !== undefined).slice(-LINK_CACHE_MAX).forEach(([u, e]) => { obj[u] = e; });
+                localStorage.setItem(LINK_CACHE_KEY, JSON.stringify(obj));
+            } catch { /* full or blocked */ }
+        }
+        // Fill in every card waiting on this link (the chat may have redrawn meanwhile),
+        // keeping the newest message in view if the chat was scrolled to the bottom
+        const container = document.getElementById('messagesContainer');
+        const atBottom = container && container.scrollHeight - container.scrollTop - container.clientHeight < 80;
+        document.querySelectorAll('.link-card.loading').forEach((card) => {
+            if (card.dataset.previewUrl !== href) return;
+            const html = linkCardHTML(href).replace(/>\s+</g, '><').trim();
+            if (html) card.outerHTML = html; else card.remove();
+        });
+        if (atBottom) container.scrollTop = container.scrollHeight;
+    }
+
+    function messageTextHTML(text) {
+        const href = firstLink(text);
+        // No whitespace between tags: the bubble shows line breaks as typed
+        return linkifyText(text) + (href ? linkCardHTML(href).replace(/>\s+</g, '><').trim() : '');
     }
 
     function renderMessages(messages, keepScroll = false) {
@@ -7808,8 +9537,13 @@
         const prevScrollTop = container.scrollTop;
         container.classList.toggle('no-anim', keepScroll);
 
+        // Names and avatars only show in group chats
+        const activeConv = conversations.find(c => c.id === activeConvId);
+        container.classList.toggle('is-group', !!(activeConv && activeConv.is_group));
+        const cover = activeConv && activeConv.is_group ? groupCoverHTML(activeConv) : '';
+
         if (messages.length === 0) {
-            container.innerHTML = `
+            container.innerHTML = cover + `
                 <div class="messages-empty">
                     <i class="fas fa-comments"></i>
                     <p>Send the first message</p>
@@ -7818,12 +9552,8 @@
             return;
         }
 
-        let html = '';
+        let html = cover;
         let lastDay = null;
-
-        // Names and avatars only show in group chats
-        const activeConv = conversations.find(c => c.id === activeConvId);
-        container.classList.toggle('is-group', !!(activeConv && activeConv.is_group));
 
         // Consecutive messages from one sender on the same day form a run
         const sameRun = (a, b) => !!a && !!b && a.sender_email === b.sender_email
@@ -7900,9 +9630,10 @@
                 : filterView === 'block'
                 ? profanityBlockedHTML('message-bubble')
                 : filterView === 'blur'
-                ? profanityBlurHTML(msg.id, `<div class="message-bubble">${replyQuote}${escHtml(msg.message)}</div>`)
-                : `<div class="message-bubble">${replyQuote}${escHtml(msg.message)}</div>`;
+                ? profanityBlurHTML(msg.id, `<div class="message-bubble">${replyQuote}${messageTextHTML(msg.message)}</div>`)
+                : `<div class="message-bubble">${replyQuote}${messageTextHTML(msg.message)}</div>`;
             const viaDesktop = msg.sent_via === 'desktop';
+            const settleAge  = isMine ? justSentAge(msg.id) : null;
             const desktopBanner = viaDesktop
                 ? `<div class="desktop-reply-banner"><i class="fas fa-desktop"></i> Replied from Desktop</div>`
                 : '';
@@ -7914,7 +9645,7 @@
                 : '';
 
             html += `
-                <div class="message ${isMine ? 'mine' : 'theirs'}${runClass}${viaDesktop ? ' desktop-reply' : ''}${msg.undelivered ? ' undelivered' : ''}${notReceived ? ' not-received' : ''}" data-created-at="${msg.created_at}" data-via="${viaDesktop ? 'desktop' : ''}">
+                <div class="message ${isMine ? 'mine' : 'theirs'}${runClass}${viaDesktop ? ' desktop-reply' : ''}${msg.undelivered ? ' undelivered' : ''}${notReceived ? ' not-received' : ''}${settleAge !== null ? ' just-sent' : ''}" data-created-at="${msg.created_at}" data-clock="${clockLabel(msg.created_at)}" data-via="${viaDesktop ? 'desktop' : ''}"${settleAge !== null ? ` style="--settle-delay:-${settleAge}ms"` : ''}>
                     <div class="msg-avatar" onclick="openProfile('${escAttr(msg.sender_email)}')">${avatarHTML(senderDisplay, msg.sender_email)}</div>
                     <div class="msg-content">
                         <div class="message-header">${escHtml(senderDisplay)}</div>
@@ -7933,6 +9664,37 @@
         container.innerHTML = html;
         container.scrollTop = keepScroll ? prevScrollTop : container.scrollHeight;
         updateSeenTick();
+    }
+
+    // Late Night's cover strip for a group: scrolls away with the messages. Groups have no
+    // cover photo field, so it's built from the group's name and its members' avatars.
+    function groupCoverHTML(conv) {
+        const count = Array.isArray(conv.participants) ? conv.participants.length : 0;
+        return `<div class="chat-cover" aria-hidden="true">
+            <div class="chat-cover-art">${groupStackHTML(conv, 6)}</div>
+            <div class="chat-cover-text">
+                <div class="chat-cover-name">${escHtml(conv.group_name || 'Group')}</div>
+                ${count ? `<div class="chat-cover-sub">${count} members</div>` : ''}
+            </div>
+        </div>`;
+    }
+
+    /* A message you just sent gets .just-sent for one short animation (Double Take's backing
+       settles into place). Re-renders inside that window continue it instead of replaying it. */
+    const SETTLE_MS = 420;
+    const justSent = {}; // message id -> time it was sent
+
+    function markJustSent(id) {
+        if (id) justSent[id] = Date.now();
+    }
+
+    // Milliseconds since it was sent, or null once the animation is over
+    function justSentAge(id) {
+        const at = justSent[id];
+        if (!at) return null;
+        const age = Date.now() - at;
+        if (age > SETTLE_MS) { delete justSent[id]; return null; }
+        return age;
     }
 
     // Hangman invites arrive as a normal message in a fixed format (see sendInvite in hangman.html)
@@ -8416,7 +10178,7 @@
                     ...fields,
                 });
             } else {
-                await insertDMMessage(activeConv, fields);
+                markJustSent(await insertDMMessage(activeConv, fields));
             }
 
             input.value = '';
@@ -8722,7 +10484,7 @@
     /* ── VERSION ─────────────────────────────────────────
        Shown under your name in the sidebar so you can tell which build is loaded.
        Bump it with every change to this file: date as YYMMDD, then a counter for that day. */
-    const JITTER_VERSION = '261028-6';
+    const JITTER_VERSION = '261110-3';
     document.getElementById('jitterVersion').textContent = 'Jitter v' + JITTER_VERSION;
 
     /* ── VERSION CHECK ───────────────────────────────────
@@ -8824,7 +10586,7 @@
     document.addEventListener('visibilitychange', () => { if (!document.hidden) checkJitterVersion(); });
 
     /* ── SETTINGS ─────────────────────────────────────── */
-    function openSettingsModal() {
+    function openSettingsModal(page) {
         document.getElementById('chatHideImages').checked = hideChatImages;
         document.getElementById('chatMessagePrivacy').checked = messagePrivacy;
         document.getElementById('chatMessageFilter').value = myMessageFilter;
@@ -8842,6 +10604,8 @@
         });
         loadPrivacyToggles();
         loadStatusDetail();
+        renderThemePicker();
+        settingsGo(typeof page === 'string' ? page : 'root');
         document.getElementById('settingsModal').classList.add('active');
     }
 
@@ -8908,6 +10672,25 @@
         showToast(field === 'show_name'
             ? (on ? 'Your real name is shown on your profile.' : 'Your real name is hidden.')
             : (on ? 'Your email is shown on your profile.' : 'Your email is hidden.'));
+    }
+
+    /* Settings is a list of categories; each opens its own page, with a back button in the header */
+    function settingsGo(page) {
+        const pages = [...document.querySelectorAll('#settingsBody .settings-page')];
+        const target = pages.find(p => p.dataset.page === page) || pages[0];
+        pages.forEach(p => { const on = p === target; p.hidden = !on; p.classList.toggle('active', on); });
+        const root = target.dataset.page === 'root';
+        document.getElementById('settingsTitle').innerHTML = target.dataset.title;
+        document.getElementById('settingsBack').hidden = root;
+        const theme = THEMES.find(t => t.id === currentTheme());
+        document.getElementById('settingsAppearanceSummary').textContent = theme ? theme.name : 'Original';
+        document.getElementById('settingsBody').scrollTop = 0;
+        // Keyboard users land on the first control of the new page (or back on its category)
+        const focusEl = root
+            ? target.querySelector(`[onclick="settingsGo('${settingsGo.last || ''}')"]`)
+            : target.querySelector('input, select, button');
+        settingsGo.last = target.dataset.page;
+        if (focusEl && document.getElementById('settingsModal').classList.contains('active')) focusEl.focus({ preventScroll: true });
     }
 
     function closeSettingsModal() {
@@ -9139,6 +10922,7 @@
 
     function setHideChatImages(on) {
         hideChatImages = on;
+        if (on) document.getElementById('detailMedia').textContent = 'Photos hidden';
         try { localStorage.setItem('jittery_hide_images', on ? '1' : '0'); } catch { /* ignore */ }
         revealedImages.clear();
         document.getElementById('chatHideImages').checked = on;
@@ -9168,6 +10952,126 @@
         }
         const btn = document.getElementById('lightboxSaveBtn');
         handleSaveClick(_lightboxUrl, btn, true);
+    }
+
+    /* ── THEMES (Settings › Appearance) ──────────────────
+       A theme is html[data-theme] plus its block in the THEMES section of the CSS.
+       The markup is the same for every theme (each shows the parts it uses), so switching
+       is a class change: the open chat, draft, scroll and back state all stay put.
+       Saved on this device like Message privacy; nothing saved = Original. */
+    const THEME_KEY = 'jittery_theme';
+    const THEMES = [
+        { id: 'original', name: 'Original', desc: 'The Jitter you know: blue bubbles on black.', bar: '#0d1834' },
+        { id: 'gig',      name: 'Gig Listing', desc: 'A record shop’s printed show schedule. Paper, ink and vermilion, grouped by day.', bar: '#f3ecdf' },
+        { id: 'first',    name: 'Message First', desc: 'Charcoal, with the latest message up front and the sender in a byline.', bar: '#151618' },
+        { id: 'double',   name: 'Double Take', desc: 'Two offset speech shapes in ultramarine, periwinkle, ivory and apricot.', bar: '#fbf6ea' },
+        { id: 'late',     name: 'Late Night', desc: 'Plum black and signal red, with one clipped corner.', bar: '#140a14' },
+    ];
+
+    function currentTheme() {
+        return document.documentElement.dataset.theme || 'original';
+    }
+
+    function setTheme(id) {
+        if (!THEMES.some(t => t.id === id)) id = 'original';
+        const keep = captureScroll();
+        if (id === 'original') delete document.documentElement.dataset.theme;
+        else document.documentElement.dataset.theme = id;
+        try { localStorage.setItem(THEME_KEY, id); } catch { /* ignore */ }
+        syncStatusBarColor();
+        restoreScroll(keep);
+        // Theme fonts can arrive a moment later and reflow the list
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => restoreScroll(keep));
+        document.querySelectorAll('#themePicker input[name="jtheme"]').forEach(r => { r.checked = r.value === id; });
+        const summary = document.getElementById('settingsAppearanceSummary');
+        if (summary) summary.textContent = (THEMES.find(t => t.id === id) || THEMES[0]).name;
+    }
+
+    // iOS paints the status bar from theme-color and the page background (see --ios-top)
+    function syncStatusBarColor() {
+        const t = THEMES.find(x => x.id === currentTheme()) || THEMES[0];
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', t.bar);
+    }
+    syncStatusBarColor();
+
+    // Keeps the same message (and inbox row) in view across a theme change
+    function captureScroll() {
+        const keep = [];
+        const anchor = (el, itemSel) => {
+            if (!el || !el.clientHeight) return;
+            const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+            const items = [...el.querySelectorAll(itemSel)];
+            const first = items.find(it => it.offsetTop + it.offsetHeight > el.scrollTop);
+            keep.push({ el, atBottom, item: first, delta: first ? first.offsetTop - el.scrollTop : 0 });
+        };
+        anchor(document.getElementById('messagesContainer'), '.message, .msg');
+        anchor(document.getElementById('convList'), '.conv-item');
+        return keep;
+    }
+
+    function restoreScroll(keep) {
+        keep.forEach(({ el, atBottom, item, delta }) => {
+            if (atBottom) el.scrollTop = el.scrollHeight;
+            else if (item && item.isConnected) el.scrollTop = item.offsetTop - delta;
+        });
+    }
+
+    // Each option is a live miniature: the app's own stylesheet in a frame set to that
+    // theme, showing your top inbox row and a message you sent
+    function renderThemePicker() {
+        const picker = document.getElementById('themePicker');
+        if (!picker) return;
+        const ios = window.JITTER_IOS_APP;
+        const css = document.querySelector('head style').textContent;
+        const fonts = [...document.querySelectorAll('head link[rel="stylesheet"]')].map(l => l.outerHTML).join('');
+        const row = previewRowHTML();
+        const sent = previewSentHTML();
+        const now = currentTheme();
+
+        picker.innerHTML = THEMES.map(t => `
+            <label class="theme-option">
+                <input type="radio" name="jtheme" value="${t.id}" ${t.id === now ? 'checked' : ''} onchange="setTheme(this.value)">
+                <span class="theme-option-preview"><iframe tabindex="-1" aria-hidden="true" title="" loading="lazy" data-theme-id="${t.id}"></iframe></span>
+                <span class="theme-option-text">
+                    <span class="theme-option-name">${t.name}</span>
+                    <span class="theme-option-desc">${t.desc}</span>
+                </span>
+                <i class="fas fa-check theme-option-check" aria-hidden="true"></i>
+            </label>`).join('');
+
+        picker.querySelectorAll('iframe').forEach(frame => {
+            const id = frame.dataset.themeId;
+            frame.srcdoc = `<!doctype html><html class="theme-preview-doc${ios ? ' ios-app' : ''}"${id === 'original' ? '' : ` data-theme="${id}"`}>
+                <head><meta charset="utf-8">${fonts}<style>${css}</style></head>
+                <body><div class="tp-sidebar dm-sidebar"><div class="conv-list">${row}</div></div>
+                <div class="tp-chat messages-container">${sent}</div></body></html>`;
+        });
+    }
+
+    function previewRowHTML() {
+        const conv = conversations[0] || {
+            id: 'preview', is_group: true, group_name: 'Your chats', participants: [],
+            last_message_preview: 'New messages show up here', last_message_at: new Date().toISOString(), unread_count: 1,
+        };
+        return convRowHTML(conv, { preview: true });
+    }
+
+    // Your newest sent message in the open chat, else a stand-in
+    function previewSentHTML() {
+        const mine = [...document.querySelectorAll('#messagesContainer .message.mine .message-bubble:not(.game-invite)')].pop();
+        const text = mine ? (mine.lastChild && mine.lastChild.textContent || mine.textContent).trim() : '';
+        const me = currentUser.display_name || currentUser.username || currentUser.name;
+        return `<div class="message mine grp-first grp-last">
+            <div class="msg-avatar"></div>
+            <div class="msg-content">
+                <div class="message-header">${escHtml(me)}</div>
+                <div class="msg-row">
+                    <div class="message-bubble">${escHtml(text || 'On my way')}</div>
+                    <div class="msg-meta"><div class="message-time">Now</div></div>
+                </div>
+            </div>
+        </div>`;
     }
 
     /* ── LOCAL IMAGE REGISTRY (max 10) ───────────────── */
@@ -10063,6 +11967,7 @@
                 .on('broadcast', { event: 'logged' }, ({ payload }) => { if (call && payload.id) call.logId = payload.id; })
                 .on('broadcast', { event: 'mute' },   ({ payload }) => { if (call) { call.peerMuted = !!payload.muted; renderCallOverlay(); } })
                 .on('broadcast', { event: 'video' },  ({ payload }) => onCallPeerVideo(payload))
+                .on('broadcast', { event: 'away' },   ({ payload }) => onCallPeerAway(payload))
                 .on('broadcast', { event: 'hangup' }, () => { if (call) endCall(false, 'Call ended'); });
             ch.subscribe(status => { if (status === 'SUBSCRIBED') resolve(ch); });
         });
@@ -10088,7 +11993,7 @@
 
     function createCallPeer(iceServers) {
         const pc = new RTCPeerConnection({ iceServers });
-        call.stream.getTracks().forEach(t => pc.addTrack(t, call.stream));
+        call.stream.getTracks().forEach(t => { pc.addTrack(t, call.stream); watchCallTrack(t); });
         // Two empty video slots (camera, then screen) are negotiated up front, so turning
         // either on later is just replaceTrack: no renegotiation mid-call.
         // The callee gets matching slots from the offer (see onCallOffer).
@@ -10117,7 +12022,7 @@
                 if (call.state !== 'active') {
                     call.state     = 'active';
                     call.startedAt = Date.now();
-                    call.tickTimer = setInterval(renderCallOverlay, 1000);
+                    call.tickTimer = setInterval(callTick, 1000);
                     renderCallOverlay();
                     if (call.role === 'caller') logCallStart();
                     if (call.wantVideo) toggleCallCamera(); // started with the video button
@@ -10125,8 +12030,13 @@
             } else if (st === 'disconnected') {
                 // Often recovers by itself; give it a moment before giving up
                 clearTimeout(call.dropTimer);
-                call.dropTimer = setTimeout(() => { if (call && call.pc === pc) endCall(true, 'Call dropped'); }, 10000);
+                call.dropTimer = setTimeout(() => {
+                    if (!call || call.pc !== pc) return;
+                    if (callPaused()) restartCallIce();   // someone's in the background on iPhone
+                    else endCall(true, 'Call dropped');
+                }, 10000);
             } else if (st === 'failed') {
+                if (call.state === 'active' && callPaused()) { restartCallIce(); return; }
                 endCall(true, call.state === 'active' ? 'Call dropped' : 'Couldn\'t connect the call');
             }
         };
@@ -10135,9 +12045,9 @@
     }
 
     /* ── Placing a call ── */
-    async function startCall({ video = false } = {}) {
+    async function startCall({ video = false, conversationId = activeConvId } = {}) {
         if (call) { showToast('You\'re already in a call'); return; }
-        const conv = conversations.find(c => c.id === activeConvId);
+        const conv = conversations.find(c => c.id === conversationId);
         if (!conv || conv.is_group) return;
         const peerEmail = getOtherEmail(conv);
         if (blockedEmails.has(peerEmail) || blockedByEmails.has(peerEmail)) { showToast('You can\'t call this user'); return; }
@@ -10148,12 +12058,12 @@
 
         const id = crypto.randomUUID();
         call = { id, role: 'caller', state: 'ringing', peerEmail, peerName: getOtherName(conv), convId: conv.id, stream, pendingIce: [], muted: false, wantVideo: video, ...callVideoDefaults() };
-        renderCallOverlay();
+        openCallStage();
         startCallTone('ringback');
 
         call.session = await joinCallSession(id);
         if (!call || call.id !== id) return;
-        await sendToCallInbox(peerEmail, 'ring', { callId: id, email: currentUser.email, name: myCallName(), convId: conv.id });
+        await sendToCallInbox(peerEmail, 'ring', { callId: id, email: currentUser.email, name: myCallName(), convId: conv.id, video });
         if (!call || call.id !== id) return;
         call.ringTimer = setTimeout(() => {
             if (call && call.id === id && call.state === 'ringing') endCall(true, 'No answer');
@@ -10184,16 +12094,17 @@
     }
 
     /* ── Receiving a call ── */
-    function onCallRing({ callId, email, name, convId }) {
+    function onCallRing({ callId, email, name, convId, video = false }) {
         if (!callId || !email || email === currentUser.email) return;
         if (blockedEmails.has(email) || blockedByEmails.has(email)) return;
         if (call) {
             if (call.id !== callId) sendToCallInbox(email, 'busy', { callId });
             return;
         }
-        call = { id: callId, role: 'callee', state: 'incoming', peerEmail: email, peerName: nicknameFor(email) || name || email, convId, pendingIce: [], muted: false, ...callVideoDefaults() };
+        call = { id: callId, role: 'callee', state: 'incoming', peerEmail: email, peerName: nicknameFor(email) || name || email, convId, incomingVideo: video === true, pendingIce: [], muted: false, ...callVideoDefaults() };
         loadAvatarsForEmails([email]).then(renderCallOverlay);
-        renderCallOverlay();
+        if (!isMuted(convId) && !document.hidden) openCallStage();
+        else renderCallOverlay();
         if (!isMuted(convId)) {
             startCallTone('ring');
             showDesktopNotification('Incoming call', `${call.peerName} is calling you`);
@@ -10210,7 +12121,7 @@
         clearTimeout(call.ringTimer);
         stopCallTone();
         call.state = 'connecting';
-        renderCallOverlay();
+        openCallStage();
 
         const [stream, iceServers] = await Promise.all([getCallMic(), getCallIceServers()]);
         if (!call || call.id !== id) { stream && stream.getTracks().forEach(t => t.stop()); return; }
@@ -10323,8 +12234,12 @@
         if (c.session) setTimeout(() => sb.removeChannel(c.session), 500);
         const audio = document.getElementById('callRemoteAudio');
         audio.srcObject = null;
+        audio.muted = false;
         c.endedAt = Date.now();
-        finishCallLog(c);
+        finishCallLog(c).then(() => {
+            if (currentUser && currentSidebarTab === 'calls') renderWorkspaceCalls();
+        });
+        if (c.selfAway || window.JITTER_IOS_APP) clearCallPausedNotification();
         setTimeout(maybeShowUpdatePrompt, 1500); // an update found during the call
 
         renderCallOverlay();
@@ -10363,12 +12278,12 @@
         const d = e.data;
         if (!d || e.source !== window.parent) return;
         if (d.type === 'jitter-call-action' && call && call.id === d.callId && call.state === 'incoming') {
-            if (d.action === 'accept') { acceptCall(); openCallStage(); }
+            if (d.action === 'accept') acceptCall();
             else if (d.action === 'decline') declineCall();
         } else if (d.type === 'jitter-accept-call' && d.ring && currentUser) {
             // Accepted from the desktop toast before Jitter was open
             if (!call) onCallRing(d.ring);
-            if (call && call.id === d.ring.callId && call.state === 'incoming') { acceptCall(); openCallStage(); }
+            if (call && call.id === d.ring.callId && call.state === 'incoming') acceptCall();
         }
     });
 
@@ -10387,32 +12302,60 @@
         document.getElementById('callName').textContent = call.peerName;
         const status = {
             ringing:    'Calling…',
-            incoming:   'Incoming voice call',
+            incoming:   call.incomingVideo ? 'Incoming video call' : 'Incoming voice call',
             connecting: 'Connecting…',
-            active:     call.startedAt ? fmtCallDuration(Date.now() - call.startedAt) : '',
+            active:     call.peerAway ? `⏸ ${call.peerName} is away`
+                      : call.startedAt ? fmtCallDuration(Date.now() - call.startedAt) : '',
         }[call.state] || '';
         document.getElementById('callStatus').textContent = status;
-        document.getElementById('callActions').innerHTML = callActionsHTML();
+        updateCallControls('callActions', callActionsHTML());
         renderCallStage(status);
         updateCallButton();
     }
 
     function callActionsHTML(full = false) {
         if (call.state === 'incoming') {
-            return `<button class="call-action hangup" onclick="declineCall()" title="Decline"><i class="fas fa-phone-slash"></i></button>` +
-                   `<button class="call-action accept" onclick="acceptCall()" title="Accept"><i class="fas fa-phone"></i></button>`;
+            return '<button class="call-action hangup" onclick="declineCall()" title="Decline"><i class="fas fa-phone-slash"></i>Decline</button>' +
+                   '<button class="call-action accept" onclick="acceptCall()" title="Answer"><i class="fas fa-phone"></i>Answer</button>';
         }
+        const caret = (kind) => `<button class="call-caret" type="button" onclick="openCallDeviceMenu(event, '${kind}')" title="${kind === 'audio' ? 'Microphone and speaker' : 'Camera'}"><i class="fas fa-chevron-up"></i></button>`;
         const mute = call.stream
-            ? `<button class="call-action${call.muted ? ' muted' : ''}" onclick="toggleCallMute()" title="${call.muted ? 'Unmute' : 'Mute'}"><i class="fas fa-microphone${call.muted ? '-slash' : ''}"></i></button>`
+            ? `<div class="call-split"><button class="call-action${call.muted ? ' muted' : ''}" onclick="toggleCallMute()" title="${call.muted ? 'Unmute' : 'Mute'}"><i class="fas fa-microphone${call.muted ? '-slash' : ''}"></i></button>${caret('audio')}</div>`
             : '';
         const video = full && call.state === 'active'
-            ? `<button class="call-action${call.camStream ? ' on' : ''}" onclick="toggleCallCamera()" title="${call.camStream ? 'Turn off camera' : 'Turn on camera'}"><i class="fas fa-video${call.camStream ? '' : '-slash'}"></i></button>` +
+            ? `<div class="call-split"><button class="call-action${call.camStream ? ' on' : ''}" onclick="toggleCallCamera()" title="${call.camStream ? 'Turn off camera' : 'Turn on camera'}"><i class="fas fa-video${call.camStream ? '' : '-slash'}"></i></button>${caret('video')}</div>` +
               (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia
                 ? `<button class="call-action${call.screenStream ? ' on' : ''}" onclick="toggleCallScreen()" title="${call.screenStream ? 'Stop sharing' : 'Share your screen'}"><i class="fas fa-display"></i></button>`
                 : '')
             : '';
-        return mute + video +
-            `<button class="call-action hangup" onclick="endCall(true)" title="${call.state === 'ringing' ? 'Cancel' : 'Hang up'}"><i class="fas fa-phone-slash"></i></button>`;
+        const chat = full && call.convId ? '<button class="call-action" onclick="dockCallChat()" title="Call chat"><i class="far fa-message"></i></button>' : '';
+        const speaker = full && call.state === 'active' ? `<button class="call-action" onclick="toggleCallAudioOutput()" aria-pressed="${!!call.silenced}" title="${call.silenced ? 'Enable speaker' : 'Silence speaker'}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9h4l5-4v14l-5-4H3z M16 8q4 4 0 8 M19 5q7 7 0 14"/></svg></button>` : '';
+        return mute + video + speaker + chat +
+            `<button class="call-action hangup" onclick="endCall(true)" title="${call.state === 'ringing' ? 'Cancel' : 'Hang up'}"><i class="fas fa-phone-slash"></i>${full ? (call.state === 'ringing' ? 'Cancel' : 'Leave') : ''}</button>`;
+    }
+
+    function updateCallControls(id, markup) {
+        const actions = document.getElementById(id);
+        if (actions.dataset.markup === markup) return;
+        const focusedAction = actions.contains(document.activeElement)
+            ? document.activeElement.getAttribute('onclick') : null;
+        actions.innerHTML = markup;
+        actions.dataset.markup = markup;
+        if (id === 'callStageActions') {
+            const captions = {
+                'Mute':'Mic on', 'Unmute':'Mic off', 'Turn on camera':'Camera off', 'Turn off camera':'Camera on',
+                'Share your screen':'Share', 'Stop sharing':'Stop share', 'Call chat':'Chat',
+                'Enable speaker':'Sound off', 'Silence speaker':'Sound on'
+            };
+            for (const button of actions.querySelectorAll('.call-action')) {
+                if (captions[button.title]) {
+                    button.dataset.caption = captions[button.title];
+                    button.setAttribute('aria-label', button.title);
+                }
+            }
+        }
+        if (focusedAction) Array.from(actions.querySelectorAll('button'))
+            .find(b => b.getAttribute('onclick') === focusedAction)?.focus({preventScroll:true});
     }
 
     /* ── Device choice (Settings › Voice & video, and the gear in the call view) ──
@@ -10433,18 +12376,24 @@
         return c;
     }
 
+    // iPhone choices are "facing:user" / "facing:environment" (front / back) rather than one of
+    // the many separate lenses iOS lists; iOS then picks the right back lens itself
     function callVideoConstraints(exactId) {
         const id = exactId !== undefined ? exactId : callDevicePrefs().videoinput;
         const c = { width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } };
-        if (id) c.deviceId = exactId !== undefined ? { exact: id } : { ideal: id };
+        if (id && id.startsWith('facing:')) {
+            const mode = id.slice(7);
+            c.facingMode = exactId !== undefined ? { exact: mode } : { ideal: mode };
+        } else if (id) {
+            c.deviceId = exactId !== undefined ? { exact: id } : { ideal: id };
+        }
         return c;
     }
 
-    async function refreshCallDeviceSelects() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+    // { byKind: { audioinput, videoinput, audiooutput: [{ id, label }] }, namesHidden }
+    async function listCallDevices() {
         let devices = [];
         try { devices = await navigator.mediaDevices.enumerateDevices(); } catch (_) {}
-        const prefs = callDevicePrefs();
         const counts = {};
         const byKind = { audioinput: [], videoinput: [], audiooutput: [] };
         devices.forEach(d => {
@@ -10453,7 +12402,18 @@
             byKind[d.kind].push({ id: d.deviceId, label: d.label || `${CALL_DEVICE_NAMES[d.kind]} ${counts[d.kind]}` });
         });
         const namesHidden = devices.some(d => (d.kind === 'audioinput' || d.kind === 'videoinput') && !d.label);
+        // iPhone: just Front and Back instead of every lens
+        if (window.JITTER_IOS_APP && byKind.videoinput.length) {
+            byKind.videoinput = [{ id: 'facing:user', label: 'Front camera' }, { id: 'facing:environment', label: 'Back camera' }];
+        }
+        if (!canPickSpeaker) byKind.audiooutput = [];
+        return { byKind, namesHidden };
+    }
 
+    async function refreshCallDeviceSelects() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+        const { byKind, namesHidden } = await listCallDevices();
+        const prefs = callDevicePrefs();
         document.querySelectorAll('.call-device-select').forEach(sel => {
             const kind = sel.dataset.kind;
             sel.innerHTML = '<option value="">System default</option>' +
@@ -10490,8 +12450,9 @@
                 if (call !== c) { fresh.getTracks().forEach(t => t.stop()); return; }
                 const track = fresh.getAudioTracks()[0];
                 track.enabled = !c.muted;
-                const sender = c.pc && c.pc.getSenders().find(s => s.track && s.track.kind === 'audio');
-                if (sender) await sender.replaceTrack(track);
+                watchCallTrack(track);
+                const tr = c.pc && c.pc.getTransceivers().find(t => t.receiver.track.kind === 'audio');
+                if (tr) await tr.sender.replaceTrack(track);
                 c.stream.getTracks().forEach(t => t.stop());
                 c.stream = fresh;
             } else if (kind === 'videoinput' && call.camStream) {
@@ -10621,6 +12582,171 @@
         renderCallOverlay();
     }
 
+    /* ── Paused calls (iPhone app in the background) ──
+       iOS stops a Home Screen web app's audio and mic as soon as you switch away. So the
+       iPhone tells the other side it's away (they see a pause on its tile), shows a
+       "Call paused" notification, and nobody hangs up for up to CALL_PAUSE_MAX_MS. Back in
+       Jitter it says so again and the caller restarts ICE to reconnect the media. */
+    const CALL_PAUSE_MAX_MS = 10 * 60 * 1000;
+
+    function callPaused() {
+        return !!call && (call.peerAway || call.selfAway || Date.now() - (call.resumedAt || 0) < 30000);
+    }
+
+    function callTick() {
+        renderCallOverlay();
+        if (call && (call.peerAway || call.selfAway) && Date.now() - (call.awaySince || Date.now()) > CALL_PAUSE_MAX_MS) {
+            endCall(true, 'Call ended');
+        }
+    }
+
+    function onCallPeerAway({ away } = {}) {
+        if (!call || call.state !== 'active') return;
+        const wasAway = call.peerAway;
+        call.peerAway = !!away;
+        if (away && !wasAway) call.awaySince = Date.now();
+        if (!away && wasAway) {
+            call.resumedAt = Date.now();
+            if (call.pc && call.pc.connectionState !== 'connected') restartCallIce();
+        }
+        renderCallOverlay();
+    }
+
+    // Only the caller makes offers, so there's never a clash; the callee just answers
+    async function restartCallIce() {
+        if (!call || call.role !== 'caller' || !call.pc || call.restartingIce) return;
+        const c = call;
+        c.restartingIce = true;
+        try {
+            if (c.pc.restartIce) c.pc.restartIce();
+            const offer = await c.pc.createOffer({ iceRestart: true });
+            await c.pc.setLocalDescription(offer);
+            sendToCallSession('offer', { sdp: c.pc.localDescription.toJSON() });
+        } catch (_) {}
+        setTimeout(() => { c.restartingIce = false; }, 8000);
+    }
+
+    async function showCallPausedNotification() {
+        try {
+            if (!('serviceWorker' in navigator) || !window.Notification || Notification.permission !== 'granted') return;
+            const reg = await navigator.serviceWorker.getRegistration('/');
+            if (!reg || !call) return;
+            await reg.showNotification('Call paused', {
+                body: `Due to iOS limitations, your call with ${call.peerName} is paused while Jitter is in the background. Come back to Jitter to continue.`,
+                tag: 'jcall-paused',
+                icon: '/jitter/icon-192.png',
+                data: { type: 'call-paused' },
+            });
+        } catch (_) {}
+    }
+
+    async function clearCallPausedNotification() {
+        try {
+            const reg = await navigator.serviceWorker.getRegistration('/');
+            if (reg) (await reg.getNotifications({ tag: 'jcall-paused' })).forEach(n => n.close());
+        } catch (_) {}
+    }
+
+    function onAppHiddenDuringCall() {
+        if (!window.JITTER_IOS_APP || !call || call.state !== 'active' || call.selfAway) return;
+        call.selfAway = true;
+        call.awaySince = Date.now();
+        sendToCallSession('away', { away: true });
+        showCallPausedNotification();
+    }
+
+    function onAppShownDuringCall() {
+        if (!window.JITTER_IOS_APP || !call || !call.selfAway) return;
+        call.selfAway = false;
+        call.resumedAt = Date.now();
+        clearCallPausedNotification();
+        // The realtime connection may still be reconnecting: say it a few times
+        [0, 1500, 4000].forEach(ms => setTimeout(() => { if (call && !call.selfAway) sendToCallSession('away', { away: false }); }, ms));
+        recoverCallTracks();
+        if (call.pc && call.pc.connectionState !== 'connected') restartCallIce();
+        renderCallOverlay();
+    }
+
+    document.addEventListener('visibilitychange', () => document.hidden ? onAppHiddenDuringCall() : onAppShownDuringCall());
+    window.addEventListener('pagehide', onAppHiddenDuringCall);
+
+    /* ── Quick device menu (the ⌃ on the mic / camera buttons) ── */
+    async function openCallDeviceMenu(e, which) {
+        e.stopPropagation();
+        const menu = document.getElementById('callDeviceMenu');
+        if (menu.classList.contains('show') && menu.dataset.which === which) { closeCallDeviceMenu(); return; }
+        const { byKind } = await listCallDevices();
+        const prefs = callDevicePrefs();
+        const section = (kind, title, icon) => {
+            const list = [{ id: '', label: 'System default' }, ...byKind[kind]];
+            if (list.length < 2 && kind !== 'audioinput') return '';
+            return `<div class="cdm-title"><i class="fas ${icon}"></i>${title}</div>` + list.map(d => {
+                const on = (prefs[kind] || '') === d.id || (!byKind[kind].some(x => x.id === prefs[kind]) && d.id === '');
+                return `<button type="button" class="cdm-item${on ? ' on' : ''}" data-kind="${kind}" data-id="${escHtml(d.id).replace(/"/g, '&quot;')}">
+                    <span>${escHtml(d.label)}</span><i class="fas fa-check"></i></button>`;
+            }).join('');
+        };
+        menu.innerHTML = which === 'audio'
+            ? section('audioinput', 'Microphone', 'fa-microphone') + section('audiooutput', 'Speaker', 'fa-volume-high')
+            : section('videoinput', 'Camera', 'fa-video');
+        menu.querySelectorAll('.cdm-item').forEach(b => b.onclick = async (ev) => {
+            ev.stopPropagation();
+            menu.querySelectorAll(`.cdm-item[data-kind="${b.dataset.kind}"]`).forEach(x => x.classList.toggle('on', x === b));
+            await setCallDevice(b.dataset.kind, b.dataset.id);
+            setTimeout(closeCallDeviceMenu, 150);
+        });
+        menu.dataset.which = which;
+        menu.classList.add('show');
+        // Sit just above the button that opened it, inside the screen
+        const r = e.currentTarget.closest('.call-split').getBoundingClientRect();
+        const w = menu.offsetWidth, h = menu.offsetHeight;
+        menu.style.left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 8)) + 'px';
+        menu.style.top = Math.max(8, r.top - h - 10) + 'px';
+    }
+
+    function closeCallDeviceMenu() {
+        document.getElementById('callDeviceMenu').classList.remove('show');
+    }
+    document.addEventListener('click', (e) => { if (!e.target.closest('#callDeviceMenu')) closeCallDeviceMenu(); });
+
+    /* ── Keep the call's devices alive ──
+       iOS cuts a Home Screen app's mic and camera when you switch away, and unplugging a
+       headset ends its track. When a track has ended, get the device again (keeping mute)
+       as soon as Jitter is back in front, or straight away on a desktop. */
+    async function recoverCallTracks() {
+        if (!call || !call.stream || document.hidden) return;
+        const c = call;
+        const mic = c.stream.getAudioTracks()[0];
+        if (!mic || mic.readyState === 'ended') {
+            try {
+                const fresh = await navigator.mediaDevices.getUserMedia({ audio: callAudioConstraints() });
+                if (call !== c) { fresh.getTracks().forEach(t => t.stop()); return; }
+                const track = fresh.getAudioTracks()[0];
+                track.enabled = !c.muted;
+                watchCallTrack(track);
+                const tr = c.pc && c.pc.getTransceivers().find(t => t.receiver.track.kind === 'audio');
+                if (tr) await tr.sender.replaceTrack(track);
+                c.stream = fresh;
+            } catch (_) {}
+        }
+        if (c.camStream && c.camStream.getVideoTracks()[0]?.readyState === 'ended') {
+            try {
+                const fresh = await navigator.mediaDevices.getUserMedia({ video: callVideoConstraints() });
+                if (call !== c || !c.camStream) { fresh.getTracks().forEach(t => t.stop()); return; }
+                await setCallVideoTrack('cam', fresh.getVideoTracks()[0]);
+                c.camStream = fresh;
+                renderCallOverlay();
+            } catch (_) {}
+        }
+    }
+
+    function watchCallTrack(track) {
+        track.addEventListener('ended', () => setTimeout(recoverCallTracks, 300));
+    }
+
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) recoverCallTracks(); });
+    window.addEventListener('focus', recoverCallTracks);
+
     /* ── Full-screen call view ── */
     let callStageOpen = false;
     let callMeterTimer = null;
@@ -10632,9 +12758,11 @@
         callStageOpen = true;
         renderCallOverlay();
         startCallMeters();
+        if (call.state === 'active' && !window.JITTER_IOS_APP && innerWidth >= 940 && call.convId === activeConvId) dockCallChat(true);
     }
 
     function closeCallStage() {
+        dockCallChat(false);
         callStageOpen = false;
         document.getElementById('callDevicePanel').classList.remove('show');
         if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
@@ -10663,13 +12791,25 @@
             return;
         }
         stage.classList.add('show');
+        stage.dataset.state = call.state;
+        stage.style.setProperty('--caller-color', workspaceTint(call.peerEmail));
+        document.getElementById('callStageKind').textContent =
+            (call.camStream || call.peerVideo.cam || ((call.wantVideo || call.incomingVideo) && call.state !== 'active')) ? 'Video call' : 'Voice call';
         document.getElementById('callOverlay').classList.remove('show');
         document.getElementById('callStageName').textContent = call.peerName;
-        document.getElementById('callStageStatus').textContent = status;
+        document.getElementById('callStageStatus').textContent =
+            call.state === 'active' && !call.peerAway ? 'Connected · ' + status : status;
+        updateCallLinkQuality();
 
         const myName = myCallName();
         const peerAvatar = document.getElementById('callTilePeerAvatar');
         const peerHTML = avatarHTML(call.peerName, call.peerEmail);
+        if (call.state !== 'active') {
+            const lobbyAvatar = document.getElementById('callLobbyAvatar');
+            if (lobbyAvatar.dataset.key !== peerHTML) { lobbyAvatar.innerHTML = peerHTML; lobbyAvatar.dataset.key = peerHTML; }
+            document.getElementById('callLobbyName').textContent = call.peerName;
+            document.getElementById('callLobbyStatus').textContent = status;
+        }
         if (peerAvatar.dataset.key !== call.peerEmail + peerHTML) { peerAvatar.innerHTML = peerHTML; peerAvatar.dataset.key = call.peerEmail + peerHTML; }
         const meAvatar = document.getElementById('callTileMeAvatar');
         const meHTML = avatarHTML(myName, currentUser.email);
@@ -10679,7 +12819,10 @@
         document.getElementById('callTilePeerLabel').innerHTML = label(call.peerName, call.peerMuted);
         document.getElementById('callTileMeLabel').innerHTML = label(myName + ' (you)', call.muted);
         document.getElementById('callTilePeer').classList.toggle('waiting', call.state !== 'active');
-        document.getElementById('callStageActions').innerHTML = callActionsHTML(true);
+        document.getElementById('callTilePeer').classList.toggle('away', !!call.peerAway);
+        document.getElementById('callTilePeerAway').innerHTML =
+            `<i class="fas fa-pause"></i><b>${escHtml(call.peerName)} is away</b><span>The call is paused until they come back</span>`;
+        updateCallControls('callStageActions', callActionsHTML(true));
 
         // Video: camera replaces the avatar in its tile; a shared screen gets its own big tile
         const peerCam    = call.peerVideo.cam    ? call.remoteVideo.cam    : null;
@@ -10756,7 +12899,7 @@
         // iPhone app header: video call and "more" too
         const video = document.getElementById('chatVideoBtn');
         const more = document.getElementById('chatMoreBtn');
-        video.style.display = window.JITTER_IOS_APP && oneToOne ? 'flex' : 'none';
+        video.style.display = oneToOne ? 'flex' : 'none';
         video.disabled = !!call;
         more.style.display = window.JITTER_IOS_APP && conv ? 'flex' : 'none';
     }
@@ -10954,7 +13097,9 @@
     function fmtDay(ts) {
         const date = new Date(ts);
         const now  = new Date();
-        const diff = Math.floor((now - date) / 86400000);
+        // Calendar days, not 24-hour spans: 11pm yesterday is "Yesterday" at 1am
+        const startOf = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+        const diff = Math.round((startOf(now) - startOf(date)) / 86400000);
 
         if (diff === 0) return 'Today';
         if (diff === 1) return 'Yesterday';
@@ -11101,6 +13246,7 @@
             if (error) throw error;
             profile = data;
             profileCache[email]     = profile;
+            if (isOwn) updateOwnBanner(profile.banner_url);
             avatarCache[email]      = data.avatar_url || null;
             onlineCache[email]      = isRecentlySeen(data.last_seen);
             pageCache[email]        = data.current_page || null;
@@ -11617,11 +13763,12 @@
                 .eq('id', currentUser.id);
             if (dbErr) throw dbErr;
 
-            if (profileCache[currentUser.email]) profileCache[currentUser.email].banner_url = cachedUrl;
+            updateOwnBanner(cachedUrl);
 
             const bannerImg = document.getElementById('profileBannerImg');
             bannerImg.src          = cachedUrl;
             bannerImg.style.display = 'block';
+            document.getElementById('profileRemoveBannerBtn').style.display = '';
 
             showToast('Banner updated.');
         } catch (err) {
@@ -11830,7 +13977,7 @@
     }
 
     function updateFriendRequestBadge() {
-        ['friendReqBadge', 'friendReqBadgeMobile', 'iosTabYouBadge'].forEach(id => {
+        ['friendReqBadge', 'friendReqBadgeMobile', 'iosTabYouBadge', 'railRequests'].forEach(id => {
             const badge = document.getElementById(id);
             if (badge) badge.classList.toggle('show', pendingIncoming.length > 0);
         });
@@ -12022,6 +14169,7 @@
         e.preventDefault();
         e.stopPropagation();
         ctxConvId = convId;
+        document.getElementById('workspacePin').textContent = workspacePins().includes(convId) ? 'Unpin chat' : 'Pin chat';
         const menu = document.getElementById('convContextMenu');
         menu.style.left = '-9999px';
         menu.style.top  = '-9999px';
@@ -12284,9 +14432,9 @@
         if (!currentUser?.id) return;
         try {
             await sb.storage.from('banners').remove([`${currentUser.id}/banner`]);
-            await sb.from('clients').update({ banner_url: null }).eq('id', currentUser.id);
-
-            if (profileCache[currentUser.email]) profileCache[currentUser.email].banner_url = null;
+            const { error } = await sb.from('clients').update({ banner_url: null }).eq('id', currentUser.id);
+            if (error) throw error;
+            updateOwnBanner(null);
 
             const bannerImg = document.getElementById('profileBannerImg');
             if (bannerImg) { bannerImg.src = ''; bannerImg.style.display = 'none'; }
@@ -12304,6 +14452,7 @@
 
     // ─── SIDEBAR TAB SWITCHING ───────────────────────
     function switchSidebarTab(tab) {
+        syncWorkspaceTab(tab);
         currentSidebarTab = tab;
         document.getElementById('iosTabChats').classList.toggle('active', tab === 'friends');
         document.getElementById('iosTabServers').classList.toggle('active', tab === 'servers');
@@ -12534,6 +14683,7 @@
 
     // ─── SELECT A CHANNEL ────────────────────────────
     async function selectChannel(channelId) {
+        document.getElementById('workspaceDetails').hidden = true;
         // Clear DM state when opening a server channel
         activeConvId = null;
         if (messagesSubscription) { sb.removeChannel(messagesSubscription); messagesSubscription = null; }
@@ -12654,6 +14804,7 @@
         div.className = `msg ${isMine ? 'msg-mine' : 'msg-other'}${continuesRun ? '' : ' grp-first'} grp-last`;
         div.setAttribute('data-msg-id', msg.id);
         div.dataset.sender = msg.sender_email;
+        div.dataset.clock = clockLabel(msg.created_at);
         div.innerHTML = `
             <div class="msg-avatar" onclick="openProfile('${escapeHtml(msg.sender_email)}')" style="cursor:pointer">
                 ${avatarInner}
@@ -12699,6 +14850,9 @@
                 if (activeChannelId === channelId) {
                     appendServerMessage(payload.new);
                     const container = document.getElementById('messagesContainer');
+                    if (payload.new.sender_email === currentUser.email && container.lastElementChild) {
+                        container.lastElementChild.classList.add('just-sent');
+                    }
                     container.scrollTop = container.scrollHeight;
                 }
             })
@@ -13406,5 +15560,6 @@
     // ─── ESCAPE HTML HELPER (alias for existing escHtml) ─
     const escapeHtml = escHtml;
 </script>
+<script src="assets/jitter-workspace.js"></script>
 </body>
 </html>

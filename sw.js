@@ -50,9 +50,18 @@ async function showCallNotification(msg) {
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   const msg = e.notification.data || {};
+  if (msg.type === "call-paused") e.waitUntil(backToJitter());
   if (msg.type !== "call") return;
   e.waitUntil(openJitterFor(msg));
 });
+
+// "Call paused" (iPhone app went to the background mid-call): just bring Jitter back
+async function backToJitter() {
+  const windows = await clients.matchAll({ type: "window", includeUncontrolled: true });
+  const jitter = windows.find((c) => new URL(c.url).pathname.endsWith("/jittery.html"));
+  if (jitter) { try { await jitter.focus(); return; } catch (_) {} }
+  await clients.openWindow("/jitter/");
+}
 
 async function openJitterFor(msg) {
   const fresh = msg.state === "ring" && Date.now() - (msg.ts || 0) < RING_FRESH_MS;

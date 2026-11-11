@@ -1,0 +1,117 @@
+:root {
+  color-scheme: dark;
+  --page: #090909;
+  --type: #f5f5f4;
+  --muted: #b1b1b4;
+  --quiet: #9c9ca2;
+  --rule: #303033;
+  --gutter: clamp(20px, 4.5vw, 78px);
+  font: 16px/1.5 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--type); }
+h1, h2, p, dl, dd, figure { margin: 0; }
+a { color: inherit; text-underline-offset: .22em; }
+button { cursor: pointer; color: inherit; font: inherit; }
+button:disabled { cursor: default; opacity: .7; }
+button:not(:disabled):hover { filter: brightness(.91); }
+:focus-visible { outline: 2px solid #8dbdff; outline-offset: 4px; }
+.container { width: min(1320px, calc(100% - 2 * var(--gutter))); margin-inline: auto; }
+.skip-link { position: fixed; z-index: 10; top: 8px; left: 10px; padding: 10px; background: white; color: black; transform: translateY(-160%); }
+.skip-link:focus { transform: translateY(0); }
+.site-head { border-bottom: 1px solid var(--rule); }
+.masthead, .site-foot { display: flex; justify-content: space-between; align-items: center; min-height: 72px; }
+.brand, .site-nav { display: inline-flex; align-items: center; }
+.brand { gap: 14px; color: #c7c7ca; font-size: 15px; font-weight: 500; text-decoration: none; }
+.brand b { color: var(--type); font-size: 14px; font-weight: 760; letter-spacing: .095em; }
+.brand-rule { width: 1px; height: 16px; background: #525255; transform: rotate(18deg); }
+.site-nav { gap: clamp(20px, 3vw, 50px); }
+.site-nav a, .site-foot a { color: var(--muted); font-size: 13px; text-decoration: none; }
+.site-nav a:hover, .site-foot a:hover, .handoff a:hover { color: white; text-decoration: underline; }
+.site-nav .mobile-edition { border-left: 1px solid var(--rule); padding-left: clamp(20px, 3vw, 50px); }
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr);
+  align-items: center;
+  gap: clamp(36px, 4vw, 76px);
+  padding-block: clamp(64px, 7vw, 116px);
+}
+.edition { display: flex; align-items: center; gap: 9px; font-size: 13px; color: #ceced0; }
+.signal { width: 7px; height: 7px; border-radius: 50%; background: #60c889; }
+h1 { margin: .16em 0 .1em -.04em; font-size: clamp(96px, 9.8vw, 152px); line-height: 1; font-weight: 720; letter-spacing: -.052em; }
+.product-line { font-size: clamp(22px, 2.1vw, 33px); line-height: 1.2; letter-spacing: -.044em; }
+.description { max-width: 37ch; margin-top: 16px; font-size: 16px; line-height: 1.6; color: var(--muted); }
+.install-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 46px;
+  margin-top: 30px;
+  padding: 10px 21px;
+  border: 0;
+  border-radius: 6px;
+  background: #f4f4f2;
+  color: #111;
+  font-weight: 650;
+  font-size: 15px;
+}
+.install-action svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+#install-status { margin-top: 11px; font-size: 12px; color: var(--quiet); }
+
+.product-tour { min-width: 0; }
+.preview-mat {
+  isolation: isolate;
+  position: relative;
+  overflow: hidden;
+  padding: clamp(22px, 3.5vw, 60px) clamp(16px, 2.2vw, 40px);
+  border-radius: 9px;
+  background: linear-gradient(130deg, #d9dcdf, #aebac9 58%, #8c9fb8);
+}
+.orbital-print { position: absolute; z-index: -1; inset: 0; width: 100%; height: 100%; fill: none; stroke: #596f8c; stroke-width: 1; opacity: .32; }
+#tour-window { overflow: hidden; border-radius: 9px; box-shadow: 0 12px 28px #18283e36, 0 0 0 1px #18283e22; }
+.tour-fallback { min-height: 300px; display: grid; place-content: center; justify-items: center; background: #17171a; border-radius: 8px; color: white; }
+.product-tour figcaption { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 13px; color: var(--quiet); font-size: 12px; }
+.tour-controls { display: flex; gap: 2px; }
+.tour-controls[hidden] { display: none; }
+.tour-controls button { border: 1px solid transparent; border-radius: 5px; background: transparent; padding: 6px 10px; font-size: 12px; color: var(--muted); }
+.tour-controls button[aria-pressed="true"] { border-color: var(--rule); background: #202023; color: white; }
+.tour-controls button:hover { background: #1b1b1d; }
+
+.section-band { border-top: 1px solid var(--rule); scroll-margin-top: 20px; }
+.section-layout { display: grid; grid-template-columns: minmax(0, .78fr) minmax(0, 1.22fr); gap: clamp(36px, 4vw, 76px); padding-block: clamp(46px, 5vw, 80px); }
+h2 { font-weight: 580; font-size: clamp(32px, 3.4vw, 55px); line-height: 1.08; letter-spacing: -.055em; }
+.capabilities > div { display: grid; grid-template-columns: minmax(120px, .64fr) 1.36fr; gap: 20px; padding-block: 19px; border-top: 1px solid var(--rule); }
+.capabilities > div:first-child { padding-top: 3px; border: none; }
+.capabilities > div:last-child { padding-bottom: 0; }
+.capabilities dt { color: #ededec; font-size: 16px; font-weight: 600; letter-spacing: -.02em; }
+.capabilities dd, .setup-content { font-size: 15px; line-height: 1.6; color: var(--muted); }
+.setup-content > p:first-child { max-width: 60ch; }
+.setup-content a, .setup-content strong { color: var(--type); }
+.inline-install { background: none; padding: 0; border: 0; color: var(--type); text-decoration: underline; text-underline-offset: .22em; }
+#install-guide { margin-top: 20px; border-block: 1px solid var(--rule); }
+#install-guide summary { color: var(--type); cursor: pointer; padding-block: 14px; font-weight: 550; }
+#install-guide p { margin: 0 0 18px; max-width: 60ch; }
+#install-guide strong { display: block; font-size: 14px; }
+.handoff { margin-top: 20px; font-size: 13px; }
+.site-foot { border-top: 1px solid var(--rule); min-height: 84px; }
+
+@media (max-width: 940px) {
+  .hero { grid-template-columns: 1fr; gap: 32px; padding-block: 48px; }
+  .description { max-width: 52ch; }
+  .product-tour { width: 100%; max-width: 720px; }
+  .section-layout { grid-template-columns: .65fr 1fr; gap: 30px; }
+  .capabilities > div { grid-template-columns: 1fr; gap: 5px; }
+}
+@media (max-width: 600px) {
+  .masthead { min-height: 60px; }
+  .site-nav a:not(.mobile-edition) { display: none; }
+  .site-nav .mobile-edition { border: 0; padding: 0; }
+  .section-layout { grid-template-columns: 1fr; gap: 25px; }
+  .product-tour figcaption { flex-wrap: wrap; }
+  .tour-controls button { padding: 7px; }
+  .preview-mat { padding: 18px 10px; }
+}

@@ -18,7 +18,7 @@ create policy "Anyone can read the Jitter version"
   using (true);
 
 insert into public.jitter_version (channel, version) values
-  ('beta',   '261027-14'),
+  ('beta',   '261110-3'),
   ('public', '261027-10')
 on conflict (channel) do update set version = excluded.version, updated_at = now();
 

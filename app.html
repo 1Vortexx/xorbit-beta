@@ -340,6 +340,24 @@
         pointer-events: none;
       }
 
+      /* The logo is just the circle; the front app's name sits beside it, like macOS.
+         Empty (and hidden) when no window is in front. */
+      #frontAppName {
+        max-width: 180px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12.5px;
+        font-weight: 700;
+        letter-spacing: -0.005em;
+        text-transform: none;
+        color: var(--text);
+      }
+      #appMenu { font-weight: 700; color: var(--text); }
+      #appMenu > #frontAppName { display: block; }
+      #frontAppName.swap { animation: frontAppIn 0.22s var(--ease); }
+      @keyframes frontAppIn { from { opacity: 0; transform: translateY(3px); } }
+
       #betaBadgeMenuBar {
         font-size: 9px !important;
         font-weight: 700 !important;
@@ -381,6 +399,212 @@
         pointer-events: none;
         box-shadow: 0 0 0 2px rgba(var(--mb-rgb), 0.9);
       }
+
+      /* Minimized windows folder */
+      #minimizedMenu .menu-minimized-count {
+        min-width: 15px;
+        height: 15px;
+        padding: 0 4px;
+        border-radius: 8px;
+        background: var(--surface-raised-2);
+        border: 1px solid var(--hairline-2);
+        color: var(--text);
+        font-size: 9px;
+        font-weight: 700;
+        line-height: 13px;
+        text-align: center;
+      }
+      #minimizedMenu.pulse > i { animation: minimizedPulse 0.5s var(--ease); }
+      @keyframes minimizedPulse { 40% { transform: scale(1.35); } }
+      /* The folder catching a window that just flew into it */
+      #minimizedMenu.catch > i,
+      #minimizedMenu.catch .menu-minimized-count { animation: minimizedCatch 0.55s cubic-bezier(0.34, 1.56, 0.64, 1); }
+      @keyframes minimizedCatch {
+        0%   { transform: scale(1); }
+        30%  { transform: scale(1.55) rotate(-8deg); }
+        60%  { transform: scale(0.9) rotate(4deg); }
+        100% { transform: scale(1) rotate(0); }
+      }
+
+      /* Now Playing in the menu bar (music apps report what's playing) */
+      #nowPlayingMenu { gap: 7px; padding: 0 3px 0 4px; }
+      .np-mini-art, .np-panel-art {
+        flex: 0 0 auto;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background: var(--surface-raised-2);
+        color: rgba(255, 255, 255, 0.85);
+      }
+      .np-mini-art { width: 18px; height: 18px; border-radius: 4px; font-size: 8px; }
+      .np-mini-art img, .np-panel-art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      #nowPlayingMenu .np-mini-text {
+        max-width: 170px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12px;
+        color: var(--text);
+      }
+      #nowPlayingMenu .np-mini-text .np-mini-artist { color: var(--text-3); }
+      #nowPlayingMenu .np-mini-btn {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 9px;
+        color: var(--text);
+      }
+      #nowPlayingMenu .np-mini-btn:hover { background: var(--surface-active); }
+      /* Equalizer bars over the tiny artwork while music plays */
+      #nowPlayingMenu.playing .np-mini-art { position: relative; }
+      #nowPlayingMenu.playing .np-mini-art::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(#fff, #fff) 3px 100% / 3px 40% no-repeat,
+          linear-gradient(#fff, #fff) 7.5px 100% / 3px 70% no-repeat,
+          linear-gradient(#fff, #fff) 12px 100% / 3px 50% no-repeat,
+          rgba(0, 0, 0, 0.45);
+        animation: npEq 0.9s ease-in-out infinite alternate;
+      }
+      @keyframes npEq {
+        0%   { background-size: 3px 35%, 3px 75%, 3px 45%, auto; }
+        50%  { background-size: 3px 80%, 3px 30%, 3px 70%, auto; }
+        100% { background-size: 3px 50%, 3px 60%, 3px 25%, auto; }
+      }
+      @media (max-width: 900px) { #nowPlayingMenu .np-mini-text { display: none; } }
+
+      .np-panel { width: 300px; padding: 14px 14px 6px; }
+      .np-panel-top { display: flex; gap: 12px; align-items: center; }
+      .np-panel-art { width: 64px; height: 64px; border-radius: 9px; font-size: 22px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3); }
+      .np-panel-meta { min-width: 0; flex: 1; }
+      .np-panel-app {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-3);
+        margin-bottom: 3px;
+      }
+      .np-panel-title, .np-panel-artist { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .np-panel-title { font-size: 14px; font-weight: 600; color: var(--text); }
+      .np-panel-artist { font-size: 12px; color: var(--text-2); margin-top: 1px; }
+      .np-panel-seek {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 4px;
+        margin: 16px 0 6px;
+        border-radius: 2px;
+        background: linear-gradient(var(--text), var(--text)) 0 0 / var(--fill, 0%) 100% no-repeat, var(--surface-active);
+        cursor: pointer;
+      }
+      .np-panel-seek::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        background: var(--text);
+        opacity: 0;
+        transition: opacity var(--t-fast) ease;
+      }
+      .np-panel-seek::-moz-range-thumb { width: 11px; height: 11px; border: 0; border-radius: 50%; background: var(--text); }
+      .np-panel-seek:hover::-webkit-slider-thumb { opacity: 1; }
+      .np-panel-times {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10.5px;
+        color: var(--text-3);
+        font-variant-numeric: tabular-nums;
+      }
+      .np-panel-controls { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 8px 0 10px; }
+      .np-panel-controls button {
+        position: relative;
+        width: 34px;
+        height: 34px;
+        border: 0;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: transparent;
+        color: var(--text);
+        font-size: 14px;
+        cursor: pointer;
+        transition: background var(--t-fast) ease, color var(--t-fast) ease, transform var(--t-fast) ease;
+      }
+      .np-panel-controls button:hover { background: var(--surface-active); }
+      .np-panel-controls button:active { transform: scale(0.92); }
+      .np-panel-controls button.np-big { width: 44px; height: 44px; font-size: 16px; background: var(--invert); color: var(--on-invert); }
+      .np-panel-controls button.np-big:hover { background: var(--invert); transform: scale(1.06); }
+      .np-panel-controls [data-np="shuffle"], .np-panel-controls [data-np="repeat"] { font-size: 12px; color: var(--text-3); }
+      .np-panel-controls button.on { color: var(--accent); }
+      .np-panel-controls button.one::after {
+        content: "1";
+        position: absolute;
+        right: 6px;
+        bottom: 6px;
+        font-size: 7.5px;
+        font-weight: 800;
+      }
+
+      /* "Minimized to here" bubble under the folder */
+      .min-toast {
+        position: fixed;
+        z-index: 100000;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        max-width: 260px;
+        padding: 9px 12px;
+        border-radius: 10px;
+        background: var(--surface-solid);
+        border: 1px solid var(--hairline-2);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+        color: var(--text);
+        font-size: 12px;
+        line-height: 1.35;
+        cursor: pointer;
+        transform-origin: top right;
+        animation: minToastIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .min-toast::before {
+        content: "";
+        position: absolute;
+        top: -6px;
+        right: var(--arrow-right, 14px);
+        width: 10px;
+        height: 10px;
+        background: inherit;
+        border-left: 1px solid var(--hairline-2);
+        border-top: 1px solid var(--hairline-2);
+        transform: rotate(45deg);
+      }
+      .min-toast > i, .min-toast > .app-icon-img { flex: 0 0 auto; font-size: 16px; width: 18px; text-align: center; }
+      .min-toast b { font-weight: 600; }
+      .min-toast small { display: block; color: var(--text-2); font-size: 11px; }
+      .min-toast.out { animation: minToastOut 0.2s ease forwards; }
+      @keyframes minToastIn { from { opacity: 0; transform: translateY(-6px) scale(0.85); } }
+      @keyframes minToastOut { to { opacity: 0; transform: translateY(-4px) scale(0.95); } }
+      #minimizedDropdown { min-width: 240px; max-width: 320px; }
+      #minimizedDropdown .min-item-title { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+      #minimizedDropdown .min-item-close {
+        width: 20px;
+        height: 20px;
+        margin-right: -4px;
+        border-radius: 5px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-3);
+        opacity: 0;
+        transition: opacity var(--t-fast) ease, background var(--t-fast) ease;
+      }
+      #minimizedDropdown .xorbit-menu-item:hover .min-item-close { opacity: 1; }
+      #minimizedDropdown .min-item-close:hover { background: var(--danger-soft); color: var(--danger); }
+      #minimizedDropdown .min-item-close i { width: auto; font-size: 10px; color: inherit; }
 
       /* User nameplate */
       #userNameplate {
@@ -1145,6 +1369,47 @@
       }
       body.light-mode .folder-mini-app { filter: invert(1) hue-rotate(180deg); }
 
+      /* App icons that are images (icon value "img:<path>", see appIconHTML). The <img>
+         sits inside an <i> so every "… i" icon style still sizes and frames it. */
+      i.app-icon-img {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        vertical-align: -0.125em;
+      }
+      i.app-icon-img > img {
+        width: 1.15em;
+        height: 1.15em;
+        display: block;
+        object-fit: contain;
+        pointer-events: none;
+      }
+      /* Full app-tile pictures (icon value "tile:<path>", e.g. Jitter and ORBIX). The picture
+         is the whole tile, so it's drawn a bit larger and replaces the glass square that
+         font icons sit in. The PNGs have a transparent margin, hence the 112%. */
+      i.app-icon-tile > img { width: 1.45em; height: 1.45em; }
+      .desktop-icon i.app-icon-tile,
+      body.light-mode .desktop-icon i.app-icon-tile,
+      body.no-transparency .desktop-icon i.app-icon-tile,
+      .desktop-dm-badge-icon-wrap:has(> i.app-icon-tile) {
+        background: none !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+      }
+      .desktop-icon i.app-icon-tile > img,
+      .desktop-dm-badge-icon-wrap i.app-icon-tile > img {
+        width: 112%;
+        height: 112%;
+        max-width: none;
+        filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35));
+      }
+      body.light-mode .folder-mini-app i.app-icon-tile { filter: invert(1) hue-rotate(180deg); }
+
+      /* Undo the light-mode inversion of folder previews so logos keep their colours */
+      body.light-mode .folder-mini-app i.app-icon-img { filter: invert(1) hue-rotate(180deg); }
+
       /* Drag states */
       .icon-dragging {
         opacity: 0.85;
@@ -1480,7 +1745,6 @@
         margin-top: 0 !important;
         box-shadow: none !important;
       }
-      .window.fullscreen .window-titlebar,
       .window.fullscreen .window-content { border-radius: 0 !important; }
 
       /* True fullscreen: the window fills the whole viewport. Its titlebar and the
@@ -1502,22 +1766,14 @@
         box-shadow: none !important;
       }
       .window.true-fullscreen .window-content { border-radius: 0 !important; }
-      .window.true-fullscreen .window-titlebar {
-        position: absolute;
-        top: var(--menubar-h);
-        left: 0;
-        right: 0;
-        z-index: 5;
+      /* The window buttons hide with the menu bar and slide down with it */
+      .window.true-fullscreen > .window-titlebar {
+        top: calc(var(--menubar-h) + 8px);
         opacity: 1;
-        border-radius: 0 !important;
-        background: rgb(var(--glass-rgb));
-        transform: translateY(calc(-100% - var(--menubar-h)));
-        transition: transform var(--t-med) var(--ease);
+        transform: translateY(calc(-100% - var(--menubar-h) - 16px));
       }
-      body.fs-bars-show .window.true-fullscreen .window-titlebar {
-        transform: none;
-        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-      }
+      body.fs-bars-show .window.true-fullscreen > .window-titlebar { transform: none; }
+      .window.true-fullscreen > .window-untuck { display: none; }
       body.has-true-fs .menu-bar {
         transform: translateY(-100%);
         transition: transform var(--t-med) var(--ease);
@@ -1557,22 +1813,156 @@
       }
       .window-opening { animation: windowOpen var(--t-slow) var(--ease) forwards; }
 
-      .window-titlebar {
-        height: 40px;
-        flex: 0 0 40px;
+      /* No title bar: the app fills the window, and the window buttons float over its
+         top-left corner as a small pill (still .window-titlebar, so everything that
+         looks for the title bar keeps working). The pill is also the drag handle, along
+         with a thin invisible strip across the top edge. The menu bar shows the app's name. */
+      .window > .window-titlebar {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        z-index: 6;
+        height: 24px;
         display: flex;
         align-items: center;
-        padding: 0 12px;
-        background: var(--surface-titlebar);
-        border-bottom: 1px solid var(--hairline);
-        border-radius: var(--r-lg) var(--r-lg) 0 0;
+        gap: 6px;
+        padding: 0 4px 0 8px;
+        border: 0 !important;
+        border-radius: 12px;
+        background: rgba(18, 18, 22, 0.55) !important;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset, 0 4px 14px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(14px) saturate(1.4);
+        -webkit-backdrop-filter: blur(14px) saturate(1.4);
         cursor: move;
         user-select: none;
-        position: relative;
-        transition: opacity var(--t-med) ease;
+        transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.65, 0, 0.35, 1);
       }
-      /* top edge highlight */
-      .window-titlebar::before {
+      body.light-mode .window > .window-titlebar {
+        background: rgba(255, 255, 255, 0.62) !important;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1) inset, 0 4px 14px rgba(0, 0, 0, 0.12);
+      }
+      body.no-transparency .window > .window-titlebar { background: var(--surface-solid) !important; }
+
+      /* Tucked (Compact bar, 3 seconds after a window opens): the pill slides out of the
+         window's left side (the window clips it) and a tiny arrow tab brings it back */
+      body:not(.win-bar-spacious) .window.controls-tucked:not(.true-fullscreen) > .window-titlebar {
+        transform: translateX(calc(-100% - 12px));
+        opacity: 0;
+        pointer-events: none;
+      }
+      .window-tuck {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 8px;
+        color: var(--text-3);
+        cursor: pointer;
+      }
+      .window-tuck:hover { color: var(--text); background: rgba(255, 255, 255, 0.12); }
+      body.light-mode .window-tuck:hover { background: rgba(0, 0, 0, 0.08); }
+      .window-untuck {
+        position: absolute;
+        top: 9px;
+        left: 0;
+        z-index: 6;
+        width: 13px;
+        height: 22px;
+        display: grid;
+        place-items: center;
+        border-radius: 0 7px 7px 0;
+        background: rgba(18, 18, 22, 0.55);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        color: rgba(255, 255, 255, 0.75);
+        font-size: 8px;
+        cursor: pointer;
+        opacity: 0;
+        transform: translateX(-100%);
+        pointer-events: none;
+        transition: opacity var(--t-med) ease, transform var(--t-med) var(--ease), width var(--t-fast) ease;
+      }
+      .window-untuck:hover { width: 16px; color: #fff; }
+      body.light-mode .window-untuck { background: rgba(255, 255, 255, 0.7); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1) inset; color: rgba(0, 0, 0, 0.6); }
+      body:not(.win-bar-spacious) .window.controls-tucked:not(.true-fullscreen) > .window-untuck {
+        opacity: 1;
+        transform: none;
+        pointer-events: auto;
+        transition-delay: 0.25s, 0.25s, 0s;   /* appears once the pill has slid away */
+      }
+      .window-untuck.tip-pulse { animation: untuckPulse 1.4s ease-in-out infinite; }
+      @keyframes untuckPulse { 50% { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset, 0 0 0 5px rgba(10, 132, 255, 0.35); } }
+
+      /* First time the buttons tuck away: a card says where they went */
+      .tuck-tip {
+        position: fixed;
+        z-index: 100000;
+        width: 250px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        background: var(--surface-solid);   /* solid: it sits over the app */
+        border: 1px solid var(--hairline-2);
+        box-shadow: 0 12px 34px rgba(0, 0, 0, 0.4);
+        color: var(--text-2);
+        font-size: 12px;
+        line-height: 1.45;
+        animation: minToastIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        transform-origin: left center;
+      }
+      .tuck-tip::before {
+        content: "";
+        position: absolute;
+        left: -6px;
+        top: 16px;
+        width: 10px;
+        height: 10px;
+        background: inherit;
+        border-left: 1px solid var(--hairline-2);
+        border-bottom: 1px solid var(--hairline-2);
+        transform: rotate(45deg);
+      }
+      .tuck-tip b { display: block; margin-bottom: 3px; font-size: 13px; font-weight: 600; color: var(--text); }
+      .tuck-tip-actions { display: flex; gap: 6px; margin-top: 10px; }
+      .tuck-tip-actions button {
+        flex: 1;
+        height: 27px;
+        border-radius: 7px;
+        border: 1px solid var(--hairline-2);
+        background: var(--surface-raised);
+        color: var(--text);
+        font: inherit;
+        font-size: 11.5px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .tuck-tip-actions button[data-a="ok"] { background: var(--invert); color: var(--on-invert); border-color: transparent; }
+      .tuck-tip.out { animation: minToastOut 0.2s ease forwards; }
+
+      /* Window bar style: Spacious — the classic title bar across the top of the window
+         (the floating pill above is the Compact style) */
+      body.win-bar-spacious .window > .window-titlebar {
+        position: relative;
+        top: auto;
+        left: auto;
+        z-index: auto;
+        height: 40px;
+        flex: 0 0 40px;
+        gap: 0;
+        padding: 0 12px;
+        border: 0 !important;
+        border-bottom: 1px solid var(--hairline) !important;
+        border-radius: var(--r-lg) var(--r-lg) 0 0;
+        background: var(--surface-titlebar) !important;
+        box-shadow: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        opacity: 1;
+        transform: none;
+        pointer-events: auto;
+      }
+      body.win-bar-spacious .window > .window-titlebar::before {
         content: "";
         position: absolute;
         left: 0; right: 0; top: 0;
@@ -1580,12 +1970,144 @@
         background: linear-gradient(90deg, transparent, var(--edge-light), transparent);
         pointer-events: none;
       }
+      body.win-bar-spacious .window > .window-titlebar .window-title { display: block !important; }
+      body.win-bar-spacious .window-content { border-radius: 0 0 var(--r-lg) var(--r-lg) !important; }
+      body.win-bar-spacious .window-tuck,
+      body.win-bar-spacious .window-untuck,
+      body.win-bar-spacious .window-grab { display: none !important; }
+      body.win-bar-spacious .window.fullscreen > .window-titlebar,
+      body.win-bar-spacious .window.fullscreen .window-content { border-radius: 0 !important; }
+      body.win-bar-spacious .window.true-fullscreen > .window-titlebar {
+        position: absolute;
+        top: var(--menubar-h);
+        left: 0;
+        right: 0;
+        z-index: 5;
+        border-radius: 0 !important;
+        background: rgb(var(--glass-rgb)) !important;
+        transform: translateY(calc(-100% - var(--menubar-h)));
+        transition: transform var(--t-med) var(--ease);
+      }
+      body.win-bar-spacious.fs-bars-show .window.true-fullscreen > .window-titlebar {
+        transform: none;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+      }
+
+      /* Settings › Personalization › Windows › Window bar style, with a sketch of each */
+      .bar-style-card { grid-column: 1 / -1; }
+      .bar-style-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+      .bar-style-option {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 10px;
+        border-radius: 12px;
+        border: 1.5px solid var(--hairline-2);
+        background: var(--surface-raised);
+        color: var(--text);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+        transition: border-color var(--t-fast) ease, background var(--t-fast) ease;
+      }
+      .bar-style-option:hover { border-color: var(--hairline-3); }
+      .bar-style-option.active { border-color: var(--accent); background: var(--accent-soft); }
+      .bar-style-name { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+      .bar-style-option.active .bar-style-name::after { content: "\f00c"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 10px; color: var(--accent); }
+      .bar-style-desc { font-size: 11.5px; color: var(--text-3); line-height: 1.4; }
+      .bar-sketch {
+        position: relative;
+        height: 96px;
+        margin-bottom: 6px;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid var(--hairline-2);
+        background: linear-gradient(160deg, rgba(120, 140, 255, 0.10), rgba(255, 255, 255, 0.02));
+      }
+      .bs-titlebar {
+        height: 18px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 7px;
+        border-bottom: 1px solid var(--hairline-2);
+        background: var(--surface-raised-2);
+      }
+      .bs-dots { display: flex; gap: 3px; }
+      .bs-dots i { width: 6px; height: 6px; border-radius: 50%; display: block; }
+      .bs-dots i:nth-child(1) { background: #ff5f57; }
+      .bs-dots i:nth-child(2) { background: #febc2e; }
+      .bs-dots i:nth-child(3) { background: #28c840; }
+      .bs-dots i:nth-child(4) { background: #5ac8fa; }
+      .bs-title { flex: 1; display: flex; justify-content: center; }
+      .bs-title::before { content: ""; width: 34px; height: 5px; border-radius: 3px; background: var(--text-3); opacity: 0.6; }
+      .bs-body { padding: 9px 10px; display: flex; flex-direction: column; gap: 6px; }
+      .bs-line { height: 6px; border-radius: 3px; background: var(--hairline-3); }
+      .bs-line.short { width: 60%; }
+      .bs-line.mid { width: 80%; }
+      .bar-sketch.compact .bs-body { padding-top: 30px; }
+      .bs-pill {
+        position: absolute;
+        top: 7px;
+        left: 7px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        height: 14px;
+        padding: 0 4px 0 5px;
+        border-radius: 7px;
+        background: rgba(18, 18, 22, 0.6);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14) inset;
+        font-size: 6px;
+        color: rgba(255, 255, 255, 0.7);
+        animation: bsPillTuck 4.5s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+      }
+      .bs-tab {
+        position: absolute;
+        top: 8px;
+        left: 0;
+        width: 7px;
+        height: 12px;
+        border-radius: 0 4px 4px 0;
+        background: rgba(18, 18, 22, 0.6);
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.14) inset;
+        animation: bsTabShow 4.5s ease infinite;
+      }
+      body.light-mode .bs-pill, body.light-mode .bs-tab { background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12) inset; color: rgba(0, 0, 0, 0.5); }
+      /* The Compact sketch acts it out: buttons showing, then tucked away, then back */
+      @keyframes bsPillTuck {
+        0%, 35%   { transform: none; opacity: 1; }
+        45%, 85%  { transform: translateX(calc(-100% - 10px)); opacity: 0; }
+        95%, 100% { transform: none; opacity: 1; }
+      }
+      @keyframes bsTabShow {
+        0%, 42%   { transform: translateX(-100%); opacity: 0; }
+        50%, 82%  { transform: none; opacity: 1; }
+        90%, 100% { transform: translateX(-100%); opacity: 0; }
+      }
+      body.no-animations .bs-pill, body.no-animations .bs-tab { animation: none; }
+
+      /* Invisible grab strip along the top edge: drag to move, double-click to stretch */
+      .window-grab {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 7px;
+        z-index: 5;
+        cursor: move;
+      }
+      .window.fullscreen > .window-grab,
+      .window.true-fullscreen > .window-grab { cursor: default; }
+
+      /* While a window is dragged, iframes must not swallow the mouse */
+      body.win-dragging .window-content iframe { pointer-events: none; }
+      body.win-dragging { cursor: move; user-select: none; }
 
       .window-controls {
         display: flex;
         align-items: center;
-        gap: 8px;
-        margin-right: 12px;
+        gap: 7px;
         position: relative;
         z-index: 2;
       }
@@ -1608,7 +2130,7 @@
       .window.active .window-control.minimize { background: #febc2e; border-color: rgba(0,0,0,0.2); }
       .window.active .window-control.maximize { background: #28c840; border-color: rgba(0,0,0,0.2); }
       .window.active .window-control.reload   { background: #5ac8fa; border-color: rgba(0,0,0,0.2); }
-      .window.active .window-control.truefs   { background: #bf5af2; border-color: rgba(0,0,0,0.2); }
+      .window.active .window-control.truefs   { background: #28c840; border-color: rgba(0,0,0,0.2); }
       .window-control:hover { filter: brightness(1.12); }
       .window-control:active { transform: scale(0.92); filter: brightness(0.9); }
 
@@ -1617,7 +2139,7 @@
         font-size: 7px;
       }
       .window-control.close::before    { content: "\f00d"; font-family: "Font Awesome 6 Free"; font-weight: 900; }
-      .window-control.minimize::before { content: "\f2d1"; font-family: "Font Awesome 6 Free"; font-weight: 900; }
+      .window-control.minimize::before { content: "\f068"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 6px; }
       .window-control.maximize::before { content: "\f065"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 6px; }
       .window-control.reload::before   { content: "\f2f9"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 6px; }
       .window-control.truefs::before   { content: "\f424"; font-family: "Font Awesome 6 Free"; font-weight: 900; font-size: 6px; }
@@ -1625,9 +2147,23 @@
       .window-control.reload.spinning::before { animation: windowReloadSpin 0.6s ease; }
       @keyframes windowReloadSpin { to { transform: rotate(360deg); } }
 
-      /* Minimize is intentionally disabled in this build */
-      .window-control.minimize { display: none !important; }
+      /* Yellow minimizes into the menu bar's Minimized folder. The old green stretch
+         button is hidden; double-clicking the title bar stretches a window instead. */
+      .window-control.maximize { display: none !important; }
 
+      /* Minimized: hidden but still running, so the app keeps its state */
+      .window.minimized-to-folder {
+        opacity: 0 !important;
+        transform: translateY(-24px) scale(0.92) !important;
+        pointer-events: none !important;
+        visibility: hidden;
+        transition: opacity var(--t-med) var(--ease), transform var(--t-med) var(--ease), visibility 0s linear var(--t-med);
+      }
+
+      /* The title isn't shown any more (the menu bar names the front app), but it stays
+         in the window: the Minimized folder, the minimize bubble and the sleep screen
+         read the app's icon and name from it */
+      .window > .window-titlebar .window-title { display: none !important; }
       .window-title {
         flex: 1;
         text-align: center;
@@ -1653,7 +2189,7 @@
         flex: 1;
         min-height: 0;
         background: rgba(0, 0, 0, 0.22);
-        border-radius: 0 0 var(--r-lg) var(--r-lg);
+        border-radius: var(--r-lg) !important;
         overflow: hidden;
         position: relative;
         color: var(--text);
@@ -1802,15 +2338,21 @@
       .dock-item, .tooltip { display: none !important; }
 
       /* ═══════════════════════════════════════════════════════════════
-         BOOT SCREEN
+         BOOT SCREEN: the opening animation (about 2.5 s)
+         A glow of light blooms out of the dark, the X-ORBIT mark draws itself and a
+         satellite starts round its orbit, the name rises out of a blur letter by letter
+         with a glint passing across it, then the light opens out into sign-in.
          ═══════════════════════════════════════════════════════════════ */
       @keyframes bootFadeIn { from { opacity: 0; } to { opacity: 1; } }
-      @keyframes boot-tick { 0% { opacity: 1; } 100% { opacity: 0.12; } }
-      @keyframes bootOrbit { to { transform: rotate(360deg); } }
-      @keyframes bootBreathe {
-        0%, 100% { transform: scale(1); filter: drop-shadow(0 0 28px rgba(255,255,255,0.18)); }
-        50%      { transform: scale(1.03); filter: drop-shadow(0 0 44px rgba(255,255,255,0.30)); }
-      }
+      @keyframes bootAuroraIn { from { opacity: 0; transform: scale(0.35); } to { opacity: 1; transform: none; } }
+      @keyframes bootDrift1 { to { transform: translate(-6%, -20%) scale(1.18); } }
+      @keyframes bootDrift2 { to { transform: translate(26%, 14%) scale(0.9); } }
+      @keyframes bootDrift3 { to { transform: translate(-14%, 28%) scale(1.12); } }
+      @keyframes bootDrift4 { to { transform: translate(18%, -30%) scale(1.25); } }
+      @keyframes bootDraw { to { stroke-dashoffset: 0; } }
+      @keyframes bootPop { to { transform: scale(1); } }
+      @keyframes bootLetter { to { opacity: 1; filter: blur(0); transform: none; } }
+      @keyframes bootGlint { 45% { color: #ede4ff; text-shadow: 0 0 16px rgba(196, 181, 253, 0.95), 0 0 34px rgba(125, 211, 252, 0.55); } }
 
       #startupScreen {
         position: fixed;
@@ -1820,102 +2362,125 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow: hidden;
         opacity: 1;
-        animation: bootFadeIn 0.6s ease both;
-        transition: opacity 1s var(--ease);
+        transition: opacity 0.8s ease, filter 0.8s ease;
       }
       #startupScreen::after { display: none !important; }
-      #startupScreen.fade-out { opacity: 0; pointer-events: none; }
+      /* Exit: the light opens out and everything dissolves into what's behind */
+      #startupScreen.fade-out { opacity: 0; filter: blur(12px); pointer-events: none; }
+      #startupScreen.fade-out .boot-center {
+        opacity: 0;
+        transform: scale(1.14);
+        transition: transform 0.8s cubic-bezier(0.65, 0, 0.35, 1), opacity 0.55s ease;
+      }
+      #startupScreen.fade-out .boot-aurora {
+        opacity: 0;
+        transform: scale(2.6);
+        transition: transform 0.9s cubic-bezier(0.65, 0, 0.35, 1), opacity 0.9s ease;
+      }
+
+      /* The glow: four soft blobs in the colours of the app icons, drifting slowly */
+      .boot-aurora {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        pointer-events: none;
+        animation: bootAuroraIn 1.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+      }
+      .boot-aurora i {
+        position: absolute;
+        width: 44vmin;
+        height: 44vmin;
+        border-radius: 50%;
+        filter: blur(64px);
+        mix-blend-mode: screen;
+      }
+      .boot-aurora i:nth-child(1) { background: #7c3aed; opacity: 0.8;  transform: translate(-22%, -8%);  animation: bootDrift1 7s ease-in-out infinite alternate; }
+      .boot-aurora i:nth-child(2) { background: #2563eb; opacity: 0.75; transform: translate(22%, 4%);    animation: bootDrift2 8s ease-in-out infinite alternate; }
+      .boot-aurora i:nth-child(3) { background: #db2777; opacity: 0.45; width: 32vmin; height: 32vmin; transform: translate(-6%, 26%); animation: bootDrift3 6s ease-in-out infinite alternate; }
+      .boot-aurora i:nth-child(4) { background: #22d3ee; opacity: 0.35; width: 28vmin; height: 28vmin; transform: translate(10%, -28%); animation: bootDrift4 9s ease-in-out infinite alternate; }
 
       .boot-center {
+        position: relative;
         display: flex;
         flex-direction: column;
         align-items: center;
-        position: relative;
+        gap: 28px;
       }
 
-      .boot-orbit {
-        position: relative;
-        width: 168px;
-        height: 168px;
+      /* The mark draws itself: ring, then orbit, then the centre pops in */
+      .boot-mark {
+        width: 124px;
+        height: 124px;
+        overflow: visible;
+        filter: drop-shadow(0 0 18px rgba(196, 181, 253, 0.5));
+      }
+      .bm-ring {
+        fill: none;
+        stroke: url(#bootMarkGrad);
+        stroke-width: 4;
+        stroke-linecap: round;
+        stroke-dasharray: 214;
+        stroke-dashoffset: 214;
+        transform: rotate(-90deg);
+        transform-origin: 60px 60px;
+        animation: bootDraw 1s cubic-bezier(0.65, 0, 0.35, 1) 0.35s forwards;
+      }
+      .bm-orbit {
+        fill: none;
+        stroke: rgba(255, 255, 255, 0.55);
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-dasharray: 250;
+        stroke-dashoffset: 250;
+        animation: bootDraw 1.1s cubic-bezier(0.65, 0, 0.35, 1) 0.6s forwards;
+      }
+      .bm-dot {
+        fill: #fff;
+        transform: scale(0);
+        transform-origin: 60px 60px;
+        animation: bootPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.05s forwards;
+      }
+      .bm-sat {
+        fill: #fff;
+        opacity: 0;
+        filter: drop-shadow(0 0 4px #fff) drop-shadow(0 0 10px rgba(125, 211, 252, 0.9));
+        animation: bootFadeIn 0.4s ease 1.25s forwards;
+      }
+
+      /* The name rises out of a blur, then a glint of light passes along it */
+      .boot-word {
         display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 44px;
-        animation: bootFadeIn 1s ease both 0.3s;
+        padding-left: 0.34em;   /* balances the letter-spacing after the last letter */
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: 0.34em;
+        color: #fff;
       }
-      .boot-orbit::before {
-        content: "";
-        position: absolute;
-        inset: 0;
-        border-radius: 50%;
-        border: 1px solid rgba(255, 255, 255, 0.10);
-        transform: rotate(-24deg) scaleY(0.46);
-      }
-      .boot-orbit::after {
-        content: "";
-        position: absolute;
-        inset: 0;
-        border-radius: 50%;
-        transform: rotate(-24deg) scaleY(0.46);
-        animation: bootOrbit 3.2s linear infinite;
-        background:
-          radial-gradient(circle at 50% 0%, #fff 0 3px, rgba(255,255,255,0.6) 4px, transparent 6px);
-        filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.7));
+      .boot-word span {
+        display: inline-block;
+        opacity: 0;
+        filter: blur(10px);
+        transform: translateY(10px);
+        animation:
+          bootLetter 0.7s cubic-bezier(0.16, 1, 0.3, 1) calc(0.9s + var(--i) * 60ms) forwards,
+          bootGlint 0.7s ease calc(1.75s + var(--i) * 55ms);
       }
 
-      .boot-planet {
-        width: 118px;
-        height: 118px;
-        object-fit: contain;
-        display: block;
-        margin: 0;
-        animation: bootBreathe 3.2s ease-in-out infinite;
-      }
-
-      .boot-spinner {
-        position: relative;
-        width: 30px;
-        height: 30px;
-        animation: bootFadeIn 0.6s ease both 1s;
-      }
-      .boot-spinner span {
-        position: absolute;
-        width: 2px;
-        height: 8px;
-        background: rgba(255, 255, 255, 0.85);
-        border-radius: 1px;
-        left: 50%;
-        margin-left: -1px;
-        top: 0;
-        transform-origin: center 15px;
-        animation: boot-tick 1.2s linear infinite;
-      }
-      .boot-spinner span:nth-child(1)  { transform: rotate(0deg);   animation-delay: -1.1s; }
-      .boot-spinner span:nth-child(2)  { transform: rotate(30deg);  animation-delay: -1.0s; }
-      .boot-spinner span:nth-child(3)  { transform: rotate(60deg);  animation-delay: -0.9s; }
-      .boot-spinner span:nth-child(4)  { transform: rotate(90deg);  animation-delay: -0.8s; }
-      .boot-spinner span:nth-child(5)  { transform: rotate(120deg); animation-delay: -0.7s; }
-      .boot-spinner span:nth-child(6)  { transform: rotate(150deg); animation-delay: -0.6s; }
-      .boot-spinner span:nth-child(7)  { transform: rotate(180deg); animation-delay: -0.5s; }
-      .boot-spinner span:nth-child(8)  { transform: rotate(210deg); animation-delay: -0.4s; }
-      .boot-spinner span:nth-child(9)  { transform: rotate(240deg); animation-delay: -0.3s; }
-      .boot-spinner span:nth-child(10) { transform: rotate(270deg); animation-delay: -0.2s; }
-      .boot-spinner span:nth-child(11) { transform: rotate(300deg); animation-delay: -0.1s; }
-      .boot-spinner span:nth-child(12) { transform: rotate(330deg); animation-delay:  0s;   }
-
-      .boot-wordmark {
-        position: absolute;
-        bottom: 40px;
-        left: 0;
-        right: 0;
-        text-align: center;
-        font-size: 10.5px;
-        font-weight: 700;
-        letter-spacing: 0.22em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.22);
-        animation: bootFadeIn 1s ease both 0.8s;
+      /* Animations off (Settings, or Performance Mode): show the finished mark at once */
+      body.no-animations .boot-word span { opacity: 1; filter: none; transform: none; }
+      body.no-animations .bm-ring,
+      body.no-animations .bm-orbit { stroke-dashoffset: 0; }
+      body.no-animations .bm-dot { transform: none; }
+      body.no-animations .bm-sat { opacity: 1; }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-aurora, .boot-aurora i, .bm-ring, .bm-orbit, .bm-dot, .bm-sat, .boot-word span {
+          animation-duration: 0.01s !important;
+          animation-delay: 0s !important;
+          animation-iteration-count: 1 !important;
+        }
       }
 
       /* Login overlay */
@@ -2654,6 +3219,55 @@
       }
       body.light-mode .xmodal-overlay { background: rgba(200, 200, 210, 0.45); }
       .xmodal-overlay.show { display: flex; }
+
+      /* App Creator: people's own apps (a website in a window, with their own icon) */
+      .app-creator-card [hidden] { display: none !important; }   /* .xorbit-button sets its own display */
+      .xmodal-card.app-creator-card { width: 420px; text-align: left; max-height: calc(100vh - 60px); overflow-y: auto; }
+      .ac-head { display: flex; gap: 16px; align-items: center; margin-bottom: 16px; }
+      .ac-head .xmodal-title { margin: 0 0 4px; text-align: left; }
+      .ac-head .xmodal-message { margin: 0; text-align: left; }
+      .ac-preview { flex: 0 0 auto; width: 76px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+      .ac-tile { width: 56px; height: 56px; display: grid; place-items: center; }
+      .ac-tile img { width: 112%; height: 112%; max-width: none; object-fit: contain; filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.35)); }
+      .ac-preview span { max-width: 76px; font-size: 11px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .ac-field { display: block; margin-bottom: 12px; }
+      .ac-field > span { display: block; margin-bottom: 5px; font-size: 11.5px; font-weight: 600; color: var(--text-2); }
+      .ac-field input[type="text"], .ac-field input[type="url"] {
+        width: 100%;
+        height: 34px;
+        padding: 0 11px;
+        background: var(--surface-raised);
+        border: 1px solid var(--hairline-2);
+        border-radius: var(--r-sm);
+        color: var(--text);
+        font: inherit;
+        font-size: 12.5px;
+        outline: none;
+      }
+      .ac-field input:focus { border-color: var(--accent); }
+      .ac-field input.invalid { border-color: var(--danger); }
+      .ac-icon-row { display: flex; gap: 8px; flex-wrap: wrap; }
+      .ac-icon-row .xorbit-button { height: 30px; padding: 0 12px; font-size: 12px; }
+      .ac-icon-row .xorbit-button i { margin-right: 6px; }
+      .ac-hint, .ac-note { font-size: 11px; color: var(--text-3); line-height: 1.45; margin-top: 6px; }
+      .ac-note { display: flex; gap: 7px; margin: 4px 0 12px; }
+      .ac-note i { margin-top: 2px; }
+      .ac-error { min-height: 0; font-size: 12px; color: var(--danger); margin-bottom: 8px; }
+      .ac-error:empty { display: none; }
+      .app-creator-card .xmodal-actions { justify-content: flex-end; }
+      .app-creator-card .xmodal-actions #acDelete { margin-right: auto; }
+      .ac-list-wrap { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--hairline); }
+      .ac-list-wrap:has(.ac-list:empty) { display: none; }
+      .ac-list-title { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); margin-bottom: 8px; }
+      .ac-list { display: flex; flex-direction: column; gap: 4px; }
+      .ac-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; }
+      .ac-row:hover { background: var(--surface-hover); }
+      .ac-row img { width: 28px; height: 28px; object-fit: contain; flex: 0 0 auto; }
+      .ac-row-text { flex: 1; min-width: 0; }
+      .ac-row-name { font-size: 12.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .ac-row-url { font-size: 11px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .ac-row button { width: 28px; height: 28px; border: 0; border-radius: 7px; background: transparent; color: var(--text-2); cursor: pointer; }
+      .ac-row button:hover { background: var(--surface-active); color: var(--text); }
       .xmodal-card {
         width: 360px;
         max-width: calc(100vw - 40px);
@@ -2861,6 +3475,8 @@
         .window { min-width: 280px; min-height: 200px; }
         .menu-item.xorbit-title { font-size: 0; padding: 0 5px; }
         .menu-item.xorbit-title::before { margin: 0; }
+        .menu-item.xorbit-title::after { left: 5px; }   /* the orbit ring follows the smaller padding */
+        #frontAppName { max-width: 110px; }
         #betaBadgeMenuBar { display: none !important; }
       }
     </style>
@@ -2868,17 +3484,27 @@
   <body>
     <!-- Startup Screen -->
     <div id="startupScreen">
+      <div class="boot-aurora" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       <div class="boot-center">
-        <div class="boot-orbit">
-          <img src="assets/logo_notext.png" class="boot-planet" alt="X-ORBIT" />
-        </div>
-        <div class="boot-spinner">
-          <span></span><span></span><span></span><span></span>
-          <span></span><span></span><span></span><span></span>
-          <span></span><span></span><span></span><span></span>
+        <svg class="boot-mark" viewBox="0 0 120 120" aria-hidden="true">
+          <defs>
+            <linearGradient id="bootMarkGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#c4b5fd" />
+              <stop offset="0.5" stop-color="#ffffff" />
+              <stop offset="1" stop-color="#7dd3fc" />
+            </linearGradient>
+          </defs>
+          <circle class="bm-ring" cx="60" cy="60" r="34" />
+          <g transform="rotate(-24 60 60)">
+            <path id="bootOrbitPath" class="bm-orbit" d="M6 60a54 20 0 1 0 108 0a54 20 0 1 0-108 0" />
+            <circle class="bm-sat" id="bootSat" cx="6" cy="60" r="3" />
+          </g>
+          <circle class="bm-dot" cx="60" cy="60" r="7" />
+        </svg>
+        <div class="boot-word" role="img" aria-label="X-ORBIT">
+          <span style="--i:0">X</span><span style="--i:1">-</span><span style="--i:2">O</span><span style="--i:3">R</span><span style="--i:4">B</span><span style="--i:5">I</span><span style="--i:6">T</span>
         </div>
       </div>
-      <div class="boot-wordmark">X-ORBIT</div>
       <!-- Hidden stubs kept for JS compatibility -->
       <div id="startupProgress" style="display:none"></div>
       <div id="startupStatus" style="display:none"></div>
@@ -2895,8 +3521,8 @@
 
     <div class="menu-bar">
       <div class="menu-left">
-        <div class="menu-item xorbit-title" id="xorbitMenu">
-          X-ORBIT <span id="betaBadgeMenuBar" style="display:none;font-size:0.55rem;font-weight:700;background:var(--warn);color:#000;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle;letter-spacing:0.04em;">BETA</span>
+        <div class="menu-item xorbit-title" id="xorbitMenu" title="X-ORBIT" aria-label="X-ORBIT menu">
+          <span id="betaBadgeMenuBar" style="display:none;font-size:0.55rem;font-weight:700;background:var(--warn);color:#000;padding:1px 5px;border-radius:3px;margin-left:4px;vertical-align:middle;letter-spacing:0.04em;">BETA</span>
           <div class="xorbit-menu" id="xorbitDropdown">
             <div class="xorbit-menu-item" onclick="showAccountInfo()">
               <i class="fas fa-user-circle"></i>
@@ -2910,6 +3536,10 @@
             <div class="xorbit-menu-item" onclick="openSettingsWindow()">
               <i class="fas fa-cog"></i>
               <span>Preferences...</span>
+            </div>
+            <div class="xorbit-menu-item" onclick="openAppCreator()">
+              <i class="fas fa-wand-magic-sparkles"></i>
+              <span>Create App...</span>
             </div>
             <div class="xorbit-menu-divider"></div>
             <div class="xorbit-menu-item" onclick="showSystemInfo()">
@@ -2939,6 +3569,25 @@
             <div class="xorbit-menu-item danger" onclick="logout()">
               <i class="fas fa-sign-out-alt"></i>
               <span>Logout</span>
+            </div>
+          </div>
+        </div>
+        <!-- The front window's app: its name, and a menu to minimize, fill the screen or quit it -->
+        <div class="menu-item" id="appMenu" style="display:none" aria-label="App menu">
+          <span id="frontAppName"></span>
+          <div class="xorbit-menu" id="appMenuDropdown">
+            <div class="xorbit-menu-item" data-app-action="minimize">
+              <i class="fas fa-minus"></i><span>Minimize</span>
+            </div>
+            <div class="xorbit-menu-item" data-app-action="fullscreen">
+              <i class="fas fa-expand"></i><span id="appMenuFullscreenLabel">Enter Full Screen</span>
+            </div>
+            <div class="xorbit-menu-item" data-app-action="reload">
+              <i class="fas fa-rotate-right"></i><span>Reload</span>
+            </div>
+            <div class="xorbit-menu-divider"></div>
+            <div class="xorbit-menu-item" data-app-action="quit">
+              <i class="fas fa-xmark"></i><span id="appMenuQuitLabel">Quit</span>
             </div>
           </div>
         </div>
@@ -3019,6 +3668,37 @@
       </div>
       <div class="menu-right">
 
+        <div class="menu-item" id="nowPlayingMenu" title="Now playing" style="display:none">
+          <span class="np-mini-art" id="npMiniArt"></span>
+          <span class="np-mini-text" id="npMiniText"></span>
+          <span class="np-mini-btn" id="npMiniToggle" title="Play"><i class="fas fa-play"></i></span>
+          <div class="xorbit-menu np-panel" id="nowPlayingDropdown" style="left: auto; right: 0">
+            <div class="np-panel-top">
+              <div class="np-panel-art" id="npPanelArt"></div>
+              <div class="np-panel-meta">
+                <div class="np-panel-app" id="npPanelApp">Now Playing</div>
+                <div class="np-panel-title" id="npPanelTitle"></div>
+                <div class="np-panel-artist" id="npPanelArtist"></div>
+              </div>
+            </div>
+            <input type="range" class="np-panel-seek" id="npPanelSeek" min="0" max="1000" value="0" aria-label="Seek">
+            <div class="np-panel-times"><span id="npPanelCur">0:00</span><span id="npPanelRem">0:00</span></div>
+            <div class="np-panel-controls">
+              <button type="button" data-np="shuffle" title="Shuffle"><i class="fas fa-shuffle"></i></button>
+              <button type="button" data-np="prev" title="Previous"><i class="fas fa-backward-step"></i></button>
+              <button type="button" data-np="toggle" class="np-big" title="Play"><i class="fas fa-play"></i></button>
+              <button type="button" data-np="next" title="Next"><i class="fas fa-forward-step"></i></button>
+              <button type="button" data-np="repeat" title="Repeat"><i class="fas fa-repeat"></i></button>
+            </div>
+            <div class="xorbit-menu-divider"></div>
+            <div class="xorbit-menu-item" data-np="open"><i class="fas fa-up-right-from-square"></i><span id="npPanelOpen">Open</span></div>
+          </div>
+        </div>
+        <div class="menu-item" id="minimizedMenu" title="Minimized windows" style="display:none">
+          <i class="fas fa-folder"></i>
+          <span class="menu-minimized-count" id="minimizedCount">0</span>
+          <div class="xorbit-menu" id="minimizedDropdown" style="left: auto; right: 0"></div>
+        </div>
         <div class="menu-item" id="userNameplate" title="Account">
           <span class="topbar-avatar" id="topbarAvatar"></span>
           <span id="userNameDisplay">User</span>
@@ -3119,9 +3799,9 @@
           class="desktop-icon"
           data-app="Browser"
           data-src="browser.html"
-          data-icon="fas fa-globe"
+          data-icon="tile:assets/icons/orbix-256.png"
         >
-          <i class="fas fa-globe"></i>
+          <i class="app-icon-img app-icon-tile"><img src="assets/icons/orbix-256.png" alt=""></i>
           <span>Browser</span>
         </div>
         <div
@@ -3147,7 +3827,7 @@
             <div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="fas fa-headphones"></i></div>
             <div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="fas fa-music"></i></div>
             <div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="fab fa-spotify"></i></div>
-            <div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="fas fa-film"></i></div>
+            <div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="app-icon-img"><img src="assets/icons/jellyfin.svg" alt=""></i></div>
           </div>
           <span>Media</span>
         </div>
@@ -3155,10 +3835,10 @@
           class="desktop-icon"
           data-app="Jitter"
           data-src="jittery.html"
-          data-icon="fas fa-comment-dots"
-          onclick="openWindow('Jitter', 'jittery.html', 'fas fa-comment-dots')"
+          data-icon="tile:assets/icons/jitter-256.png"
+          onclick="openWindow('Jitter', 'jittery.html', 'tile:assets/icons/jitter-256.png')"
         >
-          <i class="fas fa-comment-dots"></i>
+          <i class="app-icon-img app-icon-tile"><img src="assets/icons/jitter-256.png" alt=""></i>
           <span>Jitter</span>
         </div>
         <div
@@ -3215,7 +3895,7 @@
     <div class="desktop-dm-badge" id="desktopDMBadge">
       <div class="desktop-dm-badge-main" onclick="openDMApp()">
         <div class="desktop-dm-badge-icon-wrap">
-          <i class="fas fa-comment-dots"></i>
+          <i class="app-icon-img app-icon-tile"><img src="assets/icons/jitter-256.png" alt=""></i>
         </div>
         <div class="desktop-dm-badge-body">
           <div class="desktop-dm-badge-app">Jitter</div>
@@ -3293,9 +3973,9 @@
         class="dock-item"
         data-app="Browser"
         data-src="browser.html"
-        data-icon="fas fa-globe"
+        data-icon="tile:assets/icons/orbix-256.png"
       >
-        <i class="fas fa-globe"></i>
+        <i class="app-icon-img app-icon-tile"><img src="assets/icons/orbix-256.png" alt=""></i>
         <div class="tooltip">Browser</div>
       </div>
       <div
@@ -3401,9 +4081,9 @@
         class="dock-item"
         data-app="Jellyfin"
         data-src="https://jelly.xorbit.org"
-        data-icon="fas fa-film"
+        data-icon="img:assets/icons/jellyfin.svg"
       >
-        <i class="fas fa-film"></i>
+        <i class="app-icon-img"><img src="assets/icons/jellyfin.svg" alt=""></i>
         <div class="tooltip">Jellyfin</div>
       </div>
       <div
@@ -3484,6 +4164,41 @@
     </div>
   </div>
 
+  <!-- App Creator: a website becomes an app on the desktop (X-ORBIT menu → Create App, or right-click the desktop) -->
+  <div id="appCreatorModal" class="xmodal-overlay" onclick="if (event.target === this) closeAppCreator()">
+    <div class="xmodal-card app-creator-card" role="dialog" aria-labelledby="acTitle">
+      <div class="ac-head">
+        <div class="ac-preview" aria-hidden="true"><div class="ac-tile" id="acPreviewTile"></div><span id="acPreviewName">My App</span></div>
+        <div>
+          <div class="xmodal-title" id="acTitle">Create an App</div>
+          <div class="xmodal-message">Turn a website into an app on your desktop. It opens in its own window.</div>
+        </div>
+      </div>
+      <label class="ac-field"><span>Name</span><input type="text" id="acName" maxlength="28" placeholder="My App" autocomplete="off"></label>
+      <label class="ac-field"><span>Website</span><input type="url" id="acUrl" placeholder="example.com" autocomplete="off" spellcheck="false"></label>
+      <div class="ac-field">
+        <span>Icon</span>
+        <div class="ac-icon-row">
+          <button type="button" class="xorbit-button" id="acUploadBtn"><i class="fas fa-upload"></i>Upload image</button>
+          <button type="button" class="xorbit-button" id="acClearIcon" hidden><i class="fas fa-font"></i>Use a letter instead</button>
+          <input type="file" id="acIconFile" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden>
+        </div>
+        <div class="ac-hint">PNG, JPG, WebP, GIF or SVG, up to 5 MB. Square images look best. Without one, the app gets a letter icon.</div>
+      </div>
+      <div class="ac-error" id="acError" role="alert"></div>
+      <div class="ac-note"><i class="fas fa-circle-info"></i><span>Some websites don't allow being shown inside another site. Those open as a blank window.</span></div>
+      <div class="xmodal-actions">
+        <button class="xorbit-button danger" type="button" id="acDelete" hidden>Delete</button>
+        <button class="xorbit-button" type="button" onclick="closeAppCreator()">Cancel</button>
+        <button class="xorbit-button primary" type="button" id="acSave">Create App</button>
+      </div>
+      <div class="ac-list-wrap">
+        <div class="ac-list-title">Your apps</div>
+        <div class="ac-list" id="acList"></div>
+      </div>
+    </div>
+  </div>
+
   <div id="xModal" class="xmodal-overlay">
     <div class="xmodal-card">
       <div class="xmodal-icon"  id="xModalIcon"></div>
@@ -3494,6 +4209,261 @@
   </div>
 
     <script>
+      // ── App icons ──
+      // An app's icon is a Font Awesome class ("fas fa-music") or an image
+      // ("img:assets/icons/jellyfin.svg"). Every place that draws an app icon goes
+      // through these so both kinds work.
+      function appIconHTML(icon, style) {
+        const styleAttr = style ? ' style="' + style + '"' : "";
+        icon = icon || "fas fa-window-maximize";
+        if (icon.startsWith("img:") || icon.startsWith("tile:")) {
+          const tile = icon.startsWith("tile:");
+          return '<i class="app-icon-img' + (tile ? ' app-icon-tile' : '') + '"' + styleAttr + '><img src="' + icon.slice(tile ? 5 : 4) + '" alt=""></i>';
+        }
+        return '<i class="' + icon + '"' + styleAttr + "></i>";
+      }
+
+      // For an existing <i> element (keeps its id)
+      function setAppIcon(el, icon) {
+        icon = icon || "fas fa-window-maximize";
+        if (icon.startsWith("img:") || icon.startsWith("tile:")) {
+          const tile = icon.startsWith("tile:");
+          el.className = "app-icon-img" + (tile ? " app-icon-tile" : "");
+          el.innerHTML = '<img src="' + icon.slice(tile ? 5 : 4) + '" alt="">';
+        } else {
+          el.className = icon;
+          el.innerHTML = "";
+        }
+      }
+
+      // ── App Creator ──────────────────────────────────────────────
+      // People's own apps: a name, a website and an icon. They live in settings.customApps
+      // so they sync with the other settings; renderCustomAppIcons() (in the desktop icon
+      // code) draws them on the desktop. Icons are stored as small PNG data URLs.
+      const CUSTOM_APP_MAX = 24;
+      let _acEditing = null;     // id of the app being edited, or null when creating
+      let _acIcon = null;        // uploaded icon (data URL), or null for a letter icon
+
+      function customApps() {
+        return Array.isArray(settings.customApps) ? settings.customApps : [];
+      }
+      // Names end up in window titles and menus, so they're kept to plain text
+      function cleanAppName(name) {
+        return String(name || "").replace(/[<>"'`&\\]/g, "").replace(/\s+/g, " ").trim().slice(0, 28);
+      }
+      function cleanAppUrl(raw) {
+        let v = String(raw || "").trim();
+        if (!v) return null;
+        if (!/^https?:\/\//i.test(v)) v = "https://" + v;
+        try {
+          const u = new URL(v);
+          if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+          if (!u.hostname.includes(".") && u.hostname !== "localhost") return null;
+          return u.href;
+        } catch (e) { return null; }
+      }
+      function saveCustomApps(list) {
+        const before = settings.customApps;
+        settings.customApps = list;
+        try {
+          localStorage.setItem("xorbit-settings", JSON.stringify(settings));
+        } catch (e) {
+          settings.customApps = before;   // browser storage is full (usually a big wallpaper)
+          return false;
+        }
+        if (typeof renderCustomAppIcons === "function") renderCustomAppIcons();
+        if (typeof schedulePushToCloud === "function") schedulePushToCloud();
+        return true;
+      }
+
+      // Icons: drawn as a rounded tile with a transparent margin, like the built-in tiles
+      function acTileCanvas() {
+        const c = document.createElement("canvas");
+        c.width = c.height = 128;
+        const ctx = c.getContext("2d");
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(8, 8, 112, 112, 26); else ctx.rect(8, 8, 112, 112);
+        ctx.clip();
+        return { c, ctx };
+      }
+      function acExport(c) {
+        const png = c.toDataURL("image/png");
+        return png.length > 90000 ? c.toDataURL("image/webp", 0.86) : png;
+      }
+      function letterAppIcon(name) {
+        const { c, ctx } = acTileCanvas();
+        let h = 7;
+        for (const ch of String(name || "App")) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+        const hue = h % 360;
+        const g = ctx.createLinearGradient(8, 8, 120, 120);
+        g.addColorStop(0, "hsl(" + hue + " 70% 58%)");
+        g.addColorStop(1, "hsl(" + ((hue + 45) % 360) + " 70% 34%)");
+        ctx.fillStyle = g;
+        ctx.fillRect(8, 8, 112, 112);
+        ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+        ctx.font = "700 58px Inter, -apple-system, system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText([...(String(name || "").trim() || "A")][0].toUpperCase(), 64, 68);
+        return acExport(c);
+      }
+      function iconFromFile(file) {
+        return new Promise(function (resolve, reject) {
+          if (!file || !/^image\//.test(file.type)) return reject(new Error("That isn't an image."));
+          if (file.size > 5 * 1024 * 1024) return reject(new Error("That image is bigger than 5 MB."));
+          const url = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = function () {
+            URL.revokeObjectURL(url);
+            const { c, ctx } = acTileCanvas();
+            const w = img.naturalWidth || 128, h = img.naturalHeight || 128;
+            // Fill the tile (cropping the long side), so any shape becomes a square icon
+            const scale = Math.max(112 / w, 112 / h);
+            const dw = w * scale, dh = h * scale;
+            ctx.fillStyle = "#fff";
+            if (/png|gif|webp|svg/.test(file.type)) ctx.fillStyle = "rgba(0,0,0,0)";
+            ctx.fillRect(8, 8, 112, 112);
+            ctx.drawImage(img, 64 - dw / 2, 64 - dh / 2, dw, dh);
+            resolve(acExport(c));
+          };
+          img.onerror = function () { URL.revokeObjectURL(url); reject(new Error("That image couldn't be read.")); };
+          img.src = url;
+        });
+      }
+
+      function acPreview() {
+        const name = cleanAppName(document.getElementById("acName").value) || "My App";
+        document.getElementById("acPreviewName").textContent = name;
+        const tile = document.getElementById("acPreviewTile");
+        tile.innerHTML = "";
+        const img = document.createElement("img");
+        img.alt = "";
+        img.src = _acIcon || letterAppIcon(name);
+        tile.appendChild(img);
+        document.getElementById("acClearIcon").hidden = !_acIcon;
+      }
+      function acRenderList() {
+        const list = document.getElementById("acList");
+        list.innerHTML = "";
+        customApps().forEach(function (app) {
+          const row = document.createElement("div");
+          row.className = "ac-row";
+          const img = document.createElement("img");
+          img.src = app.icon;
+          img.alt = "";
+          const text = document.createElement("div");
+          text.className = "ac-row-text";
+          const n = document.createElement("div");
+          n.className = "ac-row-name";
+          n.textContent = app.name;
+          const u = document.createElement("div");
+          u.className = "ac-row-url";
+          u.textContent = app.url;
+          text.append(n, u);
+          const open = document.createElement("button");
+          open.type = "button"; open.title = "Open"; open.innerHTML = '<i class="fas fa-up-right-from-square"></i>';
+          open.onclick = function () { closeAppCreator(); openCustomApp(app.id); };
+          const edit = document.createElement("button");
+          edit.type = "button"; edit.title = "Edit"; edit.innerHTML = '<i class="fas fa-pen"></i>';
+          edit.onclick = function () { openAppCreator(app.id); };
+          row.append(img, text, open, edit);
+          list.appendChild(row);
+        });
+      }
+
+      function openAppCreator(editId) {
+        if (!isAuthenticated) return;
+        document.querySelectorAll(".xorbit-menu.show").forEach(function (m) { m.classList.remove("show"); });
+        const app = editId ? customApps().find(function (a) { return a.id === editId; }) : null;
+        _acEditing = app ? app.id : null;
+        _acIcon = app && !app.letterIcon ? app.icon : null;
+        document.getElementById("acTitle").textContent = app ? "Edit " + app.name : "Create an App";
+        document.getElementById("acName").value = app ? app.name : "";
+        document.getElementById("acUrl").value = app ? app.url : "";
+        document.getElementById("acSave").textContent = app ? "Save" : "Create App";
+        document.getElementById("acDelete").hidden = !app;
+        document.getElementById("acError").textContent = "";
+        document.querySelectorAll("#appCreatorModal input").forEach(function (i) { i.classList.remove("invalid"); });
+        acPreview();
+        acRenderList();
+        document.getElementById("appCreatorModal").classList.add("show");
+        setTimeout(function () { document.getElementById("acName").focus(); }, 50);
+      }
+      function closeAppCreator() {
+        document.getElementById("appCreatorModal").classList.remove("show");
+        _acEditing = null;
+        _acIcon = null;
+      }
+      function openCustomApp(id) {
+        const app = customApps().find(function (a) { return a.id === id; });
+        if (app) openWindow(cleanAppName(app.name) || "App", cleanAppUrl(app.url) || "about:blank", "tile:" + app.icon);
+      }
+      function deleteCustomApp(id) {
+        const app = customApps().find(function (a) { return a.id === id; });
+        if (!app || !confirm('Delete "' + app.name + '"? It will be removed from your desktop.')) return false;
+        saveCustomApps(customApps().filter(function (a) { return a.id !== id; }));
+        return true;
+      }
+
+      function setupAppCreator() {
+        const name = document.getElementById("acName");
+        const url = document.getElementById("acUrl");
+        const file = document.getElementById("acIconFile");
+        const error = document.getElementById("acError");
+        if (!name) return;
+        name.addEventListener("input", function () { name.classList.remove("invalid"); acPreview(); });
+        url.addEventListener("input", function () { url.classList.remove("invalid"); });
+        document.getElementById("acUploadBtn").onclick = function () { file.click(); };
+        document.getElementById("acClearIcon").onclick = function () { _acIcon = null; acPreview(); };
+        file.addEventListener("change", function () {
+          const f = file.files && file.files[0];
+          file.value = "";
+          if (!f) return;
+          error.textContent = "";
+          iconFromFile(f).then(function (icon) { _acIcon = icon; acPreview(); })
+            .catch(function (e) { error.textContent = e.message; });
+        });
+        document.getElementById("acDelete").onclick = function () {
+          if (_acEditing && deleteCustomApp(_acEditing)) closeAppCreator();
+        };
+        document.getElementById("acSave").onclick = function () {
+          const appName = cleanAppName(name.value);
+          const appUrl = cleanAppUrl(url.value);
+          error.textContent = "";
+          if (!appName) { name.classList.add("invalid"); error.textContent = "Give your app a name."; return name.focus(); }
+          if (!appUrl) { url.classList.add("invalid"); error.textContent = "Enter a website address, like example.com."; return url.focus(); }
+          const list = customApps().slice();
+          // App names identify windows, so they can't match another app on the desktop
+          const taken = [...document.querySelectorAll(".desktop-icon[data-app]")].some(function (el) {
+            return el.dataset.app.toLowerCase() === appName.toLowerCase() && el.dataset.customApp !== _acEditing;
+          }) || list.some(function (a) { return a.id !== _acEditing && a.name.toLowerCase() === appName.toLowerCase(); });
+          if (taken) { name.classList.add("invalid"); error.textContent = "There's already an app called " + appName + "."; return name.focus(); }
+          if (!_acEditing && list.length >= CUSTOM_APP_MAX) { error.textContent = "You can have up to " + CUSTOM_APP_MAX + " of your own apps."; return; }
+
+          const entry = {
+            id: _acEditing || "app-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            name: appName,
+            url: appUrl,
+            icon: _acIcon || letterAppIcon(appName),
+            letterIcon: !_acIcon,
+          };
+          const i = list.findIndex(function (a) { return a.id === entry.id; });
+          if (i >= 0) { entry.created = list[i].created; list[i] = entry; } else { entry.created = Date.now(); list.push(entry); }
+          if (!saveCustomApps(list)) {
+            error.textContent = "Your browser's storage is full. Try a smaller icon, or remove a custom wallpaper.";
+            return;
+          }
+          closeAppCreator();
+          if (typeof showNotification === "function") showNotification((i >= 0 ? "Saved " : "Added ") + appName + " to your desktop");
+        };
+        [name, url].forEach(function (input) {
+          input.addEventListener("keydown", function (e) { if (e.key === "Enter") document.getElementById("acSave").click(); });
+        });
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape" && document.getElementById("appCreatorModal").classList.contains("show")) closeAppCreator();
+        });
+      }
+
       // Global variable to track update check interval
       let updateCheckInterval = null;
       let desktopUpdateBadgeShown = false;
@@ -4076,6 +5046,7 @@
         windowSnapping: true,
         windowShadows: true,
         jellyMode: false,
+        windowBarStyle: "compact", // "compact": buttons float and tuck away; "spacious": classic title bar
         launchFullscreen: false,
         customWallpaper: null,
         startupWindows: "welcome", // Options: 'welcome', 'none', 'browser', 'terminal', 'settings'
@@ -4199,7 +5170,7 @@
           target: ".window.active",
           needsWindow: true,
           description:
-            "Apps open in windows like this one. Drag the bar along its top to move it, and drag the bottom-right corner to resize it. You can have several open at once.",
+            "Apps open in windows like this one. Drag the window buttons in its top-left corner, or its top edge, to move it, and drag the bottom-right corner to resize it. You can have several open at once.",
           highlightTitle: "Bring to Front",
           highlightText: "Click a window to bring it in front of the others.",
         },
@@ -4209,9 +5180,9 @@
           target: ".window.active .window-controls",
           needsWindow: true,
           description:
-            "Red closes the window. Green stretches it across the screen. Purple goes fully fullscreen and hides the bars until your mouse touches the top edge. Blue reloads the app.",
+            "Red closes the window. Yellow minimizes it into the folder in the menu bar, where you can bring it back. Green goes fully fullscreen and hides the bars until your mouse touches the top edge. Blue reloads the app. The arrow tucks the buttons into the window's side; click the little tab to bring them back. Double-click the buttons or the window's top edge to stretch it across the screen.",
           highlightTitle: "Leaving Fullscreen",
-          highlightText: "Move your mouse to the very top of the screen, then click purple again.",
+          highlightText: "Move your mouse to the very top of the screen, then click green again.",
         },
         {
           icon: "fas fa-check-circle",
@@ -4531,7 +5502,7 @@
         const app = SHAREABLE_APPS[appName];
         if (!app) return;
         _shareApp = appName;
-        document.getElementById("shareAppIcon").className = app.icon;
+        setAppIcon(document.getElementById("shareAppIcon"), app.icon);
         document.getElementById("shareAppTitle").textContent = "Share " + appName + " with Jitter";
         document.getElementById("shareAppSearch").value = "";
         document.getElementById("shareAppModal").classList.add("show");
@@ -4744,7 +5715,7 @@
 
       function openDMApp() {
         hideDMBadge(null);
-        openWindow("Jitter", "jittery.html", "fas fa-comment-dots");
+        openWindow("Jitter", "jittery.html", "tile:assets/icons/jitter-256.png");
       }
 
       // ── Jitter calls on the desktop ──────────────────────────────────
@@ -4837,7 +5808,7 @@
           frame.contentWindow.postMessage({ type: "jitter-accept-call", ring: _pendingCallAccept }, "*");
           _pendingCallAccept = null;
         } else {
-          openWindow("Jitter", "jittery.html", "fas fa-comment-dots");
+          openWindow("Jitter", "jittery.html", "tile:assets/icons/jitter-256.png");
         }
       }
 
@@ -5459,6 +6430,16 @@
       function applySettings() {
         // Theme is now handled by loadTheme() function with external stylesheets
 
+        // Window bar style: Spacious is the classic title bar, Compact floats the buttons
+        // over the app and tucks them into the window's side (see scheduleWindowTuck)
+        if (typeof renderCustomAppIcons === "function") renderCustomAppIcons();   // custom apps may have synced in
+        const spaciousBars = settings.windowBarStyle === "spacious";
+        document.body.classList.toggle("win-bar-spacious", spaciousBars);
+        if (spaciousBars) document.querySelectorAll("#desktop > .window").forEach(function (w) {
+          clearTimeout(w._tuckTimer);
+          w.classList.remove("controls-tucked");
+        });
+
         // Apply menu bar settings
         const menuBar = document.querySelector(".menu-bar");
         if (menuBar) {
@@ -5744,6 +6725,11 @@
       // One-time heads-up the first time Performance Mode switches itself on
       function perfMaybeNotify() {
         if (perf.mode !== "auto" || !perfDevice.auto) return;
+        // What's New or the install prompt is open: show it once that's closed, not underneath
+        if (document.querySelector("#whatsNewOverlay.show, #pwaInstallOverlay.show, #releaseIntro.show")) {
+          setTimeout(perfMaybeNotify, 2000);
+          return;
+        }
         try {
           if (localStorage.getItem("xorbit-performance-noticed")) return;
           localStorage.setItem("xorbit-performance-noticed", "1");
@@ -6081,7 +7067,7 @@
             openWindow("Welcome to X-ORBIT", "render.html", "fas fa-rocket");
             break;
           case "browser":
-            openWindow("Browser", "browser.html", "fas fa-globe");
+            openWindow("Browser", "browser.html", "tile:assets/icons/orbix-256.png");
             break;
           case "settings":
             openSettingsWindow();
@@ -6582,7 +7568,7 @@
             { name: 'Trackly', src: 'trackly.html', icon: 'fas fa-headphones' },
             { name: 'Cadence', src: 'cadence.html', icon: 'fas fa-music' },
             { name: 'Spotify', src: 'spotify.html', icon: 'fab fa-spotify' },
-            { name: 'Jellyfin', src: 'https://jelly.xorbit.org', icon: 'fas fa-film' },
+            { name: 'Jellyfin', src: 'https://jelly.xorbit.org', icon: 'img:assets/icons/jellyfin.svg' },
           ],
         },
       };
@@ -6612,7 +7598,7 @@
         (folderData.apps || []).forEach(app => {
           const el = document.createElement('div');
           el.className = 'folder-app-icon';
-          el.innerHTML = `<i class="${app.icon}"></i><span>${app.name}</span>`;
+          el.innerHTML = `${appIconHTML(app.icon)}<span>${app.name}</span>`;
           el.onclick = () => { hideFolderPopup(); openWindow(app.name, app.src, app.icon); };
           appsEl.appendChild(el);
         });
@@ -6761,9 +7747,7 @@
           '<div class="window-control reload" title="Reload"></div>' +
           "</div>" +
           '<div class="window-title">' +
-          '<i class="' +
-          icon +
-          '" style="margin-right: 8px;"></i>' +
+          appIconHTML(icon, "margin-right: 8px;") +
           displayTitle +
           "</div>" +
           "</div>" +
@@ -6773,7 +7757,9 @@
           // Jitter calls: mic, camera, screen sharing and the full-screen call view
           (src === "jittery.html" ? '" allow="microphone; camera; display-capture; autoplay; fullscreen; speaker-selection"' :
           // Jellyfin: video full screen, autoplay and picture-in-picture
-           src.startsWith("https://jelly.xorbit.org") ? '" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen' : '"') +
+           src.startsWith("https://jelly.xorbit.org") ? '" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen' :
+          // Trackly: its full-screen player can fill the whole screen
+           src === "trackly.html" ? '" allow="autoplay; fullscreen" allowfullscreen' : '"') +
           '></iframe>' +
           "</div>";
 
@@ -6857,7 +7843,7 @@
         const rows = apps.map(a =>
           `<div class="fe-row" ondblclick="openWindow('${a.name}','${a.src}','${a.icon}')">`+
             `<div class="fe-row-name">`+
-              `<div class="fe-row-icon"><i class="${a.icon}"></i></div>`+
+              `<div class="fe-row-icon">${appIconHTML(a.icon)}</div>`+
               `<span>${a.name}</span>`+
             `</div>`+
             `<div class="fe-row-kind">Application</div>`+
@@ -6939,6 +7925,37 @@
         const minBtn = windowEl.querySelector(".window-control.minimize");
         const maxBtn = windowEl.querySelector(".window-control.maximize");
 
+        // Events inside an iframe do not bubble into the desktop. Local Xorbit
+        // pages get this small bridge on every load so interacting with an
+        // unfocused window raises it just like clicking its title bar does.
+        const iframe = windowEl.querySelector(".window-content > iframe");
+        function connectLocalFrame() {
+          if (!iframe) return;
+          try {
+            const frameDocument = iframe.contentDocument;
+            const frameWindow = iframe.contentWindow;
+            if (!frameDocument || !frameWindow || frameDocument.documentElement.dataset.xorbitFocusBridge) return;
+            frameDocument.documentElement.dataset.xorbitFocusBridge = "1";
+
+            const requestFocus = function () {
+              // Keep this direct call for immediate local feedback, and also
+              // send a message so loaded pages have one common parent protocol.
+              focusWindow(windowId);
+              frameWindow.parent.postMessage({ type: "xorbit-window-focus-request" }, location.origin);
+            };
+            ["pointerdown", "mousedown", "touchstart", "focusin"].forEach(function (eventName) {
+              frameDocument.addEventListener(eventName, requestFocus, true);
+            });
+          } catch (e) {
+            // Cross-origin pages cannot be inspected. Their own code can still
+            // opt into the same postMessage protocol below.
+          }
+        }
+        if (iframe) {
+          iframe.addEventListener("load", connectLocalFrame);
+          connectLocalFrame();
+        }
+
         if (closeBtn) {
           closeBtn.onclick = function () {
             if (settings.animations) {
@@ -6954,14 +7971,19 @@
           };
         }
 
+        // Remembered for the Minimized folder in the menu bar
+        windowEl.dataset.winTitle = title;
+
         if (minBtn) {
+          minBtn.title = "Minimize";
           minBtn.onclick = function () {
-            windowEl.style.display = "none";
+            minimizeWindow(windowEl);
           };
         }
 
-        if (maxBtn) {
-          maxBtn.onclick = function () {
+        // Stretch across the screen: the green button used to do this; now it's a
+        // double-click on the title bar (the button stays hidden)
+        function toggleStretch() {
             // Check if already fullscreen
             if (windowEl.classList.contains("fullscreen")) {
               // Restore to previous size
@@ -6985,8 +8007,40 @@
               windowEl.style.height = "calc(100vh - 32px)";
               windowEl.style.borderRadius = "0";
             }
-          };
         }
+        if (maxBtn) maxBtn.onclick = toggleStretch;
+        // Double-click the buttons' pill or the top edge to stretch the window
+        function onStretchDblClick(e) {
+          if (e.target.closest(".window-control, .window-tuck")) return;
+          if (windowEl.classList.contains("true-fullscreen")) return;
+          toggleStretch();
+        }
+        if (titlebar) titlebar.ondblclick = onStretchDblClick;
+
+        // There's no title bar, so a thin strip along the top edge moves the window too
+        const grab = document.createElement("div");
+        grab.className = "window-grab";
+        grab.ondblclick = onStretchDblClick;
+        windowEl.prepend(grab);
+
+        // Compact bar: the buttons tuck into the window's left side 3 seconds after it
+        // opens (and 3 seconds after the pointer leaves them); a tiny arrow brings them back
+        if (titlebar && !titlebar.querySelector(".window-tuck")) {
+          const tuck = document.createElement("div");
+          tuck.className = "window-tuck";
+          tuck.title = "Hide window buttons";
+          tuck.innerHTML = '<i class="fas fa-chevron-left"></i>';
+          tuck.onclick = function (e) {
+            e.stopPropagation();
+            setWindowTucked(windowEl, true);
+          };
+          titlebar.appendChild(tuck);
+        }
+        const untuck = document.createElement("div");
+        untuck.className = "window-untuck";
+        untuck.title = "Show window buttons";
+        untuck.innerHTML = '<i class="fas fa-chevron-right"></i>';
+        windowEl.appendChild(untuck);
 
         // True fullscreen button, added here so every kind of window gets one
         const controls = windowEl.querySelector(".window-controls");
@@ -7028,36 +8082,50 @@
         let lastMouseX = 0;
         let lastMouseY = 0;
 
-        if (titlebar) {
-          titlebar.onmousedown = function (e) {
-            if (e.target.closest(".window-control")) return;
-            // Don't allow dragging if fullscreen
-            if (windowEl.classList.contains("fullscreen") || windowEl.classList.contains("true-fullscreen")) return;
+        // Drag handles: the buttons' pill, the strip along the top edge, and the arrow tab
+        // when the buttons are tucked away. onTap runs instead when the mouse didn't move
+        // (a click on the arrow tab brings the buttons back).
+        function startWindowDrag(e, onTap) {
+          if (e.button !== 0) return;
+          if (e.target.closest(".window-control, .window-tuck")) return;
+          if (windowEl.classList.contains("fullscreen") || windowEl.classList.contains("true-fullscreen")) {
+            focusWindow(windowId);
+            if (onTap) document.addEventListener("mouseup", function () { onTap(); }, { once: true });
+            return;
+          }
+          e.preventDefault();
 
             isDragging = true;
+            let moved = false;
+            const startX = e.clientX;
+            const startY = e.clientY;
             focusWindow(windowId);
+            // Iframes would otherwise swallow the mouse when the pointer outruns the handle
+            document.body.classList.add("win-dragging");
 
-            const rect = windowEl.getBoundingClientRect();
-            dragOffset.x = e.clientX - rect.left;
-            dragOffset.y = e.clientY - rect.top;
+            // left/top are relative to the desktop, which starts below the menu bar, so
+            // work in desktop coordinates (mixing in viewport ones made windows jump down)
+            const parentRect = (windowEl.offsetParent || document.body).getBoundingClientRect();
+            dragOffset.x = e.clientX - parentRect.left - windowEl.offsetLeft;
+            dragOffset.y = e.clientY - parentRect.top - windowEl.offsetTop;
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
 
             document.onmousemove = function (e) {
               if (!isDragging) return;
+              if (!moved && Math.abs(e.clientX - startX) + Math.abs(e.clientY - startY) < 4) return;
+              moved = true;
 
-              const rect = windowEl.getBoundingClientRect();
-              const windowWidth = rect.width;
-              const windowHeight = rect.height;
+              const windowWidth = windowEl.offsetWidth;
 
-              let newX = e.clientX - dragOffset.x;
-              let newY = e.clientY - dragOffset.y;
+              let newX = e.clientX - parentRect.left - dragOffset.x;
+              let newY = e.clientY - parentRect.top - dragOffset.y;
 
-              // Constrain to screen bounds
+              // Constrain to the desktop
               const minX = 0;
-              const minY = 32; // Below menu bar
-              const maxX = window.innerWidth - windowWidth;
-              const maxY = window.innerHeight - 50; // Keep some visible at bottom
+              const minY = 0;
+              const maxX = parentRect.width - windowWidth;
+              const maxY = window.innerHeight - parentRect.top - 50; // Keep some visible at bottom
 
               newX = Math.max(minX, Math.min(newX, maxX));
               newY = Math.max(minY, Math.min(newY, maxY));
@@ -7083,6 +8151,8 @@
               isDragging = false;
               document.onmousemove = null;
               document.onmouseup = null;
+              document.body.classList.remove("win-dragging");
+              if (!moved) { if (onTap) onTap(); return; }
               if (settings.jellyMode) {
                 // Spring bounce back to neutral
                 windowEl.style.transition = "transform 0.9s cubic-bezier(0.34, 1.8, 0.64, 1)";
@@ -7090,8 +8160,98 @@
                 setTimeout(() => { windowEl.style.transition = ""; windowEl.style.transform = ""; }, 900);
               }
             };
-          };
         }
+        if (titlebar) titlebar.onmousedown = function (e) { startWindowDrag(e); };
+        grab.onmousedown = function (e) { startWindowDrag(e); };
+        untuck.onmousedown = function (e) {
+          startWindowDrag(e, function () {
+            setWindowTucked(windowEl, false);
+            scheduleWindowTuck(windowEl);
+          });
+        };
+        if (titlebar) {
+          titlebar.addEventListener("mouseenter", function () { clearTimeout(windowEl._tuckTimer); });
+          titlebar.addEventListener("mouseleave", function () { scheduleWindowTuck(windowEl); });
+        }
+        scheduleWindowTuck(windowEl);
+      }
+
+      // ── Compact window bar: buttons tuck into the window's side ──
+      const WINDOW_TUCK_DELAY = 3000;
+      const TUCK_TIP_KEY = "xorbit-window-tuck-tip-seen";
+
+      function setWindowTucked(windowEl, on) {
+        clearTimeout(windowEl._tuckTimer);
+        windowEl.classList.toggle("controls-tucked", on);
+        if (on) maybeShowTuckTip(windowEl);
+        else hideTuckTip();
+      }
+      function scheduleWindowTuck(windowEl, delay) {
+        clearTimeout(windowEl._tuckTimer);
+        if (settings.windowBarStyle === "spacious") return;
+        windowEl._tuckTimer = setTimeout(function () {
+          if (!windowEl.isConnected || windowEl.classList.contains("controls-tucked")) return;
+          if (windowEl.classList.contains("true-fullscreen")) return;
+          const bar = windowEl.querySelector(".window-titlebar");
+          if (bar && bar.matches(":hover")) return;   // still pointing at them; mouseleave reschedules
+          setWindowTucked(windowEl, true);
+        }, delay == null ? WINDOW_TUCK_DELAY : delay);
+      }
+
+      // The first time the buttons tuck away, a card next to the arrow says where they went
+      function maybeShowTuckTip(windowEl) {
+        if (document.querySelector(".tuck-tip")) return;
+        try { if (localStorage.getItem(TUCK_TIP_KEY)) return; } catch (e) { return; }
+        setTimeout(function () {   // once the arrow tab has slid in
+          const tab = windowEl.querySelector(".window-untuck");
+          if (!tab || !windowEl.isConnected || !windowEl.classList.contains("controls-tucked")) return;
+          if (windowEl.classList.contains("minimized-to-folder") || document.querySelector(".tuck-tip")) return;
+          try { localStorage.setItem(TUCK_TIP_KEY, "1"); } catch (e) {}
+
+          const tip = document.createElement("div");
+          tip.className = "tuck-tip";
+          tip.setAttribute("role", "dialog");
+          tip.innerHTML =
+            "<b>Your window buttons moved</b>" +
+            "They're still here, just tucked into the side of the window. Click the little arrow to bring them back, or drag it to move the window." +
+            '<div class="tuck-tip-actions"><button type="button" data-a="ok">Got it</button><button type="button" data-a="spacious">Use a title bar</button></div>';
+          document.body.appendChild(tip);
+          tab.classList.add("tip-pulse");
+
+          // Stay next to the arrow while the window moves; go away if it closes
+          function place() {
+            if (!tab.isConnected || !windowEl.classList.contains("controls-tucked") || windowEl.classList.contains("minimized-to-folder")) {
+              hideTuckTip();
+              return;
+            }
+            const r = tab.getBoundingClientRect();
+            tip.style.left = Math.min(r.right + 12, window.innerWidth - tip.offsetWidth - 8) + "px";
+            tip.style.top = Math.max(8, Math.min(r.top + r.height / 2 - 21, window.innerHeight - tip.offsetHeight - 8)) + "px";
+          }
+          place();
+          tip._follow = setInterval(place, 200);
+          tip._tab = tab;
+
+          tip.addEventListener("click", function (e) {
+            const a = e.target.dataset && e.target.dataset.a;
+            if (!a) return;
+            if (a === "spacious") {
+              settings.windowBarStyle = "spacious";
+              try { localStorage.setItem("xorbit-settings", JSON.stringify(settings)); } catch (err) {}
+              applySettings();
+              if (typeof schedulePushToCloud === "function") schedulePushToCloud();
+            }
+            hideTuckTip();
+          });
+        }, 500);
+      }
+      function hideTuckTip() {
+        const tip = document.querySelector(".tuck-tip");
+        if (!tip || tip.classList.contains("out")) return;
+        clearInterval(tip._follow);
+        if (tip._tab) tip._tab.classList.remove("tip-pulse");
+        tip.classList.add("out");
+        setTimeout(function () { tip.remove(); }, 200);
       }
 
       // Focus window
@@ -7154,6 +8314,382 @@
         if (on) _fsHintTimer = setTimeout(function () { hint.classList.remove("show"); }, 3000);
       }
 
+      // ── Minimize to the menu bar folder ─────────────────────────
+      // A minimized window is only hidden: its app keeps running and keeps its
+      // state. focusWindow() brings it back, so opening the app again from the
+      // dock, desktop or Spotlight restores it too.
+      function minimizeWindow(windowEl) {
+        if (windowEl._minAnim || windowEl.classList.contains("minimized-to-folder")) return;
+        if (windowEl.classList.contains("true-fullscreen")) toggleTrueFullscreen(windowEl, windowEl.id);
+        windowEl.classList.remove("active");
+        windowEl.dataset.minimizedAt = Date.now();
+
+        // The next window down comes to the front
+        const next = [...document.querySelectorAll("#desktop > .window:not(.minimized-to-folder)")]
+          .filter((w) => w !== windowEl && !w._minAnim)
+          .sort((a, b) => (Number(b.style.zIndex) || 0) - (Number(a.style.zIndex) || 0))[0];
+        if (next) focusWindow(next.id);
+        else schedulePublishPage();
+
+        const menu = document.getElementById("minimizedMenu");
+        const animate = settings.animations && menu && typeof windowEl.animate === "function" &&
+          !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (!animate) {
+          windowEl.classList.add("minimized-to-folder");
+          minimizeLanded(windowEl);
+          return;
+        }
+
+        // Flow into the folder: show it first so there is somewhere to fly to
+        menu.style.display = "";
+        const from = windowEl.getBoundingClientRect();
+        const to = (menu.querySelector(":scope > i") || menu).getBoundingClientRect();
+        const dx = to.left + to.width / 2 - (from.left + from.width / 2);
+        const dy = to.top + to.height / 2 - (from.top + from.height / 2);
+        const end = Math.max(0.02, Math.min(0.08, (to.width * 2) / from.width));
+
+        windowEl.style.pointerEvents = "none";
+        // Stay above the window that just came to the front until it has landed
+        windowEl.style.zIndex = ++zIndexCounter;
+        // Lifts a little and swings sideways first, then dives into the folder
+        windowEl._minAnim = windowEl.animate([
+          { transform: "translate(0, 0) scale(1)", opacity: 1 },
+          { transform: `translate(${dx * 0.12}px, -14px) scale(0.82, 0.78)`, opacity: 1, offset: 0.28 },
+          { transform: `translate(${dx * 0.7}px, ${dy * 0.55}px) scale(0.3)`, opacity: 0.85, offset: 0.72 },
+          { transform: `translate(${dx}px, ${dy}px) scale(${end})`, opacity: 0.15 }
+        ], { duration: 620, easing: "cubic-bezier(0.5, 0, 0.6, 1)", fill: "forwards" });
+
+        windowEl._minAnim.onfinish = function () {
+          const anim = windowEl._minAnim;
+          windowEl._minAnim = null;
+          windowEl.style.pointerEvents = "";
+          if (!windowEl.isConnected) { updateMinimizedFolder(); return; }
+          // Swap the animation's end state for the hidden class without a flash in between
+          const transition = windowEl.style.transition;
+          windowEl.style.transition = "none";
+          windowEl.classList.add("minimized-to-folder");
+          void windowEl.offsetWidth;
+          anim.cancel();
+          requestAnimationFrame(function () { windowEl.style.transition = transition; });
+          minimizeLanded(windowEl);
+        };
+      }
+
+      // The window is in the folder: the folder catches it and says where it went
+      function minimizeLanded(windowEl) {
+        updateMinimizedFolder();
+        const menu = document.getElementById("minimizedMenu");
+        if (!menu) return;
+        menu.classList.remove("pulse", "catch");
+        void menu.offsetWidth;
+        menu.classList.add("catch");
+        showMinimizedToast(windowEl, menu);
+      }
+
+      // Stops a minimize that is still flying (the app was reopened mid-flight)
+      function cancelMinimizeFlight(windowEl) {
+        if (!windowEl._minAnim) return;
+        windowEl._minAnim.onfinish = null;
+        windowEl._minAnim.cancel();
+        windowEl._minAnim = null;
+        windowEl.style.pointerEvents = "";
+        delete windowEl.dataset.minimizedAt;
+        updateMinimizedFolder();
+      }
+
+      let _minToastTimer = null;
+      function showMinimizedToast(windowEl, menu) {
+        document.querySelectorAll(".min-toast").forEach(function (t) { t.remove(); });
+        clearTimeout(_minToastTimer);
+        const r = menu.getBoundingClientRect();
+        if (!r.width) return;
+
+        const toast = document.createElement("div");
+        toast.className = "min-toast";
+        toast.setAttribute("role", "status");
+        const appIcon = windowEl.querySelector(".window-title i");
+        const icon = appIcon ? appIcon.cloneNode(true) : document.createElement("i");
+        icon.removeAttribute("style");
+        if (!appIcon) icon.className = "fas fa-window-maximize";
+        const text = document.createElement("div");
+        text.innerHTML = "<b></b> was minimized to this folder<small>Click the folder to bring it back</small>";
+        text.querySelector("b").textContent = windowEl.dataset.winTitle || "The window";
+        toast.append(icon, text);
+        document.body.appendChild(toast);
+
+        // Hang under the folder, arrow pointing at it
+        const right = Math.max(8, window.innerWidth - r.right);
+        toast.style.right = right + "px";
+        toast.style.top = r.bottom + 10 + "px";
+        toast.style.setProperty("--arrow-right", Math.max(8, window.innerWidth - right - (r.left + r.width / 2) - 6) + "px");
+
+        function hide() {
+          clearTimeout(_minToastTimer);
+          toast.classList.add("out");
+          setTimeout(function () { toast.remove(); }, 200);
+        }
+        toast.onclick = function () {
+          hide();
+          if (windowEl.isConnected) focusWindow(windowEl.id);
+        };
+        _minToastTimer = setTimeout(hide, 3500);
+      }
+
+      function minimizedWindows() {
+        return [...document.querySelectorAll("#desktop > .window.minimized-to-folder")]
+          .sort((a, b) => (Number(a.dataset.minimizedAt) || 0) - (Number(b.dataset.minimizedAt) || 0));
+      }
+
+      function updateMinimizedFolder() {
+        const menu = document.getElementById("minimizedMenu");
+        const dropdown = document.getElementById("minimizedDropdown");
+        if (!menu || !dropdown) return;
+        const wins = minimizedWindows();
+        // A window still flying in counts too, so the folder doesn't vanish under it
+        const flying = document.querySelector("#desktop > .window[data-minimized-at]:not(.minimized-to-folder)");
+        menu.style.display = wins.length || flying ? "" : "none";
+        document.getElementById("minimizedCount").textContent = wins.length;
+        if (!wins.length) dropdown.classList.remove("show");
+
+        dropdown.innerHTML = "";
+        const heading = document.createElement("div");
+        heading.className = "menu-section-title";
+        heading.style.padding = "6px 9px 4px";
+        heading.innerHTML = '<i class="fas fa-folder"></i> Minimized';
+        dropdown.appendChild(heading);
+
+        wins.forEach(function (win) {
+          const item = document.createElement("div");
+          item.className = "xorbit-menu-item";
+          const appIcon = win.querySelector(".window-title i");
+          const icon = appIcon ? appIcon.cloneNode(true) : document.createElement("i");
+          icon.removeAttribute("style");
+          if (!appIcon) icon.className = "fas fa-window-maximize";
+          const name = document.createElement("span");
+          name.className = "min-item-title";
+          name.textContent = win.dataset.winTitle || "Window";
+          const close = document.createElement("span");
+          close.className = "min-item-close";
+          close.title = "Close";
+          close.innerHTML = '<i class="fas fa-xmark"></i>';
+          item.append(icon, name, close);
+
+          item.onclick = function () {
+            dropdown.classList.remove("show");
+            focusWindow(win.id);
+          };
+          close.onclick = function (e) {
+            e.stopPropagation();
+            const btn = win.querySelector(".window-control.close");
+            win.classList.remove("minimized-to-folder");
+            if (btn) btn.click();
+            else win.remove();
+            updateMinimizedFolder();
+          };
+          dropdown.appendChild(item);
+        });
+
+        if (wins.length > 1) {
+          const divider = document.createElement("div");
+          divider.className = "xorbit-menu-divider";
+          const all = document.createElement("div");
+          all.className = "xorbit-menu-item";
+          all.innerHTML = '<i class="fas fa-window-restore"></i><span>Restore All</span>';
+          all.onclick = function () {
+            dropdown.classList.remove("show");
+            minimizedWindows().forEach(function (win) { focusWindow(win.id); });
+          };
+          dropdown.append(divider, all);
+        }
+      }
+
+      // ── Now Playing in the menu bar ─────────────────────────────
+      // Music apps (Trackly) post { type: "xorbit-now-playing", app, state } while they
+      // play and take { type: "xorbit-media-control", action, value } back.
+      let nowPlaying = null;   // { app, source, windowId, state, at }
+      let npSeeking = false;
+
+      function npWindowFor(source) {
+        return [...document.querySelectorAll("#desktop > .window")].find(function (w) {
+          const f = w.querySelector(".window-content > iframe");
+          return f && f.contentWindow === source;
+        });
+      }
+      function npSend(action, value) {
+        if (!nowPlaying) return;
+        try { nowPlaying.source.postMessage({ type: "xorbit-media-control", action: action, value: value }, location.origin); } catch (e) {}
+      }
+      // Position right now, counting on from the last report while it plays
+      function npPosition() {
+        const s = nowPlaying && nowPlaying.state;
+        if (!s) return 0;
+        const p = s.playing ? s.position + (Date.now() - nowPlaying.at) / 1000 : s.position;
+        return s.duration ? Math.min(p, s.duration) : p;
+      }
+      function npFmt(sec) {
+        sec = Math.max(0, Math.floor(sec || 0));
+        return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0");
+      }
+      function npSetArt(el, s) {
+        el.textContent = "";
+        el.style.background = "";
+        if (s.art) {
+          const img = document.createElement("img");
+          img.src = s.art;
+          img.alt = "";
+          el.appendChild(img);
+        } else {
+          if (s.artBg) el.style.background = s.artBg;
+          el.innerHTML = '<i class="fas fa-music"></i>';
+        }
+      }
+
+      function renderNowPlaying() {
+        const menu = document.getElementById("nowPlayingMenu");
+        const dropdown = document.getElementById("nowPlayingDropdown");
+        if (!menu) return;
+        const s = nowPlaying && nowPlaying.state;
+        menu.style.display = s ? "" : "none";
+        if (!s) { dropdown.classList.remove("show"); return; }
+
+        menu.classList.toggle("playing", s.playing);
+        menu.title = (s.playing ? "Playing" : "Paused") + " in " + nowPlaying.app;
+        npSetArt(document.getElementById("npMiniArt"), s);
+        const text = document.getElementById("npMiniText");
+        text.textContent = s.title;
+        if (s.artist) {
+          const artist = document.createElement("span");
+          artist.className = "np-mini-artist";
+          artist.textContent = " · " + s.artist;
+          text.appendChild(artist);
+        }
+        const playIcon = '<i class="fas fa-' + (s.playing ? "pause" : "play") + '"></i>';
+        const mini = document.getElementById("npMiniToggle");
+        mini.innerHTML = playIcon;
+        mini.title = s.playing ? "Pause" : "Play";
+
+        npSetArt(document.getElementById("npPanelArt"), s);
+        document.getElementById("npPanelApp").textContent = (s.playing ? "Playing in " : "Paused in ") + nowPlaying.app;
+        document.getElementById("npPanelTitle").textContent = s.title;
+        document.getElementById("npPanelArtist").textContent = [s.artist, s.album].filter(Boolean).join(" — ");
+        document.getElementById("npPanelOpen").textContent = "Open " + nowPlaying.app;
+        dropdown.querySelectorAll("[data-np]").forEach(function (b) {
+          const act = b.dataset.np;
+          if (act === "toggle") { b.innerHTML = playIcon; b.title = s.playing ? "Pause" : "Play"; }
+          if (act === "shuffle") { b.classList.toggle("on", !!s.shuffle); b.title = s.shuffle ? "Shuffle on" : "Shuffle"; }
+          if (act === "repeat") {
+            b.classList.toggle("on", s.repeat && s.repeat !== "off");
+            b.classList.toggle("one", s.repeat === "one");
+            b.title = { all: "Repeat all", one: "Repeat one" }[s.repeat] || "Repeat";
+          }
+        });
+        npTick();
+      }
+
+      function npTick() {
+        const s = nowPlaying && nowPlaying.state;
+        if (!s || npSeeking) return;
+        const pos = npPosition();
+        const seek = document.getElementById("npPanelSeek");
+        seek.value = s.duration ? (pos / s.duration) * 1000 : 0;
+        seek.style.setProperty("--fill", seek.value / 10 + "%");
+        document.getElementById("npPanelCur").textContent = npFmt(pos);
+        document.getElementById("npPanelRem").textContent = s.duration ? "-" + npFmt(s.duration - pos) : "0:00";
+      }
+
+      function setupNowPlayingMenu() {
+        const menu = document.getElementById("nowPlayingMenu");
+        const dropdown = document.getElementById("nowPlayingDropdown");
+        if (!menu || !dropdown) return;
+
+        window.addEventListener("message", function (e) {
+          if (e.origin !== location.origin) return;
+          const d = e.data;
+          if (!d || d.type !== "xorbit-now-playing") return;
+          const win = npWindowFor(e.source);
+          if (!win) return;
+          if (!d.state) {
+            if (nowPlaying && nowPlaying.source === e.source) { nowPlaying = null; renderNowPlaying(); }
+            return;
+          }
+          // Another app that's actually playing keeps the menu bar; a paused one doesn't take it over
+          if (nowPlaying && nowPlaying.source !== e.source && nowPlaying.state.playing && !d.state.playing) return;
+          nowPlaying = { app: d.app || "Music", source: e.source, windowId: win.id, state: d.state, at: Date.now() };
+          renderNowPlaying();
+        });
+
+        menu.addEventListener("click", function (e) {
+          e.stopPropagation();
+          const isVisible = dropdown.classList.contains("show");
+          document.querySelectorAll(".xorbit-menu.show, .time-menu.show, .notif-menu.show")
+            .forEach(function (m) { m.classList.remove("show"); });
+          if (!isVisible) { dropdown.classList.add("show"); npTick(); }
+        });
+        // The small play/pause button works without opening the panel
+        document.getElementById("npMiniToggle").addEventListener("click", function (e) {
+          e.stopPropagation();
+          npSend("toggle");
+        });
+        dropdown.addEventListener("click", function (e) {
+          e.stopPropagation();
+          const b = e.target.closest("[data-np]");
+          if (!b || !nowPlaying) return;
+          if (b.dataset.np === "open") {
+            dropdown.classList.remove("show");
+            focusWindow(nowPlaying.windowId);
+            return;
+          }
+          npSend(b.dataset.np);
+        });
+        document.addEventListener("click", function () { dropdown.classList.remove("show"); });
+
+        const seek = document.getElementById("npPanelSeek");
+        seek.addEventListener("input", function () {
+          const s = nowPlaying && nowPlaying.state;
+          if (!s || !s.duration) return;
+          npSeeking = true;
+          seek.style.setProperty("--fill", seek.value / 10 + "%");
+          document.getElementById("npPanelCur").textContent = npFmt((seek.value / 1000) * s.duration);
+        });
+        seek.addEventListener("change", function () {
+          const s = nowPlaying && nowPlaying.state;
+          npSeeking = false;
+          if (!s || !s.duration) return;
+          const to = (seek.value / 1000) * s.duration;
+          s.position = to;
+          nowPlaying.at = Date.now();
+          npSend("seek", to);
+          npTick();
+        });
+        setInterval(function () {
+          if (nowPlaying && nowPlaying.state.playing && dropdown.classList.contains("show")) npTick();
+        }, 500);
+
+        // The music app's window closed: nothing is playing any more
+        const desktop = document.getElementById("desktop");
+        if (desktop) new MutationObserver(function () {
+          if (nowPlaying && !document.getElementById(nowPlaying.windowId)) { nowPlaying = null; renderNowPlaying(); }
+        }).observe(desktop, { childList: true });
+      }
+
+      function setupMinimizedMenu() {
+        const menu = document.getElementById("minimizedMenu");
+        const dropdown = document.getElementById("minimizedDropdown");
+        if (!menu || !dropdown) return;
+        menu.addEventListener("click", function (e) {
+          e.stopPropagation();
+          const isVisible = dropdown.classList.contains("show");
+          document.querySelectorAll(".xorbit-menu.show, .time-menu.show, .notif-menu.show")
+            .forEach(function (m) { m.classList.remove("show"); });
+          if (!isVisible) dropdown.classList.add("show");
+        });
+        dropdown.addEventListener("click", function (e) { e.stopPropagation(); });
+        document.addEventListener("click", function () { dropdown.classList.remove("show"); });
+        // Windows are closed from many places (Task Manager, Close All, …); keep the folder in step
+        const desktop = document.getElementById("desktop");
+        if (desktop) new MutationObserver(updateMinimizedFolder).observe(desktop, { childList: true });
+      }
+
       function focusWindow(windowId) {
         const windows = document.querySelectorAll(".window");
         windows.forEach(function (w) {
@@ -7162,6 +8698,14 @@
 
         const windowEl = document.getElementById(windowId);
         if (windowEl) {
+          // Reopened while still flying into the folder: stay open
+          cancelMinimizeFlight(windowEl);
+          // Opening or focusing a minimized app brings it back out of the folder
+          if (windowEl.classList.contains("minimized-to-folder")) {
+            windowEl.classList.remove("minimized-to-folder");
+            delete windowEl.dataset.minimizedAt;
+            updateMinimizedFolder();
+          }
           windowEl.classList.add("active");
           windowEl.style.zIndex = ++zIndexCounter;
           windowEl.dataset.lastActive = Date.now();
@@ -7169,6 +8713,18 @@
           wakeWindow(windowEl);   // no-op unless Performance Mode put it to sleep
         }
       }
+
+      // Any local page loaded in an Xorbit iframe can ask the desktop to raise
+      // its containing window. Verify both the origin and source so another
+      // same-origin page cannot bring an unrelated window forward.
+      window.addEventListener("message", function (event) {
+        if (event.origin !== location.origin || !event.data || event.data.type !== "xorbit-window-focus-request") return;
+        const owner = [...document.querySelectorAll("#desktop > .window")].find(function (win) {
+          const frame = win.querySelector(".window-content > iframe");
+          return frame && frame.contentWindow === event.source;
+        });
+        if (owner) focusWindow(owner.id);
+      });
 
       // Click event handlers
       document.addEventListener("click", function (e) {
@@ -8246,6 +9802,34 @@
                 </div>
                 <div class="setting-card-desc">Windows wobble and jiggle as they are dragged</div>
               </div>
+              <div class="setting-card bar-style-card">
+                <div class="setting-card-header">
+                  <div class="setting-card-title">
+                    <div class="setting-card-icon"><i class="fas fa-window-maximize"></i></div>
+                    <div><div class="setting-card-label">Window Bar Style</div></div>
+                  </div>
+                </div>
+                <div class="setting-card-desc">How the buttons at the top of each window look</div>
+                <div class="bar-style-options">
+                  <button type="button" class="bar-style-option" data-bar-style="spacious">
+                    <div class="bar-sketch spacious" aria-hidden="true">
+                      <div class="bs-titlebar"><span class="bs-dots"><i></i><i></i><i></i><i></i></span><span class="bs-title"></span></div>
+                      <div class="bs-body"><span class="bs-line"></span><span class="bs-line mid"></span><span class="bs-line short"></span></div>
+                    </div>
+                    <div class="bar-style-name">Spacious</div>
+                    <div class="bar-style-desc">A title bar across the top with the buttons and the app's name</div>
+                  </button>
+                  <button type="button" class="bar-style-option" data-bar-style="compact">
+                    <div class="bar-sketch compact" aria-hidden="true">
+                      <div class="bs-pill"><span class="bs-dots"><i></i><i></i><i></i><i></i></span><i class="fas fa-chevron-left"></i></div>
+                      <div class="bs-tab"></div>
+                      <div class="bs-body"><span class="bs-line"></span><span class="bs-line mid"></span><span class="bs-line short"></span></div>
+                    </div>
+                    <div class="bar-style-name">Compact</div>
+                    <div class="bar-style-desc">Apps fill the window; the buttons tuck into its side after 3 seconds</div>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -8793,6 +10377,9 @@
             shadowsToggle.classList.toggle("active", settings.windowShadows);
           if (jellyModeToggle)
             jellyModeToggle.classList.toggle("active", settings.jellyMode);
+          settingsContent.querySelectorAll("[data-bar-style]").forEach((b) => {
+            b.classList.toggle("active", b.dataset.barStyle === (settings.windowBarStyle === "spacious" ? "spacious" : "compact"));
+          });
           if (launchFullscreenToggle)
             launchFullscreenToggle.classList.toggle(
               "active",
@@ -8934,6 +10521,15 @@
             updateWallpaperSettingsState(this.value);
           });
         }
+
+        // Window bar style (Spacious / Compact)
+        settingsContent.querySelectorAll("[data-bar-style]").forEach((b) => {
+          b.addEventListener("click", function () {
+            settings.windowBarStyle = this.dataset.barStyle;
+            settingsContent.querySelectorAll("[data-bar-style]").forEach((o) => o.classList.toggle("active", o === this));
+            saveSettings();
+          });
+        });
 
         // Performance Mode has its own storage and handlers; wire it first so its
         // toggles don't fall through to the generic handler below
@@ -9091,6 +10687,7 @@
                 windowSnapping: true,
                 windowShadows: true,
                 jellyMode: false,
+                windowBarStyle: "compact",
                 launchFullscreen: false,
                 customWallpaper: null,
                 startupWindows: "welcome",
@@ -9163,6 +10760,22 @@
 
         // Show startup screen
         if (startupScreen) startupScreen.style.display = "flex";
+
+        // The satellite circles the orbit, dimming as it passes behind the planet
+        const bootSat = document.getElementById("bootSat");
+        if (bootSat && !document.body.classList.contains("no-animations") &&
+            !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          const satStart = performance.now();
+          (function orbit(now) {
+            if (!startupScreen || startupScreen.style.display === "none") return;
+            const a = Math.PI - ((now - satStart) / 2600) * Math.PI * 2;   // starts at the left end
+            const behind = Math.sin(a) < 0;
+            bootSat.setAttribute("cx", (60 + 54 * Math.cos(a)).toFixed(2));
+            bootSat.setAttribute("cy", (60 + 20 * Math.sin(a)).toFixed(2));
+            bootSat.style.fillOpacity = behind ? 0.35 : 1;
+            requestAnimationFrame(orbit);
+          })(satStart);
+        }
         if (welcomeOverlay) welcomeOverlay.style.display = "none";
 
         const STARTUP_SOUND_URL =
@@ -9306,20 +10919,20 @@
 
               // Auto-proceed: fade out boot screen and reveal login
               setTimeout(() => {
+                // Sign-in sits just underneath, so the opening dissolves straight into it
+                if (welcomeOverlay) {
+                  welcomeOverlay.style.display = "flex";
+                  setTimeout(() => {
+                    welcomeOverlay.classList.add("fade-in");
+                  }, 50);
+                }
                 startupScreen.classList.add("fade-out");
 
                 setTimeout(() => {
                   startupScreen.style.display = "none";
-
-                  if (welcomeOverlay) {
-                    welcomeOverlay.style.display = "flex";
-                    setTimeout(() => {
-                      welcomeOverlay.classList.add("fade-in");
-                    }, 50);
-                  }
-                }, 600);
+                }, 800);   // the exit animation's length
               }, 200);
-            }, 500);
+            }, document.body.classList.contains("no-animations") ? 300 : 1200);   // let the opening animation finish
             return;
           }
 
@@ -9343,8 +10956,13 @@
         playStartupSequence();
 
         setupXORBITMenu();
+        setupAppMenu();
+        setupAppCreator();
         setupUserMenu();
         setupWifiMenu();
+        setupMinimizedMenu();
+        setupNowPlayingMenu();
+        setupFrontAppName();
         setupUtilitiesMenu();
         setupTimeMenu();
         getUserLocation();
@@ -9977,6 +11595,96 @@
             locationUpdate.style.pointerEvents = "auto";
           }
         }, 1500);
+      }
+
+      // ── Front app's name in the menu bar, after the X-ORBIT logo and BETA badge ──
+      function frontWindowEl() {
+        // The focused window, else (after one closes) the top one still showing
+        const shown = [...document.querySelectorAll("#desktop > .window:not(.minimized-to-folder)")].filter(function (w) { return !w._minAnim; });
+        return shown.find(function (w) { return w.classList.contains("active"); }) ||
+          shown.sort(function (a, b) { return (Number(b.style.zIndex) || 0) - (Number(a.style.zIndex) || 0); })[0] || null;
+      }
+      function frontWindowTitle() {
+        const win = frontWindowEl();
+        if (!win) return "";
+        if (win.dataset.winTitle) return win.dataset.winTitle;
+        for (const [title, id] of activeWindows) if (id === win.id) return title;
+        return "";
+      }
+      let _frontAppRaf = 0;
+      function updateFrontAppName() {
+        cancelAnimationFrame(_frontAppRaf);
+        _frontAppRaf = requestAnimationFrame(function () {
+          const el = document.getElementById("frontAppName");
+          if (!el) return;
+          const name = frontWindowTitle();
+          const menu = document.getElementById("appMenu");
+          if (menu) {
+            menu.style.display = name ? "" : "none";
+            if (!name) document.getElementById("appMenuDropdown").classList.remove("show");
+          }
+          if (el.textContent === name) return;
+          el.textContent = name;
+          el.classList.remove("swap");
+          void el.offsetWidth;
+          if (name) el.classList.add("swap");
+          if (menu) menu.setAttribute("aria-label", name ? name + " menu" : "App menu");
+        });
+      }
+      function setupFrontAppName() {
+        const desktop = document.getElementById("desktop");
+        if (!desktop) return;
+        // Windows open, close, focus and minimize from many places (dock, Spotlight, Task
+        // Manager, Close All, the Minimized folder…), so watch the windows themselves
+        new MutationObserver(function (muts) {
+          if (muts.some(function (m) {
+            return m.type === "childList" ? m.target === desktop : m.target.parentElement === desktop;
+          })) updateFrontAppName();
+        }).observe(desktop, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+        updateFrontAppName();
+      }
+
+      // The app menu acts on the front window through its own buttons, so each action
+      // works exactly like clicking the window's red / yellow / green / blue button
+      function setupAppMenu() {
+        const menu = document.getElementById("appMenu");
+        const dropdown = document.getElementById("appMenuDropdown");
+        if (!menu || !dropdown) return;
+        menu.addEventListener("click", function (e) {
+          e.stopPropagation();
+          const isVisible = dropdown.classList.contains("show");
+          document.querySelectorAll(".xorbit-menu.show, .time-menu.show, .notif-menu.show")
+            .forEach(function (m) { m.classList.remove("show"); });
+          if (isVisible) return;
+          const win = frontWindowEl();
+          if (!win) return;
+          const name = frontWindowTitle();
+          const fs = win.classList.contains("true-fullscreen");
+          document.getElementById("appMenuFullscreenLabel").textContent = fs ? "Exit Full Screen" : "Enter Full Screen";
+          dropdown.querySelector('[data-app-action="fullscreen"] i').className = "fas fa-" + (fs ? "compress" : "expand");
+          document.getElementById("appMenuQuitLabel").textContent = "Quit " + name;
+          dropdown.querySelector('[data-app-action="reload"]').style.display = win.querySelector(".window-control.reload") ? "" : "none";
+          dropdown.querySelector('[data-app-action="fullscreen"]').style.display = win.querySelector(".window-control.truefs") ? "" : "none";
+          dropdown.classList.add("show");
+        });
+        dropdown.addEventListener("click", function (e) {
+          e.stopPropagation();
+          const item = e.target.closest("[data-app-action]");
+          if (!item) return;
+          dropdown.classList.remove("show");
+          const win = frontWindowEl();
+          if (!win) return;
+          const button = {
+            minimize: ".window-control.minimize",
+            fullscreen: ".window-control.truefs",
+            reload: ".window-control.reload",
+            quit: ".window-control.close",
+          }[item.dataset.appAction];
+          const el = button && win.querySelector(button);
+          if (el) el.click();
+          else if (item.dataset.appAction === "minimize") minimizeWindow(win);
+        });
+        document.addEventListener("click", function () { dropdown.classList.remove("show"); });
       }
 
       // Setup X-ORBIT menu functionality
@@ -10628,9 +12336,7 @@
           '<div class="window-control maximize"></div>' +
           "</div>" +
           '<div class="window-title">' +
-          '<i class="' +
-          icon +
-          '" style="margin-right: 8px;"></i>' +
+          appIconHTML(icon, "margin-right: 8px;") +
           title +
           "</div>" +
           "</div>" +
@@ -11061,8 +12767,8 @@
       const IS_BETA_BUILD = true;
       // Exposed so the login page (auth.html, loaded in an iframe) can read the build channel
       window.IS_BETA_BUILD = IS_BETA_BUILD;
-      const CURRENT_VERSION = IS_BETA_BUILD ? "v6.5.0-beta" : "v6.5.0";
-      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v6.5.0 Beta" : "X-ORBIT Desktop v6.5.0 Sahara";
+      const CURRENT_VERSION = IS_BETA_BUILD ? "v7.0.0-beta" : "v7.0.0";
+      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v7.0.0 Beta" : "X-ORBIT Desktop v7.0.0 Dune";
       // Short label for UI chips, e.g. "v6.2.4 Sahara"
       const CURRENT_VERSION_LABEL = CURRENT_VERSION_NAME.replace("X-ORBIT Desktop ", "");
       const UPDATE_CHECK_TABLE = IS_BETA_BUILD ? "update_check_beta" : "update_check";
@@ -11862,6 +13568,136 @@
     <!-- ── What's New Modal ──────────────────────────────────────────── -->
     <style>
       /* ── What's New ─────────────────────────────────────────────── */
+      /* ═══ Release opening: v7.0.0 "Dune" ═══
+         Plays once, the first time someone loads Dune, before What's New. Night turns to
+         dusk, a low sun glows on the horizon, dunes rise in layers, sand drifts on the wind,
+         then the name. Every animation runs *from* its start state, so with animations off
+         it simply shows the finished scene. */
+      #releaseIntro {
+        position: fixed;
+        inset: 0;
+        z-index: 1000000;
+        display: none;
+        overflow: hidden;
+        background: linear-gradient(180deg, #07040f 0%, #1a0b24 38%, #4a1d2c 62%, #b4532a 82%, #f59e0b 100%);
+        color: #fff7ed;
+        font-family: Inter, -apple-system, system-ui, sans-serif;
+        cursor: default;
+      }
+      #releaseIntro.show { display: block; animation: riSkyIn 1.4s ease both; }
+      #releaseIntro.out { animation: riOut 0.9s cubic-bezier(0.65, 0, 0.35, 1) forwards; }
+      @keyframes riSkyIn { from { opacity: 0; } }
+      @keyframes riOut { to { opacity: 0; filter: blur(16px) sepia(0.6); transform: scale(1.06); } }
+
+      .ri-stars { position: absolute; inset: 0 0 45% 0; background-image:
+          radial-gradient(1px 1px at 12% 18%, #fff, transparent), radial-gradient(1px 1px at 28% 42%, #fde68a, transparent),
+          radial-gradient(1px 1px at 47% 12%, #fff, transparent), radial-gradient(1.5px 1.5px at 66% 30%, #fff, transparent),
+          radial-gradient(1px 1px at 81% 16%, #fde68a, transparent), radial-gradient(1px 1px at 91% 44%, #fff, transparent),
+          radial-gradient(1px 1px at 6% 52%, #fff, transparent), radial-gradient(1.5px 1.5px at 38% 26%, #fff, transparent);
+        opacity: 0.55; animation: riStars 3s ease both; }
+      @keyframes riStars { from { opacity: 0; } }
+
+      .ri-sun {
+        position: absolute;
+        left: 50%;
+        top: 53%;   /* peeks over the far dunes, below the tagline */
+        width: 34vmin;
+        height: 34vmin;
+        margin-left: -17vmin;
+        border-radius: 50%;
+        background: radial-gradient(circle at 50% 40%, #fff7d6 0%, #fde68a 35%, #fb923c 70%, #ea580c 100%);
+        box-shadow: 0 0 80px 30px rgba(251, 146, 60, 0.45), 0 0 220px 90px rgba(234, 88, 12, 0.3);
+        animation: riSun 3.2s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+      }
+      @keyframes riSun { from { transform: translateY(40vmin) scale(0.85); opacity: 0; } }
+
+      .ri-dunes { position: absolute; left: 0; right: 0; bottom: 0; height: 62%; }
+      .ri-dunes svg { position: absolute; left: -5%; bottom: 0; width: 110%; height: 100%; }
+      .ri-dune { animation: riDune 2.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+      .ri-dune:nth-child(1) { animation-delay: 0.5s; }
+      .ri-dune:nth-child(2) { animation-delay: 0.75s; }
+      .ri-dune:nth-child(3) { animation-delay: 1.0s; }
+      .ri-dune:nth-child(4) { animation-delay: 1.25s; }
+      @keyframes riDune { from { transform: translateY(70%); opacity: 0; } }
+      /* a slow wind drift after they've risen, nearer dunes moving more */
+      .ri-dunes .ri-drift-1 { animation: riDrift 18s ease-in-out 2s infinite alternate; }
+      .ri-dunes .ri-drift-2 { animation: riDrift 13s ease-in-out 2s infinite alternate-reverse; }
+      @keyframes riDrift { to { transform: translateX(-2.5%); } }
+
+      #riSand { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+      .ri-text {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 16%;
+        text-align: center;
+        pointer-events: none;
+      }
+      .ri-eyebrow {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.5em;
+        padding-left: 0.5em;
+        text-transform: uppercase;
+        color: rgba(255, 237, 213, 0.75);
+        animation: riRise 1.2s cubic-bezier(0.16, 1, 0.3, 1) 1.6s both;
+      }
+      .ri-title {
+        margin: 10px 0 0;
+        font-size: clamp(72px, 15vw, 180px);
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: 0.06em;
+        padding-left: 0.06em;
+        background: linear-gradient(180deg, #fffaf0 0%, #fde68a 45%, #f97316 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        filter: drop-shadow(0 6px 30px rgba(249, 115, 22, 0.45));
+        animation: riTitle 1.8s cubic-bezier(0.16, 1, 0.3, 1) 2s both;
+      }
+      @keyframes riTitle { from { opacity: 0; letter-spacing: 0.4em; filter: blur(18px) drop-shadow(0 6px 30px rgba(249, 115, 22, 0)); } }
+      .ri-sub {
+        margin-top: 14px;
+        font-size: 16px;
+        color: rgba(255, 237, 213, 0.85);
+        animation: riRise 1.2s cubic-bezier(0.16, 1, 0.3, 1) 3s both;
+      }
+      @keyframes riRise { from { opacity: 0; transform: translateY(14px); filter: blur(6px); } }
+
+      .ri-actions {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 9%;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        animation: riRise 1s cubic-bezier(0.16, 1, 0.3, 1) 3.6s both;
+      }
+      .ri-actions button {
+        height: 40px;
+        padding: 0 22px;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 237, 213, 0.35);
+        background: rgba(20, 8, 4, 0.35);
+        color: #fff7ed;
+        font: inherit;
+        font-size: 13.5px;
+        font-weight: 600;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        transition: transform 0.15s ease, background 0.15s ease;
+      }
+      .ri-actions button:hover { transform: translateY(-1px); background: rgba(20, 8, 4, 0.5); }
+      .ri-actions button.ri-primary { background: #fff7ed; color: #431407; border-color: transparent; }
+      .ri-actions button.ri-primary:hover { background: #fff; }
+      @media (prefers-reduced-motion: reduce) {
+        #releaseIntro, #releaseIntro * { animation-duration: 0.01s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; }
+      }
+
       #whatsNewOverlay {
         position: fixed;
         inset: 0;
@@ -11878,6 +13714,7 @@
       }
       body.light-mode #whatsNewOverlay { background: rgba(230, 230, 236, 0.75); }
       #whatsNewOverlay.show { display: flex; opacity: 1; }
+      #whatsNewOverlay:not(.show), #pwaInstallOverlay:not(.show) { pointer-events: none; }
 
       #whatsNewCard {
         width: 100%;
@@ -12022,6 +13859,36 @@
       #whatsNewContinueBtn:not(:disabled):hover { opacity: 0.88; background: var(--invert); }
     </style>
 
+    <!-- Release opening for v7.0.0 "Dune" (see playReleaseIntro) -->
+    <div id="releaseIntro" role="dialog" aria-label="Introducing X-ORBIT 7 Dune">
+      <div class="ri-stars"></div>
+      <div class="ri-sun"></div>
+      <div class="ri-dunes" aria-hidden="true">
+        <svg viewBox="0 0 1440 600" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="riD1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a3412"/><stop offset="1" stop-color="#431407"/></linearGradient>
+            <linearGradient id="riD2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c2410c"/><stop offset="1" stop-color="#5a1d0a"/></linearGradient>
+            <linearGradient id="riD3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d97706"/><stop offset="1" stop-color="#7c2d12"/></linearGradient>
+            <linearGradient id="riD4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f59e0b"/><stop offset="0.5" stop-color="#b45309"/><stop offset="1" stop-color="#451a03"/></linearGradient>
+          </defs>
+          <g class="ri-dune"><path fill="url(#riD1)" d="M0 260 C 180 200 320 230 470 180 C 640 125 760 210 930 170 C 1100 130 1250 190 1440 150 L1440 600 L0 600 Z"/></g>
+          <g class="ri-dune"><g class="ri-drift-2"><path fill="url(#riD2)" opacity="0.9" d="M0 330 C 220 270 380 330 560 280 C 760 225 880 320 1080 285 C 1240 258 1340 300 1440 280 L1440 600 L0 600 Z"/></g></g>
+          <g class="ri-dune"><path fill="url(#riD3)" d="M0 420 C 160 360 330 390 520 360 C 700 330 820 410 1000 380 C 1180 350 1300 390 1440 370 L1440 600 L0 600 Z"/></g>
+          <g class="ri-dune"><g class="ri-drift-1"><path fill="url(#riD4)" d="M0 500 C 240 430 420 470 640 450 C 860 430 1020 500 1240 470 C 1340 456 1400 470 1440 465 L1440 600 L0 600 Z"/></g></g>
+        </svg>
+      </div>
+      <canvas id="riSand" aria-hidden="true"></canvas>
+      <div class="ri-text">
+        <div class="ri-eyebrow">X-ORBIT 7</div>
+        <div class="ri-title">Dune</div>
+        <div class="ri-sub">The biggest X-ORBIT update yet.</div>
+      </div>
+      <div class="ri-actions">
+        <button type="button" class="ri-primary" data-ri="next">See what's new</button>
+        <button type="button" data-ri="skip">Skip</button>
+      </div>
+    </div>
+
     <div id="whatsNewOverlay">
       <div id="whatsNewCard">
         <div class="wn-header">
@@ -12041,6 +13908,36 @@
     <script>
       // ── What's New – version changelog data ──
       const WHATSNEW_CHANGELOG = [
+        {
+          version: "v7.0.0",
+          name: "Dune",
+          date: "November 10, 2026",
+          sections: [
+            { type: "added", items: [
+              "App Creator: turn any website into an app on your desktop, with your own uploaded icon. Find it in the X-ORBIT menu (Create App) or by right-clicking the desktop",
+              "Trackly, redesigned: a real music app with Songs, Albums, Artists and playlists, a queue, shuffle and repeat, song artwork and tags, keyboard shortcuts and a full-screen player",
+              "Now Playing in the menu bar: see what Trackly is playing and pause, skip or seek without opening it",
+              "Minimized folder in the menu bar: the yellow button sends a window flying into it, and a bubble shows where it went",
+              "The menu bar shows the app in front, with Minimize, Full Screen, Reload and Quit",
+              "Window Bar Style in Settings › Personalization › Windows: Compact or Spacious, with a preview of each",
+              "Jellyfin in the Media folder, opening jelly.xorbit.org",
+              "Dino Run is now T-Rex Run 3D, a local copy of Priler’s Dino3D with its 3D models, textures and sound, now in English",
+              "Links in Jitter are clickable, including plain addresses like beta.xorbit.org, and the first link in a message gets a preview card"
+            ]},
+            { type: "changed", items: [
+              "Windows have no title bar in the new Compact style: the buttons float in the top-left corner and tuck into the window’s side after 3 seconds. Click the little arrow to bring them back, or pick Spacious for a title bar",
+              "The yellow button minimizes to the Minimized folder and the full-screen button is now green",
+              "The X-ORBIT logo is just the circle, with the BETA tag beside it",
+              "New icons for Jitter and ORBIX",
+              "What’s New only lists releases from v6.0 on"
+            ]},
+            { type: "fixed", items: [
+              "Clicking, tapping or typing inside an app brings its window to the front",
+              "With Performance Mode on, closing What’s New could leave the desktop unable to take clicks",
+              "Windows no longer jump down when you start dragging them"
+            ]}
+          ]
+        },
         {
           version: "v6.5.0",
           name: "Sahara",
@@ -12256,6 +14153,91 @@
       }
 
       // ── Build & show the modal ──
+      // ── Release opening (v7.0.0 "Dune") ─────────────────────────
+      // Plays once per browser the first time someone gets Dune, then What's New follows.
+      const RELEASE_INTRO_VERSION = "v7.0.0";
+      const RELEASE_INTRO_KEY = "xorbit-release-intro-seen";
+      let _releaseIntroDone = false;
+
+      function releaseIntroDue(newVersions) {
+        if (_releaseIntroDone) return false;
+        if (!newVersions.some(function (v) { return v.version === RELEASE_INTRO_VERSION; })) return false;
+        try { return localStorage.getItem(RELEASE_INTRO_KEY) !== RELEASE_INTRO_VERSION; } catch (e) { return false; }
+      }
+
+      function playReleaseIntro(onDone) {
+        const intro = document.getElementById("releaseIntro");
+        if (!intro) { onDone(); return; }
+        _releaseIntroDone = true;
+        try { localStorage.setItem(RELEASE_INTRO_KEY, RELEASE_INTRO_VERSION); } catch (e) {}
+        intro.classList.remove("out");
+        intro.classList.add("show");
+
+        // Sand on the wind: small warm specks drifting across, faster near the ground
+        const canvas = document.getElementById("riSand");
+        const still = document.body.classList.contains("no-animations") ||
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        let running = !still && canvas && canvas.getContext;
+        let grains = [];
+        if (running) {
+          const ctx = canvas.getContext("2d");
+          const dpr = Math.min(window.devicePixelRatio || 1, 2);
+          const size = function () {
+            canvas.width = innerWidth * dpr;
+            canvas.height = innerHeight * dpr;
+          };
+          size();
+          window.addEventListener("resize", size);
+          for (let i = 0; i < 160; i++) {
+            const y = Math.random();
+            grains.push({
+              x: Math.random(), y: 0.35 + y * 0.65,
+              r: (0.5 + Math.random() * 1.4) * dpr,
+              v: (0.0006 + Math.random() * 0.0016) * (0.6 + y),
+              a: 0.25 + Math.random() * 0.6,
+              w: Math.random() * Math.PI * 2,
+            });
+          }
+          let last = performance.now();
+          (function frame(now) {
+            if (!running) { window.removeEventListener("resize", size); return; }
+            const dt = Math.min(48, now - last); last = now;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            grains.forEach(function (g) {
+              g.x -= g.v * dt * 0.06;
+              g.w += dt * 0.003;
+              if (g.x < -0.02) { g.x = 1.02; g.y = 0.35 + Math.random() * 0.65; }
+              ctx.globalAlpha = g.a;
+              ctx.fillStyle = "#fde3b0";
+              ctx.beginPath();
+              ctx.arc(g.x * canvas.width, (g.y + Math.sin(g.w) * 0.004) * canvas.height, g.r, 0, Math.PI * 2);
+              ctx.fill();
+            });
+            requestAnimationFrame(frame);
+          })(last);
+        }
+
+        let closed = false;
+        function close(thenWhatsNew) {
+          if (closed) return;
+          closed = true;
+          document.removeEventListener("keydown", onKey);
+          intro.classList.add("out");
+          setTimeout(function () {
+            running = false;
+            intro.classList.remove("show", "out");
+            onDone(thenWhatsNew);
+          }, still ? 0 : 900);
+        }
+        function onKey(e) {
+          if (e.key === "Escape") close(false);
+          else if (e.key === "Enter") close(true);
+        }
+        document.addEventListener("keydown", onKey);
+        intro.querySelector('[data-ri="next"]').onclick = function () { close(true); };
+        intro.querySelector('[data-ri="skip"]').onclick = function () { close(false); };
+      }
+
       function showWhatsNew() {
         const lastSeen = getVersionCookie();
         const lastSeenNum = lastSeen ? parseVersion(lastSeen) : 0;
@@ -12267,6 +14249,13 @@
         // Gather all versions newer than lastSeen
         const newVersions = WHATSNEW_CHANGELOG.filter(v => parseVersion(v.version) > lastSeenNum);
         if (newVersions.length === 0) return;
+
+        // A big release opens with its own intro first. "Skip" still shows What's New
+        // next time; "See what's new" carries straight on.
+        if (releaseIntroDue(newVersions)) {
+          playReleaseIntro(function (thenWhatsNew) { if (thenWhatsNew) showWhatsNew(); });
+          return;
+        }
 
         // Build HTML
         const scrollEl = document.getElementById("whatsNewScroll");
@@ -12322,8 +14311,7 @@
         // Continue button
         btn.onclick = function() {
           setVersionCookie(CURRENT_VERSION);
-          overlay.classList.remove("show");
-          overlay.addEventListener("transitionend", () => { overlay.style.display = "none"; }, { once: true });
+          hideOverlayAfterFade(overlay);
         };
       }
     </script>
@@ -12676,7 +14664,26 @@
         });
       }
 
+      // Fades a full-screen overlay out, then takes it off the page. transitionend never
+      // fires when there is no transition (Performance Mode and Settings › Animations off
+      // turn them all off), which used to leave an invisible overlay eating every click.
+      function hideOverlayAfterFade(overlay) {
+        overlay.classList.remove("show");
+        let done = false;
+        const hide = () => {
+          if (done || overlay.classList.contains("show")) return;
+          done = true;
+          overlay.style.display = "none";
+        };
+        const fade = parseFloat(getComputedStyle(overlay).transitionDuration) || 0;
+        if (!fade) { hide(); return; }
+        overlay.addEventListener("transitionend", hide, { once: true });
+        setTimeout(hide, fade * 1000 + 150);
+      }
+
       function showPwaPrompt() {
+        // Wait for the release opening or What's New to be closed first
+        if (document.querySelector("#releaseIntro.show, #whatsNewOverlay.show")) { setTimeout(showPwaPrompt, 2000); return; }
         if (!_pwaDeferred) return; // browser doesn't support / already installed
         const overlay = document.getElementById("pwaInstallOverlay");
         if (!overlay) return;
@@ -12687,8 +14694,7 @@
       function hidePwaPrompt() {
         const overlay = document.getElementById("pwaInstallOverlay");
         if (!overlay) return;
-        overlay.classList.remove("show");
-        overlay.addEventListener("transitionend", () => { overlay.style.display = "none"; }, { once: true });
+        hideOverlayAfterFade(overlay);
       }
 
       function togglePwaUninstallSteps(btn) {
@@ -12881,7 +14887,7 @@
         for (let i = 0; i < slotCount; i++) {
           const app = folder.apps[i];
           slotsHTML += app
-            ? `<div class="folder-bloom-slot occupied" data-slot="${i}"><i class="${app.icon}"></i><span>${app.name}</span></div>`
+            ? `<div class="folder-bloom-slot occupied" data-slot="${i}">${appIconHTML(app.icon)}<span>${app.name}</span></div>`
             : `<div class="folder-bloom-slot" data-slot="${i}"></div>`;
         }
 
@@ -13118,7 +15124,7 @@
         for (let i = 0; i < 4; i++) {
           const a = apps[i];
           html += a
-            ? `<div class="folder-mini-app" style="background:rgba(255,255,255,0.15)"><i class="${a.icon}" style="font-size:9px;color:rgba(255,255,255,0.85)"></i></div>`
+            ? `<div class="folder-mini-app" style="background:rgba(255,255,255,0.15)">${appIconHTML(a.icon, "font-size:9px;color:rgba(255,255,255,0.85)")}</div>`
             : `<div class="folder-mini-app" style="background:rgba(255,255,255,0.08)"></div>`;
         }
         return html + '</div>';
@@ -13165,7 +15171,7 @@
           slotEl.dataset.slot = i;
 
           if (app) {
-            slotEl.innerHTML    = `<i class="${app.icon}"></i><span>${app.name}</span>`;
+            slotEl.innerHTML    = `${appIconHTML(app.icon)}<span>${app.name}</span>`;
             slotEl.draggable    = true;
 
             slotEl.addEventListener('dragstart', e => {
@@ -13201,7 +15207,7 @@
                   const appEl = document.createElement('div');
                   appEl.className = 'desktop-icon'; appEl.style.position = 'absolute'; appEl.style.pointerEvents = 'all';
                   appEl.dataset.app = app.name; appEl.dataset.src = app.src; appEl.dataset.icon = app.icon;
-                  appEl.innerHTML = `<i class="${app.icon}"></i><span>${app.name}</span>`;
+                  appEl.innerHTML = `${appIconHTML(app.icon)}<span>${app.name}</span>`;
                   placeIcon(appEl, defaultCol, iconsContainer.querySelectorAll('.desktop-icon,.desktop-folder-icon').length);
                   makeDraggable(appEl);
                   appEl.addEventListener('click', () => { if (!didDrag) openWindow(app.name, app.src, app.icon); });
@@ -13258,7 +15264,7 @@
             appEl.dataset.icon = app.icon;
             appEl.style.position     = 'absolute';
             appEl.style.pointerEvents = 'all';
-            appEl.innerHTML = `<i class="${app.icon}"></i><span>${app.name}</span>`;
+            appEl.innerHTML = `${appIconHTML(app.icon)}<span>${app.name}</span>`;
             placeIcon(appEl, defaultCol, idx++);
             makeDraggable(appEl);
             appEl.addEventListener('click', () => { if (!didDrag) openWindow(app.name, app.src, app.icon); });
@@ -13281,17 +15287,68 @@
         menu.className = 'desktop-context-menu';
         menu.innerHTML = `
           <div class="ctx-item" id="ctxNewFolder"><i class="fas fa-folder-plus"></i>New Folder</div>
+          <div class="ctx-item" id="ctxNewApp"><i class="fas fa-wand-magic-sparkles"></i>New App...</div>
           <div class="ctx-separator"></div>
           <div class="ctx-item" id="ctxResetLayout"><i class="fas fa-undo"></i>Reset Layout</div>`;
         positionMenu(menu, x, y);
         document.body.appendChild(menu);
         ctxMenu = menu;
         menu.querySelector('#ctxNewFolder').onclick  = () => { hideCtxMenu(); createNewFolder(x, y); };
+        menu.querySelector('#ctxNewApp').onclick     = () => { hideCtxMenu(); openAppCreator(); };
         menu.querySelector('#ctxResetLayout').onclick = () => {
           hideCtxMenu();
           if (confirm('Reset all icon positions to default?')) { localStorage.removeItem(LAYOUT_KEY); location.reload(); }
         };
       }
+
+      // People's own apps (App Creator): kept in step with settings.customApps, so creating,
+      // editing, deleting or a cloud sync from another device shows up straight away
+      window.renderCustomAppIcons = function () {
+        const apps = customApps();
+        const ids = new Set(apps.map(a => a.id));
+        iconsContainer.querySelectorAll('.desktop-icon[data-custom-app]').forEach(el => {
+          if (!ids.has(el.dataset.customApp)) {
+            occupiedCells.delete(cellKey(+el.dataset.col, +el.dataset.row));
+            el.remove();
+          }
+        });
+        apps.forEach(app => {
+          let el = iconsContainer.querySelector(`.desktop-icon[data-custom-app="${app.id}"]`);
+          const icon = 'tile:' + app.icon;
+          if (!el) {
+            el = document.createElement('div');
+            el.className = 'desktop-icon';
+            el.dataset.customApp = app.id;
+            el.dataset.iconId = 'custom-' + app.id;
+            el.style.position = 'absolute';
+            el.style.pointerEvents = 'all';
+            el.innerHTML = appIconHTML(icon) + '<span></span>';
+            iconsContainer.appendChild(el);
+            placeIcon(el, gridDims().cols - 1, iconsContainer.querySelectorAll('.desktop-icon, .desktop-folder-icon').length - 1);
+            makeDraggable(el);
+            el.addEventListener('contextmenu', e => {
+              e.preventDefault(); e.stopPropagation();
+              const id = el.dataset.customApp;
+              showIconCtxMenu(e.clientX, e.clientY, [
+                { label: 'Open',      icon: 'fas fa-external-link-alt', action: () => openCustomApp(id) },
+                { label: 'Edit App',  icon: 'fas fa-pen',               action: () => openAppCreator(id) },
+                { label: 'Delete App', icon: 'fas fa-trash',            action: () => deleteCustomApp(id) },
+                { sep: true },
+                { label: 'Reset Position', icon: 'fas fa-undo', action: () => { delete savedLayout[el.dataset.iconId]; localStorage.setItem(LAYOUT_KEY, JSON.stringify(savedLayout)); location.reload(); } },
+              ]);
+            });
+          } else {
+            setAppIcon(el.querySelector('i'), icon);
+          }
+          // Checked again here too: these can arrive by cloud sync, not only from the creator
+          el.dataset.app = cleanAppName(app.name) || 'App';
+          el.dataset.src = cleanAppUrl(app.url) || 'about:blank';
+          el.dataset.icon = icon;
+          el.querySelector('span').textContent = el.dataset.app;
+        });
+        saveLayout();
+      };
+      renderCustomAppIcons();
 
       function showIconCtxMenu(x, y, items) {
         hideCtxMenu();
@@ -13596,7 +15653,7 @@
             const el = document.createElement('div');
             el.className = 'sl-result';
             const iconClass = item.type === 'web' ? 'web' : item.type === 'search' ? 'search' : item.type === 'math' ? 'math' : '';
-            el.innerHTML = `<div class="sl-result-icon ${iconClass}"><i class="${item.icon}"></i></div><div><div class="sl-result-label">${item.label}</div><div class="sl-result-sub">${item.sub}</div></div>`;
+            el.innerHTML = `<div class="sl-result-icon ${iconClass}">${appIconHTML(item.icon)}</div><div><div class="sl-result-label">${item.label}</div><div class="sl-result-sub">${item.sub}</div></div>`;
             el.addEventListener('mouseenter', () => setActive(i));
             el.addEventListener('click', () => activate(item));
             results.appendChild(el);

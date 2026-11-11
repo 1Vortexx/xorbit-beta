@@ -1,0 +1,15 @@
+{
+  "id": "/jitter-app.html",
+  "name": "Jitter",
+  "short_name": "Jitter",
+  "description": "X-ORBIT messaging and calls",
+  "start_url": "/jitter-app.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#0d1834",
+  "icons": [
+    { "src": "/assets/jitter-desktop-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/assets/jitter-desktop-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

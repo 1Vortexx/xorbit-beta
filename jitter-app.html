@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090909">
+  <meta name="description" content="Jitter is X-ORBIT’s desktop app for direct messages, group chats, and calls. Explore the app and install it from your browser.">
+  <title>Jitter for desktop · X-ORBIT</title>
+  <link rel="manifest" href="/jitter-app.webmanifest">
+  <link rel="icon" type="image/png" href="/assets/jitter-desktop-icon-192.png">
+  <link rel="stylesheet" href="/assets/jitter-landing.css">
+  <link rel="stylesheet" href="/assets/jitter-tour.css">
+  <script defer src="/assets/jitter-desktop-install.js"></script>
+  <script defer src="/assets/jitter-tour.js"></script>
+</head>
+<body id="top">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-head">
+    <div class="container masthead">
+      <a href="#top" class="brand" aria-label="X-ORBIT Jitter, back to top"><b>X-ORBIT</b><span class="brand-rule"></span>Jitter</a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="#overview">Overview</a>
+        <a href="#setup">Setup</a>
+        <a class="mobile-edition" href="/jitter/">Mobile edition <span aria-hidden="true">↗</span></a>
+      </nav>
+    </div>
+  </header>
+  <main id="main">
+    <section class="container hero" aria-labelledby="product-name">
+      <div class="intro">
+        <p class="edition"><span class="signal"></span>Desktop beta</p>
+        <h1 id="product-name">Jitter</h1>
+        <p class="product-line">Messaging for your desktop.</p>
+        <p class="description">Send a message, catch up with a group, or call a friend. Jitter opens in its own window from your desktop app list.</p>
+        <button class="install-action" type="button" data-install>
+          <svg aria-hidden="true" viewBox="0 0 20 20"><path d="M10 2v10m-4-4 4 4 4-4M3 13v3.5h14V13"/></svg>
+          Install Jitter
+        </button>
+        <p id="install-status" role="status">Install with Chrome or Edge.</p>
+      </div>
+      <figure class="product-tour" aria-label="Jitter desktop preview">
+        <div class="preview-mat">
+          <svg class="orbital-print" viewBox="0 0 720 440" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <g transform="rotate(-26 360 220)">
+              <ellipse cx="340" cy="235" rx="535" ry="88"/>
+              <ellipse cx="340" cy="235" rx="535" ry="103"/>
+              <ellipse cx="340" cy="235" rx="535" ry="119"/>
+              <ellipse cx="340" cy="235" rx="535" ry="205"/>
+            </g>
+          </svg>
+          <div id="tour-window">
+            <div class="tour-fallback"><img src="/assets/jitter-desktop-icon-192.png" alt="" width="72" height="72"><p>Jitter for desktop</p></div>
+          </div>
+        </div>
+        <figcaption><span>Desktop preview</span>
+          <div class="tour-controls" role="group" aria-label="Preview screens" hidden>
+            <button type="button" data-screen="messages" aria-pressed="true">Messages</button>
+            <button type="button" data-screen="calls" aria-pressed="false">Calls</button>
+            <button type="button" data-screen="appearance" aria-pressed="false">Appearance</button>
+          </div>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="section-band" id="overview" aria-labelledby="overview-title">
+      <div class="container section-layout">
+        <h2 id="overview-title">Inside Jitter</h2>
+        <dl class="capabilities">
+          <div><dt>Conversations</dt><dd>Reply to a friend, react to a message, or bring everyone into a group chat.</dd></div>
+          <div><dt>Calls</dt><dd>Start a voice call from a direct message. Share your screen when it’s easier to show what you mean.</dd></div>
+          <div><dt>Appearance</dt><dd>Choose a theme in Settings. Keep the original dark inbox or switch to a layout like Gig Listing or Message First.</dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="section-band" id="setup" aria-labelledby="setup-title">
+      <div class="container section-layout">
+        <h2 id="setup-title">Desktop setup</h2>
+        <div class="setup-content">
+          <p>Select <button class="inline-install" type="button" data-install>Install Jitter</button> and confirm in your browser. Once installed, open Jitter from your apps and sign in.</p>
+          <details id="install-guide">
+            <summary>How to install from the browser menu</summary>
+            <p><strong>Chrome</strong>Open the browser menu and choose Cast, save, and share → Install page as app.</p>
+            <p><strong>Edge</strong>Open Settings and more → More tools → Apps, then choose Install this site as an app.</p>
+            <p><strong>Safari on Mac</strong>On macOS Sonoma or later, choose File → Add to Dock, then select Add.</p>
+          </details>
+          <p class="handoff">Using an iPhone or iPad? <a href="/jitter/">Get the mobile edition&nbsp;↗</a></p>
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer class="container site-foot">
+    <span class="brand"><b>X-ORBIT</b><span class="brand-rule"></span>Jitter</span>
+    <a href="#top">Back to top <span aria-hidden="true">↑</span></a>
+  </footer>
+</body>
+</html>

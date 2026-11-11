@@ -38,6 +38,7 @@
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
         html, body { min-height: 100%; }
+        html { background-color: #0d1834; } /* iOS colours the status bar from this */
         body {
             background: var(--bg);
             color: var(--text);
@@ -157,30 +158,51 @@
         }
         .dev-caption { color: var(--text-muted); font-size: 0.8rem; }
         .dev-caption a { color: var(--accent); text-decoration: none; }
+
+        /* ── Mobile install experience ─────────────────────────────── */
+        .install-shell { padding-top: calc(20px + env(safe-area-inset-top)); }
+        .brand-lockup { display: flex; align-items: center; justify-content: center; gap: 11px; margin-bottom: 30px; color: #a9cfff; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+        .brand-lockup::before, .brand-lockup::after { content: ''; width: 34px; height: 1px; background: linear-gradient(90deg, transparent, rgba(44,158,255,.7)); }
+        .brand-lockup::after { transform: scaleX(-1); }
+        .install-shell .icon { width: 104px; height: 104px; margin: 0 auto 22px; border-radius: 26px; }
+        .install-shell h1 { font-size: clamp(2rem, 9vw, 2.6rem); line-height: 1.02; letter-spacing: -0.055em; }
+        .install-shell .sub { margin: 13px auto 28px; max-width: 330px; color: rgba(235,244,255,.72); }
+        .safari-note { display: flex; align-items: center; gap: 9px; margin: 0 2px 12px; color: #a9cfff; font-size: 0.78rem; text-align: left; }
+        .safari-note i { color: #40a7ff; font-size: 1rem; }
+        .install-shell .steps { border-radius: 20px; background: linear-gradient(145deg, rgba(28,39,72,.96), rgba(17,21,38,.96)); box-shadow: 0 22px 45px rgba(0,0,0,.28); }
+        .install-shell .steps li { gap: 13px; padding: 17px 16px; text-align: left; }
+        .install-shell .num { width: 30px; height: 30px; background: rgba(10,132,255,.2); color: #85caff; border: 1px solid rgba(55,159,255,.38); }
+        .install-shell .note { max-width: 330px; margin: 19px auto 0; }
+        .install-shell .note a { color: #77c1ff; }
+        #unsupported .url { overflow-wrap: anywhere; }
+        @media (min-width: 700px) { .install-shell { padding-top: 42px; } }
+        @media (prefers-reduced-motion: reduce) { .hint-arrow { animation: none; } }
     </style>
 </head>
 <body>
     <!-- iPhone / iPad in the browser: install first -->
-    <main id="install">
+    <main id="install" class="install-shell">
+        <div class="brand-lockup">Jitter for iPhone</div>
         <img class="icon" src="/jitter/apple-touch-icon.png" alt="">
-        <h1>Get Jitter</h1>
-        <p class="sub">Jitter runs as an app on your Home Screen. Add it once, then open it from there.</p>
+        <h1>Put Jitter on your Home Screen.</h1>
+        <p class="sub">Install it once in Safari, then messages and calls are a tap away.</p>
+        <p class="safari-note"><i class="fab fa-safari" aria-hidden="true"></i> This takes about 15 seconds in Safari.</p>
         <ol class="steps">
             <li><span class="num">1</span><span>Tap <svg class="glyph share-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5M8 10H6.5A1.5 1.5 0 0 0 5 11.5v8A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-8a1.5 1.5 0 0 0-1.5-1.5H16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> <b>Share</b> in Safari's toolbar</span></li>
             <li><span class="num">2</span><span>Scroll down and tap <b>Add to Home Screen</b> <i class="far fa-square-plus glyph"></i></span></li>
             <li><span class="num">3</span><span>Tap <b>Add</b>, then open <b>Jitter</b> from your Home Screen</span></li>
         </ol>
-        <p class="note">Using Chrome or another browser? Open this page in Safari first.</p>
+        <p class="note">Using Chrome or another browser? Open this page in Safari first. Looking for desktop? <a href="/jitter-app.html">Install Jitter for desktop</a>.</p>
         <svg class="hint-arrow" id="hintArrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v15M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </main>
 
     <!-- Anything that isn't iOS -->
     <main id="unsupported">
         <img class="icon" src="/jitter/apple-touch-icon.png" alt="">
-        <h1>Jitter for iPhone</h1>
-        <p class="sub">The Jitter app is iPhone and iPad only for now. Open this link in Safari on your iPhone to install it:</p>
+        <h1>Jitter belongs on your phone.</h1>
+        <p class="sub">Open this page in Safari on your iPhone or iPad to add Jitter to your Home Screen.</p>
         <span class="url" id="jitterUrl"></span>
-        <p class="note">On a computer, Jitter is in the X-ORBIT desktop.</p>
+        <p class="note">Want the desktop app instead? <a href="/jitter-app.html" style="color:var(--accent)">Install Jitter for desktop</a>.</p>
     </main>
 
     <!-- Developer preview (type "developer" on a computer) -->
