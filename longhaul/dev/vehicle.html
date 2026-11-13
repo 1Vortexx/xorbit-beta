@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Long Haul – vehicle harness</title>
+<link rel="icon" href="data:,">
+<style>
+  html, body { margin: 0; height: 100%; background: #111; color: #ddd; font: 12px/1.4 ui-monospace, Menlo, monospace; overflow: hidden; }
+  #ui { position: fixed; left: 8px; top: 8px; display: flex; flex-wrap: wrap; gap: 4px; max-width: 760px; }
+  button { font: inherit; background: #222; color: #ddd; border: 1px solid #555; padding: 3px 7px; cursor: pointer; }
+  #tel { position: fixed; right: 8px; top: 8px; white-space: pre; background: rgba(0,0,0,.55); padding: 6px 8px; min-width: 250px; }
+  #help { position: fixed; left: 8px; bottom: 8px; opacity: .75; }
+</style>
+<script type="importmap">{"imports":{"three":"../vendor/three/three.module.js","three/addons/":"../vendor/three/addons/"}}</script>
+</head>
+<body>
+<div id="ui"></div><div id="tel"></div>
+<div id="help">W/S throttle · A/D steer · Space handbrake · B park brake · K ignition · L lights · G gearbox · Shift/Ctrl shift · C camera · R recover · drag = orbit, wheel = zoom<br>
+query: ?type=sedan|pickup &amp;seed=n &amp;flat=1 (flat mock ground) &amp;night=1 &amp;cam=cab|orbit|bay &amp;open=driver,hood &amp;remove=engine,wheelFL &amp;az=deg &amp;el=deg &amp;dist=m</div>
+<script type="module">
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { prepare, Vehicles, setGround, resetGround, makeComponent, COMPONENT_ITEMS } from "../js/vehicles/index.js";
+import { ground } from "../js/vehicles/ground.js";
+import { raycastTargets } from "../js/core/targets.js";
+import { on } from "../js/core/bus.js";
+import { ws } from "../js/core/worldstate.js";
+
+const q = new URLSearchParams(location.search);
+const night = q.get("night") === "1";
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = night ? 0.9 : 1.0;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(night ? 0x05070c : 0xa9c4dc);
+scene.fog = new THREE.Fog(scene.background.getHex(), 120, 500);
+const pm = new THREE.PMREMGenerator(renderer);
+scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = night ? 0.03 : 0.55;
+const sun = new THREE.DirectionalLight(night ? 0x8fa6d0 : 0xfff1dc, night ? 0.12 : 3.2);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 1, far: 80 }); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.03;
+scene.add(sun, sun.target);
+scene.add(new THREE.HemisphereLight(night ? 0x1c2638 : 0xbcd4ee, night ? 0x0a0806 : 0x9a8463, night ? 0.25 : 0.9));
+
+const worldRoot = new THREE.Group(); scene.add(worldRoot);
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.05, 1500);
+
+const errors = [];
+addEventListener("error", (e) => errors.push(String(e.message)));
+addEventListener("unhandledrejection", (e) => errors.push(String(e.reason)));
+const notes = []; on("notify", (n) => { notes.push(n.text); if (notes.length > 6) notes.shift(); });
+const sounds = []; on("sfx", (s) => { sounds.push(s.name); if (sounds.length > 12) sounds.shift(); });
+
+await prepare(() => {});
+if (q.get("flat") === "1") { resetGround(); setGround({ surfaceAt: (x, z) => (Math.abs(x) < 5 ? "asphalt" : "sand") }); }
+
+// Ground mesh that follows the vehicle (terrain from the ground seam)
+const GN = 96, GS = 240;
+const groundGeo = new THREE.PlaneGeometry(GS, GS, GN, GN); groundGeo.rotateX(-Math.PI / 2);
+const gcol = new Float32Array(groundGeo.attributes.position.count * 3);
+groundGeo.setAttribute("color", new THREE.BufferAttribute(gcol, 3));
+const groundMesh = new THREE.Mesh(groundGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }));
+groundMesh.receiveShadow = true; worldRoot.add(groundMesh);
+const SC = { asphalt: [0.09, 0.09, 0.095], gravel: [0.36, 0.33, 0.28], sand: [0.62, 0.5, 0.33], dirt: [0.4, 0.3, 0.2], rock: [0.35, 0.33, 0.3], concrete: [0.45, 0.45, 0.44], wood: [0.4, 0.3, 0.2] };
+let gAt = new THREE.Vector3(1e9, 0, 1e9);
+function refreshGround(c) {
+  if (Math.abs(c.x - gAt.x) < 30 && Math.abs(c.z - gAt.z) < 30) return;
+  gAt.set(Math.round(c.x / 10) * 10, 0, Math.round(c.z / 10) * 10);
+  const p = groundGeo.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i) + gAt.x, z = p.getZ(i) + gAt.z;
+    p.setY(i, ground.heightAt(x, z));
+    const c3 = SC[ground.surfaceAt(x, z)] || SC.sand, n = 0.9 + 0.2 * Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453 % 1);
+    gcol[i * 3] = c3[0] * n; gcol[i * 3 + 1] = c3[1] * n; gcol[i * 3 + 2] = c3[2] * n;
+  }
+  p.needsUpdate = true; groundGeo.attributes.color.needsUpdate = true; groundGeo.computeVertexNormals();
+  groundMesh.position.set(gAt.x, 0, gAt.z);
+}
+
+// A few static obstacles to test collisions
+const statics = [];
+function addBlock(x, z, hx, hz, yaw) {
+  const h = 1.2, y = ground.heightAt(x, z);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(hx * 2, h, hz * 2), new THREE.MeshStandardMaterial({ color: 0x8a7a66, roughness: 0.9 }));
+  m.position.set(x, y + h / 2, z); m.rotation.y = yaw; m.castShadow = m.receiveShadow = true; worldRoot.add(m);
+  statics.push({ kind: "box", x, z, hx, hz, yaw, y0: y, y1: y + h });
+}
+const vehicles = new Vehicles({ root: worldRoot, getColliders: (x, z, r) => statics.filter((c) => Math.hypot(c.x - x, c.z - z) < r + 6) });
+const z0 = +(q.get("z") || 60);
+let car = null, others = [];
+function spawnMain(type, seed) {
+  if (car) vehicles.remove(car, false);
+  if (type === "pickup" && !seed) { ws.vehicles.delete("starter"); car = vehicles.spawnStarter({ x: ground.roadX(z0) - 2, z: z0, yaw: Math.atan2(ground.roadDir(z0).x, ground.roadDir(z0).z) }); }
+  else car = vehicles.spawn({ id: "dev", type, seed: seed || 0, pristine: !seed, x: ground.roadX(z0) - 2, z: z0, yaw: Math.atan2(ground.roadDir(z0).x, ground.roadDir(z0).z), paint: seed ? undefined : 0x8e3b2c, wearLook: 0.5 });
+  car.occupied = true; car._announce = true;
+  return car;
+}
+spawnMain(q.get("type") || "pickup", +(q.get("seed") || 0));
+if (q.get("solo") !== "1") {
+  const zz = z0 + 14, d = ground.roadDir(zz);
+  others.push(vehicles.spawn({ id: "parked1", type: (q.get("type") || "pickup") === "pickup" ? "sedan" : "pickup", seed: 4242, x: ground.roadX(zz) + 6.5, z: zz, yaw: Math.atan2(d.x, d.z) + 0.5 }));
+  addBlock(ground.roadX(z0 + 40) + 9, z0 + 40, 2, 0.4, 0.3);
+}
+for (const n of (q.get("open") || "").split(",").filter(Boolean)) car.setDoor(n, true, true);
+for (const n of (q.get("remove") || "").split(",").filter(Boolean)) car.remove(n);
+if (night || q.get("lights") === "1") { car.slots.battery && (car.slots.battery.charge = 100); car.setLights(true); }
+
+// Camera
+let camMode = q.get("cam") || "orbit";
+const orbit = { az: THREE.MathUtils.degToRad(+(q.get("az") || 35)), el: THREE.MathUtils.degToRad(+(q.get("el") || 14)), dist: +(q.get("dist") || 8) };
+let drag = null;
+renderer.domElement.addEventListener("pointerdown", (e) => { drag = [e.clientX, e.clientY]; });
+addEventListener("pointerup", () => { drag = null; });
+addEventListener("pointermove", (e) => { if (!drag) return; orbit.az -= (e.clientX - drag[0]) * 0.006; orbit.el = Math.max(-0.2, Math.min(1.5, orbit.el + (e.clientY - drag[1]) * 0.005)); drag = [e.clientX, e.clientY]; });
+addEventListener("wheel", (e) => { orbit.dist = Math.max(1.5, Math.min(40, orbit.dist * (1 + Math.sign(e.deltaY) * 0.1))); });
+const look = { yaw: 0, pitch: 0 };
+const eye = new THREE.Vector3(), tmp = new THREE.Vector3(), qq = new THREE.Quaternion();
+function placeCamera() {
+  if (camMode === "cab") {
+    car.seatEye(eye); const m = car.camMotion;
+    eye.add(tmp.set(m.x, m.y, m.z).applyQuaternion(car.quat));
+    camera.position.copy(eye);
+    camera.quaternion.copy(car.quat).multiply(qq.setFromEuler(new THREE.Euler(look.pitch - 0.06, Math.PI + look.yaw, m.roll, "YXZ")));
+  } else if (camMode === "bay") {
+    car.localToWorld(0.9, 1.25, car.def.zFront + 0.9, eye); camera.position.copy(eye);
+    camera.lookAt(car.localToWorld(0, 0.15, car.def.body.engineZ, tmp));
+  } else {
+    const yaw = car.yaw + orbit.az + Math.PI;
+    tmp.set(Math.sin(yaw) * Math.cos(orbit.el), Math.sin(orbit.el), Math.cos(yaw) * Math.cos(orbit.el)).multiplyScalar(orbit.dist);
+    camera.position.copy(car.pos).add(tmp);
+    const gy = ground.heightAt(camera.position.x, camera.position.z) + 0.25; if (camera.position.y < gy) camera.position.y = gy;
+    camera.lookAt(car.pos.x, car.pos.y + 0.1, car.pos.z);
+  }
+}
+
+// Input
+const keys = new Set();
+let edgeUp = false, edgeDown = false, manual = false;
+addEventListener("keydown", (e) => {
+  if (e.repeat) return;
+  keys.add(e.code);
+  if (e.code === "KeyK") car.toggleIgnition();
+  if (e.code === "KeyL") car.setLights();
+  if (e.code === "KeyB") car.toggleParkingBrake();
+  if (e.code === "KeyG") car.setGearMode(car.gearMode === "auto" ? "manual" : "auto");
+  if (e.code === "KeyH") car.horn(true);
+  if (e.code === "KeyR") car.recover();
+  if (e.code === "KeyC") camMode = camMode === "orbit" ? "cab" : camMode === "cab" ? "bay" : "orbit";
+  if (e.code === "ShiftLeft") edgeUp = true;
+  if (e.code === "ControlLeft") edgeDown = true;
+  if (e.code === "Space") e.preventDefault();
+});
+addEventListener("keyup", (e) => { keys.delete(e.code); if (e.code === "KeyH") car.horn(false); });
+addEventListener("blur", () => keys.clear());
+const env = { ambient: +(q.get("ambient") || 32), wet: 0, sand: 0, wear: 1, night };
+let auto = null;      // scripted input for headless runs
+function readInput() {
+  if (auto) return auto;
+  const i = { throttle: (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0), steer: (keys.has("KeyA") ? 1 : 0) - (keys.has("KeyD") ? 1 : 0), handbrake: keys.has("Space"), shiftUp: edgeUp, shiftDown: edgeDown };
+  edgeUp = edgeDown = false;
+  return i;
+}
+
+// Buttons
+const ui = document.getElementById("ui");
+const btn = (label, fn) => { const b = document.createElement("button"); b.textContent = label; b.onclick = () => { fn(); b.blur(); }; ui.appendChild(b); };
+for (const d of ["driver", "passenger", "hood"]) btn(d, () => car.toggleDoor(d));
+btn("tailgate/trunk", () => car.toggleDoor(car.def.rearDoor));
+const stash = {};
+for (const s of ["engine", "battery", "radiator", "wheelFL", "wheelRR"]) btn("±" + s, () => { if (car.slots[s]) stash[s] = car.remove(s); else car.install(s, stash[s] || makeComponent(s.startsWith("wheel") ? car.def.wheel : s === "engine" ? car.def.defaultEngine : s)); });
+btn("flat RL", () => { const w = car.slots.wheelRL; if (w) { w.flat = !w.flat; car.wake(); } });
+btn("pickup", () => spawnMain("pickup", 0)); btn("sedan", () => spawnMain("sedan", 0)); btn("seeded sedan", () => spawnMain("sedan", (Math.random() * 1e6) | 0));
+btn("camera", () => { camMode = camMode === "orbit" ? "cab" : camMode === "cab" ? "bay" : "orbit"; });
+btn("lights", () => car.setLights()); btn("+10 L fuel", () => car.addFluid("fuel", 10)); btn("drain coolant", () => { car.coolant = 0; });
+
+// Loop: fixed 1/120 step
+const DT = 1 / 120;
+let acc = 0, last = performance.now(), frames = 0, paused = false;
+const focus = [new THREE.Vector3()];
+function simulate(dt) {
+  acc += Math.min(dt, 0.1);
+  while (acc >= DT) { vehicles.step(DT, car, readInput(), env); acc -= DT; }
+}
+function frame(now) {
+  const dt = (now - last) / 1000; last = now;
+  if (!paused) simulate(dt);
+  focus[0].copy(car.pos);
+  vehicles.sync(focus);
+  vehicles.update(dt, env);
+  refreshGround(car.pos);
+  sun.position.copy(car.pos).add(tmp.set(14, 26, 9)); sun.target.position.copy(car.pos);
+  placeCamera();
+  renderer.render(scene, camera);
+  frames++;
+  if (frames % 6 === 0) {
+    const t = car.telemetry();
+    document.getElementById("tel").textContent =
+      `${car.def.name}  [${camMode}]\n${(t.speed * 3.6).toFixed(0)} km/h  ${t.rpm.toFixed(0)} rpm  gear ${t.gear} (${t.gearMode})\nign ${t.ignition}  thr ${t.throttle.toFixed(2)}  slip ${t.slip.toFixed(2)}  ${t.surface}  wheels ${t.grounded}\n` +
+      `fuel ${t.fuel.toFixed(1)}/${t.tank}  oil ${t.oil.toFixed(2)}/${t.oilCap}  coolant ${t.coolant.toFixed(1)}/${t.coolantCap}\ntemp ${t.temp.toFixed(0)}°C  batt ${t.battery.toFixed(0)}% ${t.charging ? "chg" : ""}  eng ${t.engineCond.toFixed(0)}  body ${t.bodyCond.toFixed(0)}\n` +
+      `tyres ${t.tyres.map((w) => (w.missing ? "--" : w.flat ? "FL" : w.cond.toFixed(0))).join(" ")}\n${t.warnings.map((w) => w.level + ": " + w.text).join("\n")}\n` +
+      `draw calls ${renderer.info.render.calls}  tris ${renderer.info.render.triangles}\n${notes.slice(-3).join("\n")}`;
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+addEventListener("resize", () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+
+// Hooks for headless checks (--eval)
+window.__dev = {
+  get car() { return car; }, vehicles, env, errors, notes, sounds, renderer, scene, camera, ws,
+  setCam(m, o) { camMode = m; if (o) Object.assign(orbit, o); },
+  look(yaw, pitch) { look.yaw = yaw; look.pitch = pitch; },
+  pause(p) { paused = p; },
+  // Run `secs` of physics right now with a fixed input; returns telemetry
+  run(secs, input = { throttle: 1, steer: 0 }) {
+    const n = Math.round(secs / DT);
+    for (let i = 0; i < n; i++) vehicles.step(DT, car, input, env);
+    vehicles.update(DT, env);
+    const t = car.telemetry();
+    return { speed: t.speed, rpm: t.rpm, gear: t.gear, ign: t.ignition, fuel: t.fuel, temp: t.temp, pos: car.pos.toArray(), upright: t.upright, grounded: t.grounded, surface: t.surface, finite: car.pos.toArray().every(Number.isFinite) };
+  },
+  drive(input) { auto = input; },
+  stats() { const s = {}; for (const v of vehicles.list) s[v.id] = { type: v.type, ...v.rig.stats() }; return { perVehicle: s, frameCalls: renderer.info.render.calls, frameTris: renderer.info.render.triangles }; },
+  // What the interaction ray from the camera centre (or a given vehicle-local point) hits
+  target(local) {
+    const rc = new THREE.Raycaster();
+    if (local) { const p = car.localToWorld(local[0], local[1], local[2]); rc.set(camera.getWorldPosition(new THREE.Vector3()), p.sub(camera.position).normalize()); }
+    else rc.setFromCamera(new THREE.Vector2(0, 0), camera);
+    const h = raycastTargets(rc, 30);
+    if (!h) return null;
+    const t = h.target, ctx = { held: null, hasTool: () => true, notify: () => {}, sfx: () => {} };
+    return { id: t.id, name: typeof t.name === "function" ? t.name() : t.name, info: t.info ? t.info() : null, actions: t.actions(ctx).map((a) => a.key + ":" + a.label + (a.blocked ? " [" + a.blocked + "]" : "")), dist: h.distance };
+  },
+  // From which sides (vehicle-local ±x/±y/±z, 1.2 m away) the interaction ray reaches each target
+  probe() {
+    const out = {}, rc = new THREE.Raycaster(), box = new THREE.Box3(), c = new THREE.Vector3(), dir = new THREE.Vector3();
+    scene.updateMatrixWorld(true);
+    car.mesh.traverse((o) => {
+      const t = o.userData.target; if (!t) return;
+      box.setFromObject(o); if (box.isEmpty()) { out[t.id] = "empty"; return; }
+      box.getCenter(c);
+      const hits = [];
+      for (const [n, d] of [["left", [1, 0, 0]], ["right", [-1, 0, 0]], ["top", [0, 1, 0]], ["front", [0, 0, 1]], ["rear", [0, 0, -1]], ["below", [0, -1, 0]]]) {
+        dir.set(...d).applyQuaternion(car.quat);
+        rc.set(c.clone().addScaledVector(dir, 1.2), dir.clone().negate());
+        const h = raycastTargets(rc, 3);
+        if (h && h.target === t) hits.push(n);
+      }
+      out[t.id.split(":").slice(1).join(":")] = hits.join(",") || "BLOCKED";
+    });
+    return out;
+  },
+  targetIds() { const ids = []; car.mesh.traverse((o) => { if (o.userData.target) ids.push(o.userData.target.id); }); return ids; },
+  COMPONENT_ITEMS, makeComponent,
+};
+window.__ready = true;
+</script>
+</body>
+</html>

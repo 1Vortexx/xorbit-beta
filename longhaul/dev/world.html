@@ -1,0 +1,211 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Long Haul – world harness</title>
+<style>
+html,body{margin:0;height:100%;background:#111;overflow:hidden;font:12px/1.4 ui-monospace,Menlo,monospace;color:#eee}
+#ui{position:fixed;left:8px;top:8px;background:rgba(0,0,0,.55);padding:8px 10px;border-radius:6px;max-width:330px}
+#ui button,#ui select,#ui input{font:inherit;margin:2px 2px 2px 0}
+#info{white-space:pre;margin-top:6px;color:#cfc}
+#hint{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);background:rgba(0,0,0,.6);padding:4px 10px;border-radius:4px}
+#x{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:rgba(255,255,255,.7)}
+</style>
+<script type="importmap">{"imports":{"three":"../vendor/three/three.module.js","three/addons/":"../vendor/three/addons/"}}</script>
+</head><body>
+<div id="ui">
+  <div>WASD + mouse (click to lock), Shift fast, Q/E down/up, G walk-on-ground, F interact (E action)</div>
+  <div>time <input id="time" type="range" min="0" max="1" step="0.002" value="0.42" style="width:150px"> <span id="clock"></span>
+    <label><input id="run" type="checkbox"> run</label></div>
+  <div>weather <select id="wx"><option>clear</option><option>hazy</option><option>overcast</option><option>rain</option><option>storm</option><option>sandstorm</option></select>
+    <label><input id="lite" type="checkbox"> lite</label> <label><input id="col" type="checkbox"> colliders</label></div>
+  <div>z <input id="z" size="7" value="60"> <button id="go">teleport</button> <button id="site">next site</button></div>
+  <div id="info"></div>
+</div>
+<div id="x"></div><div id="hint"></div>
+<script type="module">
+import * as THREE from "three";
+import { worldRoot, origin, rebase, toWorld } from "../js/core/origin.js";
+import { ws } from "../js/core/worldstate.js";
+import { on } from "../js/core/bus.js";
+import { raycastTargets } from "../js/core/targets.js";
+import { resolveCircle } from "../js/core/collide.js";
+import * as terrain from "../js/world/terrain.js";
+import * as sites from "../js/world/sites.js";
+import { World, prepare, setVehicleLookup } from "../js/world/index.js";
+import { Sky } from "../js/sky.js";
+import { Weather } from "../js/weather.js";
+
+const q = new URLSearchParams(location.search);
+if (q.get("seed")) terrain.setSeed(+q.get("seed"));
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(innerWidth, innerHeight);
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x8899aa, 150, +(q.get("fog") || 3600));
+scene.add(worldRoot);
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.08, 4500);
+worldRoot.add(camera);
+addEventListener("resize", () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+
+const $ = (id) => document.getElementById(id);
+await prepare((p, l) => { $("info").textContent = `loading ${(p * 100) | 0}% ${l}`; });
+const sky = new Sky(worldRoot, scene), weather = new Weather(worldRoot, scene), world = new World({ root: worldRoot });
+weather.baseFar = +(q.get("fog") || 3600);
+sky.time = +(q.get("t") || 0.42);
+if (q.get("wx")) weather.set(q.get("wx"));
+if (q.get("lite")) { world.setOptions({ lite: true }); sky.setQuality({ lite: true }); weather.setQuality({ lite: true }); $("lite").checked = true; }
+
+// mock vehicle for pumps, mock ctx for interactions
+const mockVehicle = { fuel: 10, def: { tank: 60, name: "Mock pickup" }, pos: new THREE.Vector3(1e9, 0, 0) };
+setVehicleLookup((x, z, r) => (Math.hypot(mockVehicle.pos.x - x, mockVehicle.pos.z - z) < r ? mockVehicle : null));
+const log = [];
+on("sfx", (e) => log.push("sfx:" + e.name)); on("notify", (e) => log.push("notify:" + e.text));
+const events = { load: 0, unload: 0 };
+on("chunk:load", () => events.load++); on("chunk:unload", () => events.unload++);
+const ctx = { held: null, wallet: { money: 100 }, openShop: (s) => log.push("shop:" + s.id), sleep: (w) => log.push("sleep:" + w), notify: (t) => log.push("notify:" + t), sfx: (n) => log.push("sfx:" + n) };
+
+const start = sites.startSite();
+const pos = new THREE.Vector3(start.playerSpawn.x, 0, start.playerSpawn.z);
+let yaw = start.playerSpawn.yaw + Math.PI, pitch = -0.05, walk = false;
+if (q.get("z")) { const z = +q.get("z"); pos.set(terrain.roadX(z), 0, z); yaw = Math.PI; }
+pos.y = terrain.heightAt(pos.x, pos.z) + (+(q.get("h") || 1.7));
+const keys = new Set();
+addEventListener("keydown", (e) => { keys.add(e.code); if (e.code === "KeyG") walk = !walk; if (e.code === "KeyF") dev.use(); });
+addEventListener("keyup", (e) => keys.delete(e.code));
+renderer.domElement.addEventListener("click", () => renderer.domElement.requestPointerLock());
+addEventListener("mousemove", (e) => { if (document.pointerLockElement) { yaw -= e.movementX * 0.0025; pitch = Math.max(-1.5, Math.min(1.5, pitch - e.movementY * 0.0025)); } });
+
+// collider wireframes
+const colGroup = new THREE.Group(); worldRoot.add(colGroup);
+const wire = new THREE.LineBasicMaterial({ color: 0x00ff88 }), wireOff = new THREE.LineBasicMaterial({ color: 0xff4444 });
+const boxG = new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), cylG = new THREE.EdgesGeometry(new THREE.CylinderGeometry(1, 1, 1, 12));
+let colKey = "";
+function showColliders() {
+  const k = $("col").checked ? [...world.chunks.keys()].join() + "|" + ws.flags.size : "";
+  if (k === colKey) return; colKey = k;
+  colGroup.clear();
+  if (!k) return;
+  for (const c of world.chunks.values()) for (const o of c.colliders) {
+    const g = terrain.heightAt(o.x, o.z), y0 = o.y0 === undefined ? g : o.y0, y1 = o.y1 === undefined ? g + 2.5 : o.y1;
+    const m = new THREE.LineSegments(o.kind === "box" ? boxG : cylG, o.solid === false ? wireOff : wire);
+    m.position.set(o.x, (y0 + y1) / 2, o.z);
+    if (o.kind === "box") { m.scale.set(o.hx * 2, y1 - y0, o.hz * 2); m.rotation.y = o.yaw; } else m.scale.set(o.r, y1 - y0, o.r);
+    colGroup.add(m);
+  }
+}
+
+// spawn markers (loot = yellow boxes, vehicles = cyan boxes) so placement can be judged without the props module
+const spGroup = new THREE.Group(); worldRoot.add(spGroup);
+const spGeo = new THREE.BoxGeometry(1, 1, 1), spMat = new THREE.MeshStandardMaterial({ color: 0xffd23a, roughness: 0.6 }), vhMat = new THREE.MeshStandardMaterial({ color: 0x3ad2ff, roughness: 0.5, transparent: true, opacity: 0.7 });
+const SIZE = { wheel_16: [0.74, 0.26, 0.74], wheel_14: [0.62, 0.2, 0.62], engine_i6: [0.5, 0.66, 0.9], engine_v8: [0.62, 0.66, 0.78], engine_i4: [0.5, 0.66, 0.7], radiator: [0.62, 0.46, 0.1], battery: [0.27, 0.2, 0.18], fuelcan: [0.3, 0.32, 0.18], jerrycan: [0.36, 0.46, 0.18], jack: [0.42, 0.14, 0.12], wrench: [0.38, 0.03, 0.09], repairkit: [0.4, 0.2, 0.2], medkit: [0.29, 0.1, 0.2], coolant: [0.2, 0.29, 0.12], oiljug: [0.2, 0.28, 0.11], waterjug: [0.19, 0.3, 0.16] };
+let spKey = "";
+function showSpawns() {
+  const k = q.get("nospawns") ? "" : [...world.chunks.keys()].join();
+  if (k === spKey) return; spKey = k;
+  spGroup.clear();
+  for (const c of world.chunks.values()) {
+    for (const sp of c.spawns) { const z = SIZE[sp.type] || [0.09, 0.18, 0.09], m = new THREE.Mesh(spGeo, spMat); m.scale.set(z[0], z[1], z[2]); m.position.set(sp.pos[0], sp.pos[1] + z[1] / 2, sp.pos[2]); m.rotation.y = sp.yaw; m.castShadow = true; spGroup.add(m); }
+    for (const v of c.vehicleSpawns) { const m = new THREE.Mesh(spGeo, vhMat); m.scale.set(1.8, 1.4, 4.5); m.position.set(v.pos[0], v.pos[1] + 0.8, v.pos[2]); m.rotation.y = v.yaw; spGroup.add(m); }
+  }
+}
+const ray = new THREE.Raycaster(), fwd = new THREE.Vector3(), tmp = new THREE.Vector3(), camW = new THREE.Vector3();
+function aim() {
+  camera.getWorldPosition(camW); camera.getWorldDirection(fwd);
+  ray.set(camW, fwd);
+  return raycastTargets(ray, 4);
+}
+const dev = window.__dev = {
+  THREE, renderer, scene, camera, world, sky, weather, terrain, sites, ws, ctx, log, events, mockVehicle, pos,
+  teleport(x, z, h = 1.7, y = null, p = null) { pos.set(x, terrain.heightAt(x, z) + h, z); if (y !== null) yaw = y; if (p !== null) pitch = p; world.update([pos], true); return this.info(); },
+  toZ(z, off = 0, h = 1.7, y = Math.PI, p = -0.05) { return this.teleport(terrain.roadX(z) + off, z, h, y, p); },
+  // stand at a site-local point looking along a site-local yaw (0 = towards the road)
+  atSite(id, lx, lz, h = 1.7, lyaw = Math.PI, p = -0.05) {
+    const s = typeof id === "string" ? sites.sitesBetween(-1e3, 4e5).find((q) => q.id === id) : id;
+    const w = sites.siteToWorld(s, lx, lz);
+    return this.teleport(w.x, w.z, h, s.yaw + lyaw + Math.PI, p);
+  },
+  look(y, p) { yaw = y; pitch = p; },
+  setTime(t) { sky.time = t; $("time").value = t; },
+  setWeather(w) { weather.set(w); $("wx").value = w; },
+  setLite(l) { world.setOptions({ lite: l }); sky.setQuality({ lite: l }); weather.setQuality({ lite: l }); world.update([pos], true); },
+  colliders(v) { $("col").checked = v; },
+  info() {
+    const i = renderer.info;
+    let meshes = 0; worldRoot.traverse((o) => { if (o.isMesh || o.isLine || o.isPoints) meshes++; });
+    return { z: Math.round(pos.z), chunks: world.chunks.size, far: world.far.size, meshes, calls: i.render.calls, tris: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures,
+      programs: i.programs.length, built: world.stats.built, lastMs: +world.stats.lastMs.toFixed(1), maxMs: +world.stats.maxMs.toFixed(1), region: terrain.regionAt(pos.x, pos.z).id, origin: [origin.x, origin.z] };
+  },
+  sitesNear(z, r = 2000) { return sites.sitesBetween(z - r, z + r).map((s) => ({ id: s.id, kind: s.kind, z: Math.round(s.z), zRoad: Math.round(s.zRoad), side: s.side, route: s.route ? Math.round(s.route.len) : 0, name: s.name })); },
+  spawnsNear(z) { const c = world.chunks.get(Math.floor(z / terrain.CHUNK)); return c ? { spawns: c.spawns, vehicles: c.vehicleSpawns } : null; },
+  target() { const h = aim(); return h ? { id: h.target.id, name: typeof h.target.name === "function" ? h.target.name() : h.target.name, dist: +h.distance.toFixed(2), actions: h.target.actions(ctx).map((a) => ({ key: a.key, label: a.label, blocked: a.blocked, hold: !!a.tick })) } : null; },
+  use(seconds = 0) {
+    const h = aim(); if (!h) return null;
+    const a = h.target.actions(ctx).find((x) => x.key === "use"); if (!a || a.blocked) return a ? a.blocked : null;
+    if (a.run) a.run(ctx);
+    if (a.tick) { let p = 0; for (let t = 0; t < seconds; t += 1 / 60) { p = a.tick(ctx, 1 / 60); if (p === false) break; } return p; }
+    return a.label;
+  },
+  frame(dt = 0.016) { step(dt); },
+  // drive along the road in steps, recording build time and memory
+  async stream(z0, z1, stepM = 200) {
+    const before = { ...renderer.info.memory }; const t0 = performance.now(); let worst = 0, n = 0;
+    for (let z = z0; z <= z1; z += stepM) {
+      pos.set(terrain.roadX(z), terrain.heightAt(terrain.roadX(z), z) + 1.7, z);
+      for (let i = 0; i < 8; i++) { const t = performance.now(); world.update([pos], false); const d = performance.now() - t; if (d > worst) worst = d; n++; }
+      if ((z / stepM) % 10 === 0) { step(0.016); await new Promise((r) => setTimeout(r, 0)); }
+    }
+    step(0.016);
+    return { before, after: { ...renderer.info.memory }, updates: n, worstUpdateMs: +worst.toFixed(1), totalMs: Math.round(performance.now() - t0), chunks: world.chunks.size, far: world.far.size, built: world.stats.built, events };
+  },
+};
+
+$("go").onclick = () => dev.toZ(+$("z").value);
+$("site").onclick = () => { const s = sites.nextSiteAfter(pos.z + 30); dev.atSite(s, 0, s.spec.hz + 6, 2.2, Math.PI, -0.1); };
+$("time").oninput = (e) => { sky.time = +e.target.value; };
+$("wx").onchange = (e) => weather.set(e.target.value);
+$("lite").onchange = (e) => dev.setLite(e.target.checked);
+
+const scratch = [];
+function step(dt) {
+  const sp = (keys.has("ShiftLeft") ? 60 : 8) * dt;
+  fwd.set(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
+  if (walk) { fwd.y = 0; fwd.normalize(); }
+  tmp.set(-Math.cos(yaw), 0, Math.sin(yaw));
+  if (keys.has("KeyW")) pos.addScaledVector(fwd, sp); if (keys.has("KeyS")) pos.addScaledVector(fwd, -sp);
+  if (keys.has("KeyA")) pos.addScaledVector(tmp, sp); if (keys.has("KeyD")) pos.addScaledVector(tmp, -sp);
+  if (keys.has("KeyE") && !walk) pos.y += sp; if (keys.has("KeyQ")) pos.y -= sp;
+  if (walk) {
+    scratch.length = 0; world.collidersNear(pos.x, pos.z, 2, scratch);
+    const g = terrain.heightAt(pos.x, pos.z);
+    resolveCircle(pos, 0.3, scratch, g + 0.1, g + 1.7);
+    pos.y = terrain.heightAt(pos.x, pos.z) + 1.7;
+  } else pos.y = Math.max(pos.y, terrain.heightAt(pos.x, pos.z) + 0.3);
+  rebase(pos);
+  camera.position.copy(pos); camera.rotation.set(pitch, yaw, 0, "YXZ");
+  camera.updateMatrixWorld(true);
+  world.update([pos], false);
+  if ($("run").checked) { sky.update(dt * 20, camera, pos); $("time").value = sky.time; } else sky.update(0, camera, pos);
+  weather.update(dt, 0, camera, sky);
+  world.setWet(weather.wet);
+  showColliders(); showSpawns();
+  renderer.render(scene, camera);
+}
+world.update([pos], true);
+let last = performance.now(), acc = 0;
+function loop(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  step(dt);
+  acc += dt;
+  if (acc > 0.25) {
+    acc = 0;
+    const i = dev.info(), t = dev.target();
+    $("clock").textContent = sky.clock();
+    $("info").textContent = `z ${i.z}  x ${pos.x.toFixed(0)}  region ${i.region}  ${terrain.surfaceAt(pos.x, pos.z)}${world.indoorsAt(pos.x, pos.z) ? " (indoors)" : ""}\nchunks ${i.chunks} far ${i.far}  calls ${i.calls}  tris ${i.tris}\ngeo ${i.geometries} tex ${i.textures}  build last ${i.lastMs} ms max ${i.maxMs} ms\n$${ctx.wallet.money.toFixed(2)}  mock fuel ${mockVehicle.fuel.toFixed(1)} L  ${log.slice(-2).join(" ")}`;
+    $("hint").textContent = t ? `${t.name}: ${t.actions.map((a) => `[E] ${a.label}${a.blocked ? " (" + a.blocked + ")" : ""}`).join("  ")}` : "";
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+window.__ready = true;
+</script></body></html>

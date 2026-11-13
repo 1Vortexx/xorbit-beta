@@ -1,0 +1,38 @@
+/* Long Haul – shared tokens and page base */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+:root {
+  --lh-ink: #0f0c09;
+  --lh-plate: 17, 14, 11;
+  --lh-bone: #f1e9d8;
+  --lh-sand: #cdbfa2;
+  --lh-dim: #9c907a;
+  --lh-amber: #f2aa2e;
+  --lh-rust: #e4583a;
+  --lh-sage: #93c47d;
+  --lh-sky: #8fbdd0;
+  --lh-line: rgba(241, 233, 216, 0.16);
+  --lh-display: "Avenir Next Condensed", "DIN Condensed", "Roboto Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --lh-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --lh-mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+body {
+  background: #0b0906; color: var(--lh-bone); overflow: hidden;
+  font-family: var(--lh-ui); -webkit-font-smoothing: antialiased;
+  user-select: none; -webkit-user-select: none;
+}
+#game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
+[hidden] { display: none !important; }
+button, input { font: inherit; color: inherit; }
+#boot {
+  position: fixed; inset: 0; display: grid; place-items: center; z-index: 50; background: #0b0906;
+  font: 600 13px var(--lh-display); letter-spacing: 0.3em; text-transform: uppercase; color: var(--lh-sand);
+}
+.ic { width: 1.15em; height: 1.15em; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.2em; }
+.ic-crit .fillc { fill: currentColor; stroke: currentColor; stroke-width: 1; }
+.ic-crit .cut { stroke: #1a0b06; stroke-width: 2.6; }
+kbd {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 1.7em; height: 1.7em; padding: 0 0.4em;
+  border: 1px solid rgba(241, 233, 216, 0.55); border-bottom-width: 2px; border-radius: 0.3em; background: rgba(0, 0, 0, 0.5);
+  font: 600 0.78em/1 var(--lh-mono); color: var(--lh-bone); white-space: nowrap; text-shadow: none; flex: none;
+}

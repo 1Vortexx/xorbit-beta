@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Long Haul – on-foot interaction harness</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #111; font: 13px/1.35 ui-monospace, Menlo, monospace; color: #eee; }
+  canvas { display: block; }
+  #hud { position: fixed; left: 12px; top: 10px; white-space: pre; text-shadow: 0 1px 2px #000; pointer-events: none; }
+  #prompt { position: fixed; left: 50%; top: 56%; transform: translateX(-50%); text-align: center; white-space: pre; text-shadow: 0 1px 3px #000; pointer-events: none; font-size: 15px; }
+  #cross { position: fixed; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: #fff; box-shadow: 0 0 2px #000; pointer-events: none; }
+  #toast { position: fixed; left: 50%; bottom: 60px; transform: translateX(-50%); text-align: center; white-space: pre; text-shadow: 0 1px 3px #000; pointer-events: none; color: #ffe9a8; }
+  #help { position: fixed; right: 12px; top: 10px; text-align: right; opacity: 0.75; white-space: pre; pointer-events: none; }
+</style>
+<script type="importmap">{"imports":{"three":"../vendor/three/three.module.js","three/addons/":"../vendor/three/addons/"}}</script>
+</head>
+<body>
+<div id="hud"></div><div id="prompt"></div><div id="cross"></div><div id="toast"></div>
+<div id="help">click to look · WASD · Shift sprint · Ctrl/C crouch · Space jump
+E use · F alt/place · LMB grab/drop/secure · RMB throw
+R+mouse rotate · Q stow/take · 1-6 slot · X consume · T flashlight</div>
+<script type="module">
+import * as THREE from "three";
+import { worldRoot } from "../js/core/origin.js";
+import { on, emit } from "../js/core/bus.js";
+import { ws } from "../js/core/worldstate.js";
+import { addTarget, addOccluder } from "../js/core/targets.js";
+import { ITEMS, FIXED_IDS, makeItem, itemLabel, itemsReady } from "../js/items.js";
+import { Pockets } from "../js/pockets.js";
+import { Props } from "../js/props.js";
+import { Player } from "../js/player.js";
+import { Interaction } from "../js/interact.js";
+
+await itemsReady;
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9cc4e4);
+scene.add(worldRoot);
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 400);
+worldRoot.add(camera);
+scene.add(new THREE.HemisphereLight(0xdfeeff, 0x8a7a5a, 1.1));
+const sun = new THREE.DirectionalLight(0xfff2dc, 2.6);
+sun.position.set(8, 14, -6); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -16, right: 16, top: 16, bottom: -16, near: 1, far: 50 });
+worldRoot.add(sun);
+
+// ── mock world: flat ground, a room with a door, a table ────────────────────────────────────────────────────
+const heightAt = () => 0, surfaceAt = (x, z) => (z > 6 ? "wood" : "sand");
+const colliders = [];
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, ...o });
+{
+  const c = document.createElement("canvas"); c.width = c.height = 256;
+  const g = c.getContext("2d"); g.fillStyle = "#c9b383"; g.fillRect(0, 0, 256, 256);
+  g.strokeStyle = "#b09a6c"; g.lineWidth = 2; g.strokeRect(0, 0, 256, 256);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(60, 60); t.colorSpace = THREE.SRGBColorSpace;
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), M(0xffffff, { map: t }));
+  ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; worldRoot.add(ground);
+}
+function wall(x, z, hx, hz, yaw = 0, y1 = 2.6, color = 0xb9b2a4, y0 = 0) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(hx * 2, y1 - y0, hz * 2), M(color));
+  m.position.set(x, (y0 + y1) / 2, z); m.rotation.y = yaw; m.castShadow = m.receiveShadow = true;
+  worldRoot.add(m); addOccluder(m);
+  const c = { kind: "box", x, z, hx, hz, yaw, y0, y1 };
+  colliders.push(c);
+  return { mesh: m, collider: c };
+}
+// room x −4..4, z 6..11, door gap x −0.5..0.5 in the front wall
+wall(-2.25, 6, 1.75, 0.1); wall(2.25, 6, 1.75, 0.1); wall(0, 11, 4, 0.1); wall(-4, 8.5, 2.6, 0.1, Math.PI / 2); wall(4, 8.5, 2.6, 0.1, Math.PI / 2);
+wall(0, 6, 0.5, 0.1, 0, 2.6, 0xb9b2a4, 2.1);   // lintel
+const door = wall(0, 6, 0.5, 0.04, 0, 2.1, 0x7a5a3a);
+door.collider.solid = true;
+addTarget(door.mesh, { id: "door:test", name: "Door", actions: () => [{ key: "use", label: door.collider.solid ? "Open" : "Close", run() { setDoor(!door.collider.solid); } }] });
+function setDoor(closed) {
+  door.collider.solid = closed;
+  door.mesh.rotation.y = closed ? 0 : Math.PI / 2 - 0.15;
+  door.mesh.position.set(closed ? 0 : -0.5, 1.05, closed ? 6 : 6.45);
+}
+const table = wall(0, 3.4, 1.7, 0.45, 0, 0.8, 0x8a6a48);
+const pillar = { kind: "circle", x: -3, z: 2, r: 0.3, y0: 0, y1: 2.2 };
+colliders.push(pillar);
+{ const m = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 2.2, 20), M(0x998f80)); m.position.set(-3, 1.1, 2); m.castShadow = true; worldRoot.add(m); addOccluder(m); }
+// a timed (hold) target and a bed, to exercise hold actions and hooks
+{ const m = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.9, 0.4), M(0x3a6a8a)); m.position.set(-3.4, 0.45, 4.2); m.castShadow = true; worldRoot.add(m);
+  colliders.push({ kind: "box", x: -3.4, z: 4.2, hx: 0.25, hz: 0.2, yaw: 0, y0: 0, y1: 0.9 });
+  addTarget(m, { id: "locker", name: "Locker", info: () => ({ note: flags.locker ? "Open" : "Stuck" }), actions: () => [
+    { key: "use", label: "Force open", hold: 1.2, run(ctx) { flags.locker = (flags.locker || 0) + 1; ctx.notify("Locker forced"); } },
+    { key: "alt", label: "Pick lock", blocked: "Needs a wrench", ...(interaction.ctx.hasTool("wrench") ? { blocked: undefined, run() { flags.picked = 1; } } : {}) },
+  ] }); }
+const flags = {};
+
+// ── mock vehicle (contract §5 subset): body, bed with cargo zone + cargo target, fuel filler ────────────────
+const vehicle = {
+  id: "mock", type: "pickup", def: { name: "Mock pickup", tank: 60 }, fuel: 12,
+  pos: new THREE.Vector3(6.5, 0, 2.5), quat: new THREE.Quaternion(), vel: new THREE.Vector3(), yaw: -0.5,
+  mesh: new THREE.Group(),
+  cargo: { zone: { min: [-0.85, 0.7, -2.5], max: [0.85, 1.6, -0.45] }, items: [] },
+  local(lx, lz) { const s = Math.sin(this.yaw), c = Math.cos(this.yaw); return { x: this.pos.x + lx * c + lz * s, z: this.pos.z - lx * s + lz * c }; },
+  colliders() {
+    const b = (lx, lz, hx, hz, y0, y1) => ({ kind: "box", ...this.local(lx, lz), hx, hz, yaw: this.yaw, y0: this.pos.y + y0, y1: this.pos.y + y1 });
+    return [b(0, 1, 0.95, 1.4, 0.25, 1.8), b(0, -1.5, 0.95, 1.1, 0.3, 0.7), b(0.91, -1.5, 0.04, 1.1, 0.3, 1.2), b(-0.91, -1.5, 0.04, 1.1, 0.3, 1.2), b(0, -2.56, 0.95, 0.04, 0.3, 1.2)];
+  },
+  exitSpots() { return [this.local(1.7, 0.8), this.local(-1.7, 0.8), this.local(0, -3.4)]; },
+  sync() { this.quat.setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.yaw); this.mesh.position.copy(this.pos); this.mesh.quaternion.copy(this.quat); this.mesh.updateMatrixWorld(true); },
+  serialize() { return JSON.parse(JSON.stringify({ id: this.id, fuel: this.fuel, pos: this.pos.toArray(), yaw: this.yaw, cargo: { items: this.cargo.items } })); },
+};
+{
+  const g = vehicle.mesh, body = M(0x7d3f2c, { roughness: 0.5, metalness: 0.3 });
+  const mk = (w, h, d, x, y, z, mat = body, parent = g) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent.add(m); return m; };
+  const cab = new THREE.Group(); g.add(cab);
+  mk(1.9, 0.75, 2.8, 0, 0.675, 1, body, cab); mk(1.8, 0.7, 1.4, 0, 1.4, 0.5, M(0x8a4a34, { roughness: 0.5 }), cab);
+  addOccluder(cab);
+  const bed = new THREE.Group(); g.add(bed);
+  mk(1.9, 0.4, 2.2, 0, 0.5, -1.5, body, bed); mk(0.08, 0.5, 2.2, 0.91, 0.95, -1.5, body, bed); mk(0.08, 0.5, 2.2, -0.91, 0.95, -1.5, body, bed); mk(1.9, 0.5, 0.08, 0, 0.95, -2.56, body, bed);
+  addTarget(bed, { id: "mock:cargo", name: "the pickup bed", reach: 3.2, cargoOf: vehicle, actions: () => [] });
+  for (const [x, z] of [[0.95, 1.8], [-0.95, 1.8], [0.95, -1.7], [-0.95, -1.7]]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.25, 18), M(0x1a1a1c)); w.rotation.z = Math.PI / 2; w.position.set(x, 0.38, z); w.castShadow = true; g.add(w); }
+  const filler = mk(0.04, 0.16, 0.16, 0.97, 0.85, -0.7, M(0xd8d8d8, { metalness: 0.8, roughness: 0.3 }));
+  addTarget(filler, {
+    id: "mock:fuel", name: "Fuel filler", info: () => ({ qty: `${vehicle.fuel.toFixed(1)} / ${vehicle.def.tank} L` }),
+    actions(ctx) {
+      const h = ctx.held, d = h && ITEMS[h.type];
+      if (!d || d.fluid !== "fuel") return [{ key: "use", label: "Pour fuel", blocked: "Hold a fuel container" }];
+      if (!(h.qty > 0.001)) return [{ key: "use", label: "Pour fuel", blocked: "The can is empty" }];
+      return [{ key: "use", label: "Pour fuel", tick(c, dt) {
+        const amount = Math.min(dt * 2.5, h.qty, vehicle.def.tank - vehicle.fuel);
+        if (amount <= 0) return false;
+        h.qty -= amount; vehicle.fuel += amount;
+        return vehicle.fuel / vehicle.def.tank;
+      } }];
+    },
+  });
+  worldRoot.add(g); vehicle.sync();
+}
+const getColliders = () => colliders.concat(vehicle.colliders());
+
+// ── systems under test ──────────────────────────────────────────────────────────────────────────────────────
+const needs = { health: 60, hunger: 40, thirst: 35, energy: 50 }, wallet = { money: 50 };
+const props = new Props({ root: worldRoot, getColliders, getVehicle: (id) => (id === vehicle.id ? vehicle : null), heightAt, surfaceAt });
+const pockets = new Pockets();
+const player = new Player({ heightAt, surfaceAt });
+const log = [];
+const interaction = new Interaction({ camera, player, props, pockets, hooks: {
+  enterVehicle: (v) => log.push("enter " + v.id), openShop: (s) => log.push("shop"), sleep: (w) => log.push("sleep"), wallet, needs, getColliders,
+} });
+const toasts = [], sounds = [];
+on("notify", (n) => { toasts.push({ text: n.text, t: 3 }); log.push("notify: " + n.text); });
+on("sfx", (s) => { sounds.push(s.name); if (sounds.length > 200) sounds.shift(); });
+
+// one of every item: small things on the table, big things on the ground (as seeded chunk spawns)
+const spawns = [];
+{
+  const small = FIXED_IDS.filter((id) => Math.max(...ITEMS[id].size) <= 0.42 && ITEMS[id].kind !== "part");
+  small.forEach((type, i) => {
+    const row = i % 2, col = Math.floor(i / 2);
+    spawns.push({ id: "t:" + type, type, pos: [-1.5 + col * 0.36, 0.8, 3.22 + row * 0.34], yaw: 0 });
+  });
+  const big = FIXED_IDS.filter((id) => !small.includes(id));
+  big.forEach((type, i) => spawns.push({ id: "t:" + type, type, pos: [-2.6 + i * 1.05, 0, 1.2 - (i % 2) * 0.9], yaw: 0.3 * i, cond: 40 + i * 8 }));
+  spawns.push({ id: "t:fuel2", type: "fuelcan", qty: 6, pos: [4.2, 0, 1.2], yaw: 0.6 });
+  spawns.push({ id: "t:beans2", type: "beans", pos: [0.6, 0, 8], yaw: 0 }, { id: "t:beans3", type: "beans", pos: [0.8, 0, 8.2], yaw: 1 }, { id: "t:water2", type: "water", pos: [-1, 0, 9], yaw: 0 });
+}
+const chunk = { k: 0, z0: 0, spawns };
+emit("chunk:load", chunk);
+emit("chunk:load", { k: -1, z0: -200, spawns: [] });
+player.teleport(0, 0.6, 0);
+
+// ── input (stand-in for js/input.js) ────────────────────────────────────────────────────────────────────────
+const keys = new Set(), pressed = new Set(), heldActs = new Set();
+const look = { yaw: 0, pitch: 0.25, dx: 0, dy: 0 };
+const KEYMAP = { KeyE: "use", KeyF: "alt", KeyR: "rotate", KeyQ: "stow", KeyX: "consume", KeyT: "flashlight",
+  Digit1: "slot1", Digit2: "slot2", Digit3: "slot3", Digit4: "slot4", Digit5: "slot5", Digit6: "slot6" };
+const act = (name, down) => { if (down) { if (!heldActs.has(name)) pressed.add(name); heldActs.add(name); } else heldActs.delete(name); };
+addEventListener("keydown", (e) => { keys.add(e.code); if (KEYMAP[e.code]) act(KEYMAP[e.code], true); if (e.code === "Space" || e.code === "Tab") e.preventDefault(); });
+addEventListener("keyup", (e) => { keys.delete(e.code); if (KEYMAP[e.code]) act(KEYMAP[e.code], false); });
+renderer.domElement.addEventListener("mousedown", (e) => {
+  if (document.pointerLockElement !== renderer.domElement) { renderer.domElement.requestPointerLock(); return; }
+  act(e.button === 0 ? "grab" : e.button === 2 ? "throw" : "x", true);
+});
+addEventListener("mouseup", (e) => act(e.button === 0 ? "grab" : e.button === 2 ? "throw" : "x", false));
+addEventListener("contextmenu", (e) => e.preventDefault());
+addEventListener("mousemove", (e) => {
+  if (document.pointerLockElement !== renderer.domElement) return;
+  look.yaw -= e.movementX * 0.0025; look.pitch = Math.max(-1.45, Math.min(1.45, look.pitch + e.movementY * 0.0025));
+  look.dx += e.movementX; look.dy += e.movementY;
+});
+addEventListener("blur", () => { keys.clear(); heldActs.clear(); });
+addEventListener("resize", () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+const k = (c) => (keys.has(c) ? 1 : 0);
+function readInput(extra) {
+  return {
+    fwd: k("KeyW") - k("KeyS"), side: k("KeyA") - k("KeyD"), sprint: keys.has("ShiftLeft"), crouch: keys.has("ControlLeft") || keys.has("KeyC"), jump: keys.has("Space"),
+    look, pressed, held: heldActs, ...extra,
+  };
+}
+
+// ── frame ───────────────────────────────────────────────────────────────────────────────────────────────────
+let state = interaction.state;
+function frame(dt, input) {
+  const cols = getColliders();
+  player.update(dt, input, cols, { needs, camMotion: 1 });
+  props.update(dt);
+  state = interaction.update(dt, input);
+  player.applyCamera(camera);
+  worldRoot.updateMatrixWorld(true);   // what the renderer does once per frame
+  pressed.clear(); look.dx = 0; look.dy = 0;
+  for (const t of toasts) t.t -= dt;
+  while (toasts.length && toasts[0].t <= 0) toasts.shift();
+}
+const $ = (id) => document.getElementById(id);
+function draw() {
+  const s = state, v = pockets.view();
+  $("hud").textContent =
+    `needs  hp ${needs.health | 0}  food ${needs.hunger | 0}  water ${needs.thirst | 0}  energy ${needs.energy | 0}   stamina ${(player.stamina * 100) | 0}%${player.sprinting ? " SPRINT" : ""}${player.crouched ? " CROUCH" : ""}${player.encumbered ? " HEAVY" : ""}\n` +
+    `pockets ${v.map((p, i) => `${i === pockets.selected ? ">" : " "}${i + 1}:${p ? p.icon + (p.count > 1 ? "x" + p.count : "") + (p.qty ? "(" + p.qty + ")" : "") : "--"}`).join(" ")}\n` +
+    `held   ${s.held ? s.held.name + "   [" + s.held.hints.join(" · ") + "]" : "-"}\n` +
+    `cargo  ${vehicle.cargo.items.map((e) => e.item.type).join(", ") || "-"}   fuel ${vehicle.fuel.toFixed(1)} L\n` +
+    `props  ${props.list.length} live, ${props.list.filter((p) => !p.asleep && !p.held && !p.secured).length} awake`;
+  $("prompt").textContent = (s.target ? s.target.name + (s.target.note ? "  (" + s.target.note + ")" : "") + (s.target.qty && !s.target.name.includes(s.target.qty) ? "  " + s.target.qty : "") + "\n" : "") +
+    s.actions.map((a) => `[${a.key}] ${a.label}${a.blocked ? "  ✕ " + a.blocked : ""}${a.progress != null ? "  " + Math.round(a.progress * 100) + "%" : ""}`).join("\n") +
+    (s.cargoHint ? "\n" + s.cargoHint : "") + (s.progress ? `\n${s.progress.label} ${"█".repeat(Math.round(s.progress.pct * 12)).padEnd(12, "░")}` : "");
+  $("toast").textContent = toasts.map((t) => t.text).join("\n");
+  renderer.render(scene, camera);
+}
+let auto = true, last = performance.now();
+function loop(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (auto) frame(dt, readInput());
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ── scripting hooks for headless checks ─────────────────────────────────────────────────────────────────────
+const DT = 1 / 60, v3 = (v) => [+v.x.toFixed(3), +v.y.toFixed(3), +v.z.toFixed(3)];
+const dev = window.__dev = {
+  THREE, player, props, pockets, interaction, vehicle, ws, needs, wallet, colliders, door, setDoor, flags, log, sounds, camera, look, chunk, makeItem, ITEMS,
+  manual() { auto = false; keys.clear(); heldActs.clear(); pressed.clear(); },
+  // one scripted frame: pressed = action names that went down this frame, held = names currently down
+  frame(pressedNames = [], heldNames = [], move = {}) {
+    dev.manual();
+    const input = { fwd: 0, side: 0, sprint: false, crouch: false, jump: false, look, pressed: new Set(pressedNames), held: new Set([...pressedNames, ...heldNames]), ...move };
+    frame(DT, input);
+    return state;
+  },
+  step(secs = 1, heldNames = [], move = {}) { let s = state; for (let t = 0; t < secs - 1e-9; t += DT) s = dev.frame([], heldNames, move); return s; },
+  press(...names) { const s = dev.frame(names); dev.frame(); return s; },
+  hold(name, secs) { let s = dev.frame([name]); for (let t = DT; t < secs; t += DT) s = dev.frame([], [name]); dev.frame(); return s; },
+  teleport(x, z, yaw = 0, pitch = 0.2) { dev.manual(); player.teleport(x, z, yaw); look.yaw = yaw; look.pitch = pitch; return dev.frame(); },
+  lookAt(x, y, z) {
+    const e = player.eye(), dx = x - e.x, dy = y - e.y, dz = z - e.z;
+    look.yaw = Math.atan2(dx, dz); look.pitch = -Math.asin(dy / Math.hypot(dx, dy, dz));
+    return dev.frame();
+  },
+  // stand `dist` m from a prop and look straight at it
+  aim(id, dist = 1.4, from = null) {
+    const p = props.get(id); if (!p) return null;
+    const c = props.pose(p).pos;
+    if (from) player.teleport(from[0], from[1]); else if (Math.hypot(player.pos.x - c.x, player.pos.z - c.z) > dist + 0.6 || Math.hypot(player.pos.x - c.x, player.pos.z - c.z) < 0.5) player.teleport(c.x, c.z - dist);
+    dev.frame();
+    return dev.lookAt(c.x, c.y, c.z);
+  },
+  // look at a point given in the vehicle's local frame
+  aimLocal(lx, ly, lz, from = null) {
+    const w = vehicle.mesh.localToWorld(new THREE.Vector3(lx, ly, lz));
+    if (from) { const f = vehicle.local(from[0], from[1]); player.teleport(f.x, f.z); dev.frame(); }
+    return dev.lookAt(w.x, w.y, w.z);
+  },
+  moveVehicle(dx, dz, secs = 1) {
+    const n = Math.round(secs / DT);
+    vehicle.vel.set(dx / secs, 0, dz / secs);
+    for (let i = 0; i < n; i++) { vehicle.pos.x += dx / n; vehicle.pos.z += dz / n; vehicle.sync(); dev.frame(); }
+    vehicle.vel.set(0, 0, 0);
+  },
+  prop(id) { const p = props.get(id); return p ? { pos: v3(props.pose(p).pos), asleep: p.asleep, held: p.held, secured: !!p.secured, fixed: p.fixed, hy: +p.hy.toFixed(3), qty: p.item.qty } : null; },
+  state() {
+    return {
+      ui: state, held: interaction.held, player: { pos: v3(player.pos), yaw: +player.yaw.toFixed(3), encumbered: player.encumbered, stamina: +player.stamina.toFixed(2) },
+      pockets: pockets.view().map((p) => (p ? `${p.type}x${p.count}` : null)), needs: { ...needs },
+      cargo: vehicle.cargo.items.map((e) => ({ type: e.item.type, lpos: e.lpos.map((n) => +n.toFixed(3)), lyaw: +e.lyaw.toFixed(3) })), fuel: +vehicle.fuel.toFixed(2),
+      props: props.list.length,
+    };
+  },
+  wsDump() { const s = ws.serialize(); return { removed: s.removed, props: s.props.map(([id, r]) => [id, r.at, r.pos.map((n) => +n.toFixed(2))]) }; },
+  // every loose prop is finite, on or above the ground and outside solid colliders
+  audit() {
+    const bad = [];
+    for (const p of props.list) {
+      if (p.secured) continue;
+      if (!Number.isFinite(p.pos.x + p.pos.y + p.pos.z) || p.pos.y - p.hy < -1e-6) bad.push([p.id, "below/NaN", v3(p.pos)]);
+    }
+    return { count: props.list.length, bad };
+  },
+  // free camera for screenshots: eye position + look-at point, renders without the player
+  shot(ex, ey, ez, tx, ty, tz) { dev.manual(); camera.position.set(ex, ey, ez); camera.lookAt(tx, ty, tz); draw(); return true; },
+};
+</script>
+</body>
+</html>

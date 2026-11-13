@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Long Haul – UI harness</title>
+  <link rel="icon" href="data:,"/>
+  <link rel="stylesheet" href="../css/base.css"/>
+  <link rel="stylesheet" href="../css/hud.css"/>
+  <link rel="stylesheet" href="../css/menus.css"/>
+  <style>
+    /* photo-like stand-in for the 3D view: bright sand + sky, or night with ?bg=night */
+    #bg { position: fixed; inset: 0; background:
+      radial-gradient(circle at 72% 22%, #fffbe6 0, #fff3c4 3%, rgba(255, 243, 196, 0) 16%),
+      linear-gradient(180deg, #7fb6e6 0%, #bfe0f5 40%, #f3ead2 49%, #ecd59c 50%, #e3c27e 70%, #caa462 100%); }
+    #bg::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; bottom: 0; background: linear-gradient(180deg, #55504a, #2c2a28);
+      clip-path: polygon(48.5% 0, 51.5% 0, 78% 100%, 22% 100%); }
+    #bg.night { background: radial-gradient(circle at 30% 18%, #dfe6ff 0, rgba(223, 230, 255, 0) 2%), linear-gradient(180deg, #03040a 0%, #0a0e1c 48%, #0d0b09 50%, #17130e 100%); }
+    #bg.night::after { background: linear-gradient(180deg, #0c0c0c, #050505); }
+    #game { background: transparent; }
+  </style>
+</head>
+<body>
+  <div id="bg"></div>
+  <canvas id="game" tabindex="0"></canvas>
+  <div id="hud-vignette"></div><div id="hud" hidden></div><div id="hud-fade" hidden></div><div id="menus" hidden></div>
+  <script type="module">
+    // ?view=gate|loading|main|main-nosave|main-error|newjourney|confirm|settings|controls|credits|pause|inventory|shop|gameover|sleep
+    //       |hud-drive|hud-foot|hud-fade   &tab=<tab id>  &bg=night  &show=minimal|off  &scale=1.5  &hc=1  &units=mi  &still=1
+    import { hud } from "../js/ui/hud.js";
+    import { menus } from "../js/ui/menus.js";
+    import * as input from "../js/input.js";
+    import { emit, notify, on } from "../js/core/bus.js";
+
+    const q = new URLSearchParams(location.search), view = q.get("view") || "main";
+    if (q.get("bg") === "night") document.getElementById("bg").classList.add("night");
+    const prefs = { quality: "auto", fov: 70, camMotion: 1, camera: "cab", sens: 1, invertY: false, units: q.get("units") || "km", gearbox: "auto",
+      vol: { master: 0.8, music: 0.6, sfx: 0.8, ambience: 0.7 }, muted: false, radio: true,
+      hud: { scale: +(q.get("scale") || 1), opacity: 1, show: q.get("show") || "full", critical: true, help: true },
+      a11y: { reduceMotion: q.has("still"), highContrast: q.has("hc") } };
+    const calls = [];
+    const log = (name) => (...a) => { calls.push([name, ...a]); console.debug("[handler]", name, JSON.stringify(a)); };
+    let gameMode = view === "hud-drive" ? "drive" : view.startsWith("hud") ? "foot" : "overlay";
+    const handlers = {};
+    for (const n of ["onContinue", "onNewJourney", "onSaveAndMenu", "onReturnToHost", "onUseSlot", "onDropSlot", "onFirstGesture", "onRadioNext", "onMainMenu"]) handlers[n] = log(n);
+    handlers.onPrefs = (p) => { calls.push(["onPrefs"]); hud.applyPrefs(p); };
+    handlers.onResume = handlers.onCloseOverlay = () => { calls.push(["close"]); menus.hide(); hud.dim(false); gameMode = "foot"; };
+    handlers.onBuy = (t) => { calls.push(["onBuy", t]); menus.setMessage(`Bought: ${t}`); menus.refresh({ money: 12 }); };
+
+    const music = { tracks: q.has("nomusic") ? 0 : 2, credits: q.has("nomusic") ? [] : [
+      { title: "Heat Shimmer", artist: "Dry Lake Radio", license: "CC BY 4.0" }, { title: "Two Lane Blacktop Blues", artist: "The Mile Markers", license: "CC0" }] };
+    const save = { day: 4, distance: 37210, difficulty: "survival", vehicle: "’78 Pickup" };
+    const slots = [
+      { icon: "💧", name: "Water bottle (0.5 L)", count: 3 }, { icon: "🥫", name: "Canned beans", count: 2 }, { icon: "🩹", name: "Bandage", count: 1 },
+      { icon: "🔦", name: "Flashlight", count: 1 }, { icon: "🛢", name: "Engine oil bottle, synthetic 10W-40 (1 L)", count: 1, qty: "0.6 L" }, { icon: "🥤", name: "Soda", count: 12 }];
+    const needs = { health: 64, hunger: 22, thirst: 9, energy: 55 };
+    const vehicle = [
+      { slot: "engine", label: "Engine (inline-six)", item: {}, cond: 61, note: "Low oil" }, { slot: "battery", label: "Battery", item: {}, cond: 18, note: "Weak" },
+      { slot: "radiator", label: "Radiator", item: {}, cond: 74, note: "" }, { slot: "wheelFL", label: "Wheel front left", item: {}, cond: 52, note: "" },
+      { slot: "wheelFR", label: "Wheel front right", item: {}, cond: 8, note: "Flat" }, { slot: "wheelRL", label: "Wheel rear left", item: null, cond: null, note: "Missing" },
+      { slot: "wheelRR", label: "Wheel rear right", item: {}, cond: 49, note: "" }];
+    const tel = { speed: 23, rpm: 2600, redline: 4800, gear: "D", gearMode: "auto", ignition: "running", fuel: 6.4, tank: 70, temp: 112, overheating: true,
+      oil: 2.1, oilCap: 5, coolant: 3, coolantCap: 9, battery: 22, parkingBrake: false, lights: true, odometer: 37210,
+      warnings: [{ id: "temp", level: "crit", text: "Overheating" }, { id: "fuel", level: "warn", text: "Low fuel" }, { id: "oil", level: "warn", text: "Oil low" },
+        { id: "tyre", level: "crit", text: "Front right flat" }, { id: "battery", level: "warn", text: "Not charging" }, { id: "body", level: "warn", text: "Body damaged" }] };
+    const stats = { distance: 37210, days: 4, fuelUsed: 41.3, spent: 86, repairs: 3, playtime: 5400 };
+    const full = { save, hostAvailable: true, music, difficulty: "survival" };
+
+    hud.init({ prefs });
+    menus.init({ prefs, handlers });
+    menus.setNowPlaying(q.has("nomusic") ? null : { title: "Heat Shimmer", artist: "Dry Lake Radio" });
+    input.initInput(document.getElementById("game"), () => gameMode);
+    on("pause:request", () => calls.push(["pause:request"]));
+    window.__ui = { hud, menus, input, calls, emit, notify, prefs, setMode: (m) => { gameMode = m; } };
+
+    const tab = q.get("tab");
+    const open = (root, d, sub, tabId) => {
+      menus.show(root, d);
+      if (root === "main" && menus.screen === "gate") window.dispatchEvent(new PointerEvent("pointerdown"));
+      if (sub) document.querySelector(`[data-act="${sub}"]`).click();
+      if (tab && tabId) document.querySelector(`[data-arg="${tabId}:${tab}"]`).click();
+    };
+    const hudState = (t) => {
+      const drive = view === "hud-drive", w = q.has("still") ? 0.4 : (Math.sin(t / 900) + 1) / 2;
+      return {
+        mode: drive ? "drive" : "foot", units: prefs.units,
+        tel: drive ? { ...tel, speed: 8 + w * 24, rpm: 900 + w * 4300, fuel: 6.4 - w * 3, temp: 96 + w * 22, overheating: w > 0.6,
+          warnings: q.has("calm") ? [] : tel.warnings } : null,
+        vehicleName: "’78 Pickup", needs: { ...needs, thirst: 4 + w * 20 }, stamina: 0.15 + w * 0.6, sprinting: w > 0.5,
+        day: 4, clock: q.get("bg") === "night" ? "23:41" : "14:32", weather: "Dust storm", tempC: 41, money: 128, trip: 37210 + t / 10,
+        target: q.has("calm") ? null : { name: "Rusted jerrycan with a very long descriptive name (20 L)", cond: 18, qty: "7.5 / 20 L", note: "Leaking" },
+        actions: q.has("calm") ? [] : [{ key: "E", label: "Pour fuel", progress: w }, { key: "F", label: "Remove wheel", blocked: "Needs a jack" },
+          { key: "LMB", label: "Pick up" }],
+        held: { name: "Engine oil jug, synthetic (4 L)", qty: "2.5 L", hints: ["LMB drop", "RMB throw", "R rotate", "Q stow"] },
+        cargoHint: "Put it down to secure it in the bed",
+        slots, selected: 4, progress: { label: "Refuelling", pct: w }, lite: true, music: { title: "Heat Shimmer", artist: "Dry Lake Radio" },
+      };
+    };
+
+    if (view.startsWith("hud")) {
+      hud.setVisible(true);
+      if (!q.has("unlocked")) emit("pointerlock", true);
+      hud.setVignette({ hurt: q.has("hurt") ? 0.7 : 0, tired: q.has("tired") ? 0.7 : 0 });
+      if (view === "hud-fade") hud.fade(0.85, "Sleeping… 03:10");
+      const loop = (t) => { hud.update(hudState(t)); input.endFrame(); requestAnimationFrame(loop); };
+      requestAnimationFrame(loop);
+      if (!q.has("calm")) {
+        notify("Engine overheating – stop and let it cool", { level: "crit", key: "heat" });
+        notify("Low fuel: 6 L left", { level: "warn", icon: "⛽", key: "fuel" });
+        notify("Picked up Water bottle", { level: "good" });
+        notify("Discovered: Dry Creek Service Station", { level: "info" });
+        notify("This one waits in the queue", { level: "info" });
+        notify("Low fuel: 5 L left", { level: "warn", icon: "⛽", key: "fuel" });
+      }
+    } else {
+      hud.setVisible(view === "pause" || view === "inventory" || view === "shop");
+      hud.dim(true);
+      hud.update({ ...hudState(0), mode: "foot" });
+      const V = {
+        gate: () => menus.show("gate"),
+        loading: () => { let p = q.has("still") ? 0.62 : 0; menus.show("loading", { pct: p, label: "Building the road" });
+          if (!q.has("still")) setInterval(() => { p = (p + 0.01) % 1; menus.show("loading", { pct: p, label: p < 0.5 ? "Building the road" : "Assembling vehicles" }); }, 60); },
+        main: () => open("main", full),
+        "main-nosave": () => open("main", { save: null, hostAvailable: false, music }),
+        "main-error": () => open("main", { save: null, saveError: true, hostAvailable: true, music }),
+        newjourney: () => open("main", full, "newjourney"),
+        confirm: () => { open("main", full, "newjourney"); document.querySelector('[data-act="start"]').click(); },
+        settings: () => open("main", full, "settings", "settings"),
+        controls: () => open("main", full, "controls", "controls"),
+        credits: () => open("main", full, "credits"),
+        pause: () => menus.show("pause", { summary: save, music }),
+        inventory: () => { menus.show("inventory", { slots, held: { name: "Engine oil jug, synthetic (4 L)", qty: "2.5 L" }, needs, vehicle, vehicleName: "’78 Pickup", tel, stats,
+          day: 4, distance: 37210, difficulty: "survival", weather: "Dust storm", tempC: 41, money: 128 });
+          if (tab) document.querySelector(`[data-arg="inventory:${tab}"]`).click(); },
+        shop: () => { menus.show("shop", { site: { name: "Dry Creek Service Station" }, money: 128, stock: [
+          { type: "water", price: 4, icon: "💧" }, { type: "beans", price: 6, icon: "🥫" }, { type: "fuelcan", price: 38, icon: "⛽", bulky: true },
+          { type: "oil", price: 12, icon: "🛢" }, { type: "coolant", price: 18, icon: "🧊", bulky: true }, { type: "wheel_16", price: 140, icon: "🛞", bulky: true },
+          { type: "battery", price: 95, icon: "🔋", bulky: true }, { type: "medkit", price: 45, icon: "🩹" }] }); menus.setMessage("Bought Water bottle – in your pockets."); },
+        gameover: () => menus.show("gameover", { cause: "You died of thirst on day 4, 37 km from where you started.", stats }),
+        sleep: () => menus.show("sleep", { text: "Sleeping until morning…" }),
+      };
+      (V[view] || V.main)();
+    }
+  </script>
+</body>
+</html>
