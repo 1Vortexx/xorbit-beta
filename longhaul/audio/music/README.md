@@ -1,6 +1,6 @@
 # Long Haul soundtrack
 
-The game ships with no music. It plays ambient sound and reports an empty playlist until you add tracks here.
+The title screen plays three tracks by Jaobi. The radio playlist is empty until you add tracks here.
 
 ## Adding tracks
 

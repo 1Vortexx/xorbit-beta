@@ -2,6 +2,12 @@
 
 Newest first. In game: main menu → What's New. Source of truth: `js/changelog.js`.
 
+## v2.3.1 (2026-11-15)
+
+### Changed
+
+- The menu music is credited to its artist, Jaobi, on the Credits screen and in the now-playing line.
+
 ## v2.3 – Self-Defence (2026-11-15)
 
 ### New
@@ -55,7 +61,7 @@ Newest first. In game: main menu → What's New. Source of truth: `js/changelog.
 
 ### New
 
-- Menu music: three original tracks play on the title screen, with a now-playing label.
+- Menu music: three original tracks by Jaobi play on the title screen, with a now-playing label.
 - Sound effects for doors, the ignition, switches, the parking brake and more.
 
 ### Fixed

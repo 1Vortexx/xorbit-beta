@@ -2,6 +2,14 @@
 // sections: [heading, [line, …]]
 export const CHANGELOG = [
   {
+    version: "2.3.1", date: "2026-11-15",
+    sections: [
+      ["Changed", [
+        "The menu music is credited to its artist, Jaobi, on the Credits screen and in the now-playing line.",
+      ]],
+    ],
+  },
+  {
     version: "2.3", name: "Self-Defence", date: "2026-11-15",
     sections: [
       ["New", [
@@ -57,7 +65,7 @@ export const CHANGELOG = [
     version: "2.0.1", name: "Tune-up", date: "2026-11-14",
     sections: [
       ["New", [
-        "Menu music: three original tracks play on the title screen, with a now-playing label.",
+        "Menu music: three original tracks by Jaobi play on the title screen, with a now-playing label.",
         "Sound effects for doors, the ignition, switches, the parking brake and more.",
       ]],
       ["Fixed", [
