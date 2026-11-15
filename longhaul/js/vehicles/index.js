@@ -6,7 +6,7 @@ import { Vehicle } from "./vehicle.js";
 import { VEHICLES, PAINTS, WHEEL_SLOTS } from "./defs.js";
 import { setGround, mulberry } from "./ground.js";
 import { makeComponent } from "./components.js";
-import { prepareMaterials, paintMaterial, materialsReady, disposeMaterials } from "./materials.js";
+import { prepareMaterials, paintMaterial, loadSkins, materialsReady, disposeMaterials } from "./materials.js";
 import { buildVisual } from "./models.js";
 import { registerTargets, unregisterTargets } from "./interact.js";
 
@@ -35,13 +35,16 @@ export async function prepare(report = () => {}) {
   report(0.3, "Vehicles: materials");
   prepareMaterials();
   await tick();
-  report(0.7, "Vehicles: paint");
+  report(0.6, "Vehicles: paint");
   paintMaterial(STARTER_PAINT, 0.6);
+  await loadSkins();
   await tick();
   report(1, "Vehicles ready");
 }
 
 const STARTER_PAINT = 0x4f8f8c;
+const POOP_PAINT = 0xa5382a;         // plain-paint fallback if the Poopmobile photo skin fails to load
+const POOP_CHANCE = 1 / 1000;        // the starter is The Poopmobile instead of the Brazos
 
 // Deterministic state of a recoverable vehicle from its spawn seed: worn parts and 1–3 defects that the player can
 // fix with parts and fluids the game provides.
@@ -99,6 +102,11 @@ export class Vehicles {
 
   get(id) { return this.byId.get(id) || null; }
 
+  ensure(id) {
+    const rec = ws.vehicles.get(id);
+    return this.get(id) || (rec && VEHICLES[rec.type] ? this._fromRecord(rec) : null);
+  }
+
   _add(v, visual = true) {
     v.getColliders = this.getColliders;
     if (visual && this.root && typeof document !== "undefined") {
@@ -127,13 +135,15 @@ export class Vehicles {
     return this._add(v);
   }
 
-  // Worn but usable pickup, id "starter". Uses the saved record when there is one.
-  spawnStarter(spawn = { x: 0, z: 0, yaw: 0 }) {
+  // Worn but usable pickup, id "starter" – one journey seed in a thousand gets The Poopmobile instead. Uses the saved
+  // record when there is one.
+  spawnStarter(spawn = { x: 0, z: 0, yaw: 0 }, seed = 0) {
     const old = this.get("starter");
     if (old) return old;
     const rec = ws.vehicles.get("starter");
     if (rec) return this._fromRecord(rec);
-    const v = new Vehicle({ id: "starter", type: "pickup", seed: 1978, paint: STARTER_PAINT, wearLook: 0.6 });
+    const poop = mulberry((seed ^ 0x5eed9) >>> 0)() < POOP_CHANCE;
+    const v = new Vehicle({ id: "starter", type: poop ? "poopmobile" : "pickup", seed: poop ? 1969 : 1978, paint: poop ? POOP_PAINT : STARTER_PAINT, wearLook: 0.6 });
     const s = v.slots, d = v.def;
     s.engine.cond = 62; s.battery.cond = 68; s.battery.charge = 82; s.radiator.cond = 64;
     s.wheelFL.cond = 58; s.wheelFR.cond = 63; s.wheelRL.cond = 55; s.wheelRR.cond = 60;
@@ -176,7 +186,7 @@ export class Vehicles {
     if (!this._scan && ++this._tick % 20) return;
     this._scan = false;
     const near = (x, z, R) => { for (const f of focusPoints) { const dx = f.x - x, dz = f.z - z; if (dx * dx + dz * dz < R * R) return true; } return false; };
-    for (const v of [...this.list]) if (!v.occupied && !near(v.pos.x, v.pos.z, UNLOAD_R)) this._remove(v, true);
+    for (const v of [...this.list]) if (!v.pinned && !v.occupied && !near(v.pos.x, v.pos.z, UNLOAD_R)) this._remove(v, true);
     for (const c of this.chunks.values()) {
       for (const s of c.vehicleSpawns || []) {
         if (this.byId.has(s.id) || ws.vehicles.has(s.id) || !near(s.pos[0], s.pos[2], LOAD_R)) continue;
@@ -184,15 +194,16 @@ export class Vehicles {
       }
     }
     for (const [id, rec] of ws.vehicles) {
-      if (this.byId.has(id) || !rec || !Array.isArray(rec.pos) || !VEHICLES[rec.type] || !near(rec.pos[0], rec.pos[2], LOAD_R)) continue;
+      if (this.byId.has(id) || !rec || !Array.isArray(rec.pos) || !VEHICLES[rec.type] || !(rec.pinned || near(rec.pos[0], rec.pos[2], LOAD_R))) continue;
       this._fromRecord(rec);
     }
   }
 
-  // Fixed step: full physics for the driven and moving vehicles; parked ones sleep.
+  // Fixed step: full physics for the driven and moving vehicles; parked ones sleep. A vehicle that is not the
+  // player's gets its own `ai` input (an NPC at the wheel) through exactly the same Vehicle.step path.
   step(dt, driven, input, env) {
     const many = this.list.length > 1 ? this.list : null;
-    for (const v of this.list) v.step(dt, v === driven ? (input || { throttle: 0, steer: 0 }) : null, env, many);
+    for (const v of this.list) v.step(dt, v === driven ? (input || { throttle: 0, steer: 0 }) : v.ai, env, many);
   }
 
   // Per frame: mesh sync, door / gauge / wheel animation, headlight rig.

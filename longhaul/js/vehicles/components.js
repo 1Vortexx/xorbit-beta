@@ -16,6 +16,11 @@ export const ENGINES = {
     torque: [[400, 220], [700, 300], [1500, 380], [2400, 405], [3200, 385], [4000, 325], [4600, 245], [5000, 150], [5400, 0]],
     heat: [0.4, 1.8], oilUse: 0.06, fuelIdle: 1.8, bsfc: 0.4,
   },
+  engine_bigblock: {
+    label: "7.5 L big-block V8", idle: 750, redline: 5200, inertia: 0.34,
+    torque: [[400, 250], [800, 350], [1600, 430], [2600, 465], [3600, 450], [4400, 400], [5000, 300], [5400, 160], [5800, 0]],
+    heat: [0.45, 2.0], oilUse: 0.07, fuelIdle: 2.2, bsfc: 0.42,
+  },
   engine_i4: {
     label: "2.3 L inline four", idle: 800, redline: 5400, inertia: 0.16,
     torque: [[500, 90], [800, 122], [1500, 150], [2600, 170], [3600, 166], [4600, 146], [5200, 120], [5600, 80], [6000, 0]],
@@ -42,6 +47,11 @@ export const COMPONENT_ITEMS = {
   engine_v8: {
     name: "V8 engine", icon: "⚙", kind: "part", mass: 250, size: [0.74, 0.74, 0.86], price: 950,
     pocket: false, slot: "engine", fits: ["pickup"], makeMesh: mesh("engine_v8"),
+  },
+  // Roadblock crews' pursuit cars run this so they can run the player down; strip one from a wreck to keep it.
+  engine_bigblock: {
+    name: "Big-block V8", icon: "⚙", kind: "part", mass: 290, size: [0.78, 0.76, 0.9], price: 1600,
+    pocket: false, slot: "engine", fits: ["pickup", "sedan"], makeMesh: mesh("engine_bigblock"),
   },
   engine_i4: {
     name: "Four-cylinder engine", icon: "⚙", kind: "part", mass: 140, size: [0.56, 0.66, 0.7], price: 420,
@@ -79,7 +89,7 @@ export function fitProblem(vehicleType, slot, item) {
   const def = item && COMPONENT_ITEMS[item.type];
   if (!def) return "That is not a vehicle part";
   if (def.slot !== slotKind(slot)) return `${def.name} does not go there`;
-  if (!def.fits.includes(vehicleType)) return `${def.name} does not fit the ${VEHICLES[vehicleType]?.name || vehicleType}`;
+  if (!def.fits.includes(VEHICLES[vehicleType]?.fitsAs || vehicleType)) return `${def.name} does not fit the ${VEHICLES[vehicleType]?.name || vehicleType}`;
   return null;
 }
 export const fits = (vehicleType, slot, item) => fitProblem(vehicleType, slot, item) === null;

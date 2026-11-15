@@ -1,6 +1,6 @@
 // Long Haul – gameplay HUD. Pure presentation: main.js feeds real state through hud.update() every frame and this
 // module diffs it against what is already on screen, touching the DOM only when a value changed.
-import { on } from "../core/bus.js";
+import { on, sfx } from "../core/bus.js";
 import { bindingLabel } from "../input.js";
 import { icon, critIcon, esc, clamp01, fmtDist, weatherIcon, hasIcon } from "./icons.js";
 
@@ -18,7 +18,8 @@ let prefs = null;
 let visible = false, dimmed = false, lockedNow = false;
 let showMode = "full", critOnly = true;
 let lastMusic = "", musicTimer = 0, pushedMusic = null;
-let sig = { actions: "", slots: "", warns: "", held: "" };
+let sig = { actions: "", slots: "", warns: "", held: "", pips: "" };
+let saySub = null, sayTimer = 0, argSub = null;   // subtitle from bus "npc:say" / from the last update()
 let actionRows = [];
 
 // ── tiny diffing helpers ───────────────────────────────────────────────────
@@ -50,6 +51,11 @@ function build() {
   </div>
   <div class="hud-tr">
     <div class="plate needs" data-k="needs">${need}</div>
+    <div class="plate enc" data-k="enc" data-level="info" role="status" aria-live="polite" hidden>
+      <div class="enc-h"><span data-k="encIcon"></span><b data-k="encTitle"></b></div>
+      <div class="enc-t" data-k="encText"></div>
+      <div class="enc-p" data-k="encPur" hidden><span class="pips" data-k="encPips" aria-hidden="true"></span><span data-k="encPurTxt"></span></div>
+    </div>
     <div class="notes" data-k="notes" role="status" aria-live="polite"></div>
   </div>
   <div class="hud-bl">
@@ -98,6 +104,10 @@ function build() {
     <div class="slots only-foot" data-k="slots" data-tier="full"></div>
     <div class="plate hints only-drive" data-k="driveHints" data-tier="help"></div>
   </div>
+  <div class="hud-say">
+    <div class="plate subt" data-k="sub" role="status" aria-live="polite" hidden><b data-k="subName"></b><span data-k="subText"></span></div>
+    <div class="plate promptp" data-k="prompt" hidden></div>
+  </div>
   <div class="cross only-foot" data-k="cross" aria-hidden="true"><i></i></div>
   <div class="target only-foot" data-k="target" hidden>
     <div class="plate tcard">
@@ -122,8 +132,8 @@ function mk(id) { const d = document.createElement("div"); d.id = id; root.after
 
 const cap = (k) => `<kbd>${esc(k)}</kbd>`;
 function renderHints() {
-  const row = (list) => list.map(([a, l]) => `<span class="hint">${cap(bindingLabel(a))}${esc(l)}</span>`).join("");
-  html(el.driveHints, row([["ignition", "Ignition"], ["exit", "Get out"], ["lights", "Lights"], ["camera", "Camera"], ["parkingBrake", "P-brake"], ["inventory", "Inventory"]]));
+  const row = (list) => list.map(([a, l]) => `<span class="hint${a === "talk" ? " h-talk" : ""}">${cap(bindingLabel(a))}${esc(l)}</span>`).join("");
+  html(el.driveHints, row([["ignition", "Ignition"], ["exit", "Get out"], ["talk", "Talk"], ["lights", "Lights"], ["camera", "Camera"], ["parkingBrake", "P-brake"], ["inventory", "Inventory"]]));
   html(el.footHints, row([["use", "Use"], ["grab", "Pick up"], ["stow", "Stow"], ["consume", "Use pocket item"], ["inventory", "Inventory"]]));
 }
 
@@ -347,7 +357,68 @@ function updFoot(s) {
   }
 }
 
+// Threat / pursuit / surrender / escape plate. Level is carried by the icon shape and the wording, never colour alone.
+function updEncounter(s) {
+  const e = s.encounter && (s.encounter.title || s.encounter.text) ? s.encounter : null;
+  vis(el.enc, !!e);
+  cls(root, "has-enc", !!e);
+  if (e) {
+    const lv = e.level === "crit" || e.level === "warn" ? e.level : "info";
+    attr(el.enc, "data-level", lv);
+    html(el.encIcon, lv === "crit" ? critIcon() : icon(lv === "warn" ? "warn" : "info"));
+    text(el.encTitle, String(e.title ?? ""));
+    text(el.encText, String(e.text ?? ""));
+    vis(el.encText, !!e.text);
+    const p = e.pursuers && e.pursuers.total > 0 ? e.pursuers : null;
+    vis(el.encPur, !!p);
+    if (p) {
+      const total = Math.min(12, Math.round(p.total)), able = Math.max(0, Math.min(total, Math.round(p.able)));
+      const k = `${able}/${total}`;
+      if (k !== sig.pips) {
+        sig.pips = k;
+        let out = "";
+        for (let i = 0; i < total; i++) out += i < able ? `<i class="pip on">${icon("car")}</i>` : `<i class="pip">${icon("x")}</i>`;
+        el.encPips.innerHTML = out;
+      }
+      text(el.encPurTxt, able === 0 ? (total === 1 ? "Pursuer out of the chase" : `All ${total} pursuers out of the chase`) : `${able} of ${total} still chasing`);
+    }
+  }
+  // One line of "what can I do now": main's prompt first, else the encounter's own (given without a key).
+  let pr = s.prompt ? String(s.prompt) : "", key = "";
+  const m = /^(\S{1,6}) {2,}(\S.*)$/.exec(pr);            // "E  Talk to the hitchhiker"
+  if (m) { key = m[1]; pr = m[2]; }
+  else if (!pr && s.encounter && s.encounter.prompt) {
+    const drive = s.mode === "drive", aimed = !drive && (s.target || (Array.isArray(s.actions) && s.actions.length));
+    if (!aimed) { pr = String(s.encounter.prompt); key = bindingLabel(drive ? "talk" : "use"); }   // on foot the target's own action list already says it
+  }
+  vis(el.prompt, !!pr);
+  if (pr) html(el.prompt, `${key ? cap(key) : ""}<span>${esc(pr)}</span>`);
+  if (s.subtitle !== undefined) argSub = s.subtitle && s.subtitle.text ? s.subtitle : null;
+  showSub();
+}
+function showSub() {
+  const sub = argSub || saySub;
+  vis(el.sub, !!sub);
+  if (!sub) return;
+  text(el.subName, String(sub.name || ""));
+  vis(el.subName, !!sub.name);
+  text(el.subText, String(sub.text));
+}
+// bus "npc:say" { npc?, name, text, ms }: a subtitle for ms (also when main passes none) and one soft blip per line,
+// pitched per speaker so two people do not sound alike.
+function onSay(d) {
+  if (!root || !d || !d.text) return;
+  saySub = { name: d.name ? String(d.name) : "", text: String(d.text) };
+  clearTimeout(sayTimer);
+  sayTimer = setTimeout(() => { saySub = null; showSub(); }, Math.max(800, d.ms || 3500));
+  showSub();
+  let h = 0;
+  for (const c of saySub.name) h = (h * 31 + c.charCodeAt(0)) & 0xffff;
+  sfx("npc_talk", { pos: d.pos || (d.npc && d.npc.pos) || undefined, rate: 0.8 + (h % 9) * 0.06 });
+}
+
 function updShared(s) {
+  updEncounter(s);
   const p = s.progress;
   vis(el.prog, !!p);
   if (p) {
@@ -377,6 +448,7 @@ export const hud = {
     if (!root) {
       build();
       on("notify", onNotify);
+      on("npc:say", onSay);
       on("pointerlock", (v) => { lockedNow = !!v; refreshLock(); });
     }
     lockedNow = !!document.pointerLockElement;
@@ -432,6 +504,8 @@ export const hud = {
   },
   // Alternative to state.music: push the current track ({title, artist} | null); a toast shows when it changes.
   setNowPlaying(t) { pushedMusic = t && t.title ? t : null; },
+  // Drop any subtitle still on screen (new journey, back to the menu).
+  clearSubtitle() { saySub = argSub = null; clearTimeout(sayTimer); if (root) showSub(); },
   // Direct access for main.js / tests (bus "notify" is the normal route).
   notify: onNotify,
   get root() { return root; },

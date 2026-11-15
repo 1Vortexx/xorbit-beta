@@ -6,6 +6,10 @@ import { heightAt } from "./world/terrain.js";
 const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3(), fwd = new THREE.Vector3();
 const lookQ = new THREE.Quaternion(), euler = new THREE.Euler(0, 0, 0, "YXZ");
 const Y = new THREE.Vector3(0, 1, 0);
+const aimM = new THREE.Matrix4();
+// Object3D.lookAt takes a scene-space target, but the camera sits under the origin-shifted worldRoot.
+// Aim in the camera's own (absolute world) space instead; worldRoot only translates.
+function aim(cam, target) { cam.quaternion.setFromRotationMatrix(aimM.lookAt(cam.position, target, cam.up)); }
 
 export class CameraRig {
   constructor(camera) {
@@ -52,7 +56,7 @@ export class CameraRig {
     tmp2.copy(vehicle.pos).addScaledVector(fwd, 3.5);
     tmp2.y += 1.1;
     cam.up.set(0, 1, 0);
-    cam.lookAt(tmp2);
+    aim(cam, tmp2);
   }
 
   // Slow arc around a point, framed so the subject sits right of centre (the menu is on the left)
@@ -67,7 +71,7 @@ export class CameraRig {
     fwd.set(focus.x - tmp.x, 0, focus.z - tmp.z).normalize();
     tmp2.set(focus.x + fwd.z * 2.6, focus.y + 0.9, focus.z - fwd.x * 2.6);
     cam.up.set(0, 1, 0);
-    cam.lookAt(tmp2);
+    aim(cam, tmp2);
   }
 
   // After the mode-specific placement: shake and the small speed FOV change

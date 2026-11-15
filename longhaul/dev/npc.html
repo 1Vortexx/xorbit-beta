@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Long Haul · Roadside people</title>
+<style>
+  *{box-sizing:border-box} body{margin:0;background:#b29b80;color:#eee;font:14px system-ui}
+  aside{position:fixed;left:1rem;bottom:1rem;background:#242923ee;padding:.8rem;border-radius:.3rem}
+  button{padding:.45rem .65rem} output{display:block;margin-top:.5rem}
+</style>
+<script type="importmap">{"imports":{"three":"../vendor/three/three.module.js","three/addons/":"../vendor/three/addons/"}}</script>
+</head>
+<body><aside><button id="walk">Walk around truck</button> <button id="seat">Board / leave</button> <button id="signal">Signal</button><output></output></aside>
+<script type="module">
+import * as THREE from "three";
+import {OrbitControls} from "three/addons/controls/OrbitControls.js";
+import {prepare,Vehicles} from "../js/vehicles/index.js";
+import {Npcs} from "../js/npc/index.js";
+import {heightAt,roadX} from "../js/world/terrain.js";
+const renderer=new THREE.WebGLRenderer({antialias:true}); document.body.prepend(renderer.domElement);
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0xb4c5c7);
+const root=new THREE.Group(); scene.add(root);
+scene.add(new THREE.HemisphereLight(0xfff2dc,0x746854,2.2));
+const sun=new THREE.DirectionalLight(0xffdfae,2.8); sun.position.set(-3,6,2); scene.add(sun);
+await prepare();
+const cars=new Vehicles({root}), x=roadX(0), z=0, y=heightAt(x,z);
+const car=cars.spawn({id:"test",x,z,type:"pickup",pristine:true});
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(100,100),new THREE.MeshStandardMaterial({color:0x9e896e}));
+ground.rotation.x=-Math.PI/2; ground.position.set(x,y-.05,z); scene.add(ground);
+const npcs=new Npcs({root,getVehicle:id=>cars.get(id),getColliders:()=>car.colliders()});
+const npc=npcs.spawn({id:"rider",name:"Mara",seed:891,role:"hitchhiker",x:x+3,z});
+const camera=new THREE.PerspectiveCamera(46,1,.02,140); camera.position.set(x+5,y+2.4,z+5);
+const controls=new OrbitControls(camera,renderer.domElement); controls.target.set(x+1,y+1,z); controls.update();
+let side=1;
+document.querySelector("#walk").onclick=()=>npc.walkTo(x+3*(side*=-1),z+3);
+document.querySelector("#seat").onclick=()=>npc.seat ? npc.exitVehicle() : npc.enterVehicle(car,"passenger");
+document.querySelector("#signal").onclick=()=>npc.threaten(npc.state!=="threaten");
+function resize(){renderer.setSize(innerWidth,innerHeight); camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();}
+resize(); addEventListener("resize",resize);
+const clock=new THREE.Clock(), label=document.querySelector("output");
+renderer.setAnimationLoop(()=>{const dt=Math.min(.05,clock.getDelta()); npcs.update(dt,{playerPos:car.pos}); car.update(dt,{});
+  label.textContent=npc.name+" · "+npc.state+(npc.seat?" · "+npc.seat.seat:"");
+  renderer.render(scene,camera);});
+</script></body></html>

@@ -48,6 +48,7 @@ export function drumMesh(R) {
 const ENGINE_LOOK = {
   engine_i6: { n: 6, vee: false, L: 0.98, H: 0.74, blockW: 0.3, blockL: 0.74, paint: 0x2c5a86, cover: 0x356b9c },
   engine_v8: { n: 8, vee: true, L: 0.86, H: 0.74, blockW: 0.42, blockL: 0.62, paint: 0xb04a1c, cover: 0xc9c9c4 },
+  engine_bigblock: { n: 8, vee: true, L: 0.9, H: 0.76, blockW: 0.46, blockL: 0.66, paint: 0x1c1c1e, cover: 0xd8dadc },
   engine_i4: { n: 4, vee: false, L: 0.7, H: 0.66, blockW: 0.27, blockL: 0.5, paint: 0x3d3f42, cover: 0x8f1f1a },
 };
 

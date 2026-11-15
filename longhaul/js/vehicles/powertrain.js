@@ -1,5 +1,6 @@
 // Long Haul – drivetrain and component condition model (pure logic, no THREE, runs in Node).
 // Operates on a Vehicle's plain state; see vehicle.js for the fields.
+import { sfx, emit } from "../core/bus.js";
 import { ENGINES, torqueAt } from "./components.js";
 import { WHEEL_SLOTS } from "./defs.js";
 
@@ -34,19 +35,26 @@ export function driveProblem(v) {
 }
 
 export function beginCrank(v) {
+  sfx("ignition_key", { pos: v.pos });
   const e = v.slots.engine;
   if (!e || !v.slots.battery || batteryCharge(v) < 8) {
     v.ign = "off"; v._crankCool = 1.2;
+    sfx(batteryCharge(v) > 0 ? "starter_click" : "switch", { pos: v.pos });
     v.say(startProblem(v), "warn", "ign");
     return false;
   }
   v.ign = "cranking";
+  sfx("crank", { pos: v.pos });
   const cold = clamp((40 - v.temp) / 60, 0, 1);
   v.crankT = 0.65 + (1 - e.cond / 100) * 0.9 + cold * 0.3 + (batteryCharge(v) < 30 ? 0.5 : 0);
   return true;
 }
 
-export function stopEngine(v, to = "off") { v.ign = to; v.crankT = 0; v.charging = false; }
+export function stopEngine(v, to = "off") {
+  if (v.ign === "running") sfx("engine_stop", { pos: v.pos });
+  else if (v.ign === "cranking") sfx("engine_fail", { pos: v.pos });
+  v.ign = to; v.crankT = 0; v.charging = false;
+}
 
 // One fixed step of the drivetrain. gas 0..1. Returns the total drive force (N, + = forward) at the driven wheels.
 export function powertrainStep(v, dt, gas, env) {
@@ -63,7 +71,7 @@ export function powertrainStep(v, dt, gas, env) {
     else if (v.crankT <= 0) {
       const why = startProblem(v);
       const chance = why ? 0 : 0.55 + e.cond / 200 - (batteryCharge(v) < 25 ? 0.2 : 0);
-      if (!why && v.rand() < chance) { v.ign = "running"; v.rpm = Math.max(v.rpm, spec.idle * 0.8); v.shiftT = 0; }
+      if (!why && v.rand() < chance) { sfx("engine_catch", { pos: v.pos }); v.ign = "running"; v.rpm = Math.max(v.rpm, spec.idle * 0.8); v.shiftT = 0; }
       else { stopEngine(v, "on"); v._crankCool = 1.5; v.say(why || "The engine coughed but did not catch. Try again.", "warn", "ign"); }
     }
   }
@@ -235,6 +243,42 @@ export function applyImpact(v, sev, frontal = true) {
   const t = (v.rand() * 4) | 0, w = v.slots[WHEEL_SLOTS[t]];
   if (w) { w.cond = Math.max(0, w.cond - sev * 0.6); if (sev > 18 && v.rand() < 0.35) puncture(v, t); }
   v.modified();
+}
+
+// Crash damage with a location: (lx, lz) is the struck point in the vehicle's own frame (+x left, +z forward).
+// Used for vehicle-against-vehicle hits. Nose → radiator / engine / body; a side hit over an axle hurts that wheel
+// (flat at high severity, torn off at very high severity); the tail → body only. Light taps (sev < 1) do nothing.
+// Deterministic: every roll comes from the vehicle's own seeded stream.
+export function impactAt(v, sev, lx, lz) {
+  if (sev < 1) return null;
+  const d = v.def;
+  const zone = lz > d.zFront - 0.5 ? "front" : lz < d.zRear + 0.5 ? "rear" : "side";
+  v.bodyCond = Math.max(0, v.bodyCond - sev * 1.1);
+  const e = v.slots.engine, r = v.slots.radiator;
+  if (zone === "front") {
+    if (e) e.cond = Math.max(0, e.cond - sev * 0.3);
+    if (r) r.cond = Math.max(0, r.cond - sev * 0.9);
+  } else if (zone === "side" && e && lz > 0.6) e.cond = Math.max(0, e.cond - sev * 0.15);
+  // Which wheel is in the line of fire: the corner on the struck side whose axle is within reach
+  let wi = -1;
+  const left = lx >= 0;
+  if (Math.abs(lz - d.axleF) < 0.75) wi = left ? 0 : 1;
+  else if (Math.abs(lz - d.axleR) < 0.75) wi = left ? 2 : 3;
+  if (wi >= 0 && (zone === "side" || Math.abs(lx) > d.halfW * 0.55)) {
+    const w = v.slots[WHEEL_SLOTS[wi]];
+    if (w) {
+      w.cond = Math.max(0, w.cond - sev * 0.8);
+      const roll = v.rand();
+      if (sev > 30 && roll < (sev - 30) / 45) {
+        v.slots[WHEEL_SLOTS[wi]] = null;
+        v.rig?.slotsChanged();
+        emit("vehicle:wheel_lost", { vehicle: v, slot: WHEEL_SLOTS[wi], item: w });
+        if (v.occupied && !v.ai) v.say(`Wheel torn off (${WHEEL_NAMES[wi]})`, "crit", "tyre");
+      } else if (sev > 12 && roll < (sev - 12) / 28) puncture(v, wi);
+    }
+  }
+  v.modified();
+  return zone;
 }
 
 export function warnings(v) {

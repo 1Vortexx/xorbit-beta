@@ -5,7 +5,7 @@ import { Pockets } from "../js/pockets.js";
 import { ws } from "../js/core/worldstate.js";
 
 await itemsReady;
-const KINDS = ["food", "drink", "med", "tool", "fluid", "part", "misc"];
+const KINDS = ["food", "drink", "med", "tool", "fluid", "part", "misc", "weapon", "ammo"];
 for (const id of FIXED_IDS) {
   const d = ITEMS[id];
   assert(d, "missing item " + id);

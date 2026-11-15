@@ -1,7 +1,8 @@
 // Long Haul – front end: gate, loading, main menu, new journey, settings, controls, credits, pause and the in-game
-// overlay screens (inventory, shop, game over, sleep). Presentation only: receives data, calls handlers.
+// overlay screens (inventory, shop, dialogue, game over, sleep). Presentation only: receives data, calls handlers.
 import { sfx } from "../core/bus.js";
 import { BINDINGS, bindingLabel, bindingLabels } from "../input.js";
+import { CHANGELOG } from "../changelog.js";
 import { icon, critIcon, esc, fmtDist, hasIcon } from "./icons.js";
 
 const DEFAULT_DIFFS = [
@@ -55,7 +56,8 @@ const brand = (sub) => `<div class="lh-brand"><div class="lh-kicker">Desert road
 let root = null, prefs = null, handlers = {};
 let rootName = null, data = {}, stack = [];
 let nowPlaying = null, message = "", gestureDone = false;
-const ui = { tabs: { settings: "graphics", inventory: "pockets", controls: "driving" }, nj: { difficulty: null, seed: "", confirm: false } };
+let dlgPicked = false, dlgReadyAt = 0;   // a dialogue answers once; a short guard after (re)opening absorbs double clicks
+const ui = { tabs: { settings: "graphics", inventory: "pockets", controls: "driving" }, nj: { difficulty: null, seed: "", hostile: true, confirm: false } };
 
 const call = (name, ...args) => { const f = handlers[name]; if (typeof f === "function") return f(...args); };
 const screen = () => (stack.length ? stack[stack.length - 1] : rootName);
@@ -145,7 +147,7 @@ function toggle(path, label, help) {
 }
 
 function bindingTable(groups) {
-  const names = { always: "Always", drive: "Driving", foot: "On foot" };
+  const names = { always: "Always", drive: "Driving", foot: "On foot", photo: "Photo mode" };
   return groups.map((g) => {
     const rows = BINDINGS.filter((b) => b.group === g && !/^slot[2-6]$/.test(b.action)).map((b) =>
       b.action === "slot1" ? `<div><span>Select pocket 1–6</span><span class="lh-kc"><kbd>1</kbd>–<kbd>6</kbd></span></div>`
@@ -177,7 +179,7 @@ const SCREENS = {
         <small>${parts.length ? parts.map(esc).join(" <i>·</i> ") : "Saved journey"}</small></button>`;
     }
     h += item("newjourney", "New Journey", { focus: !s });
-    h += item("settings", "Settings") + item("controls", "Controls / How to Play") + item("credits", "Credits");
+    h += item("settings", "Settings") + item("controls", "Controls / How to Play") + item("whatsnew", "What's New", { sub: "v" + CHANGELOG[0].version }) + item("credits", "Credits");
     if (data.hostAvailable) h += item("host", "Return to X-ORBIT", { cls: "lh-quiet" });
     h += `</nav>`;
     const b = data.best;
@@ -215,6 +217,9 @@ const SCREENS = {
       <b>${esc(d.label)}</b><span>${esc(d.desc || "")}</span><em>${d.id === nj.difficulty ? "Selected" : "Select"}</em></button>`).join("");
     return panel("New Journey", `
       <h3>Difficulty</h3><div class="lh-cards" role="group" aria-label="Difficulty">${cards}</div>
+      <h3>Strangers</h3>
+      ${rowWrap("Hostile encounters", "Off: strangers are peaceful – no robberies, pursuits or capture.",
+        `<button type="button" class="lh-switch" role="switch" aria-checked="${nj.hostile}" aria-label="Hostile encounters" data-act="hostile"><i></i></button>`, nj.hostile ? "On" : "Off", "nj-hostile")}
       <h3><label for="lh-seed">World seed</label></h3>
       <div class="lh-seedrow"><input type="text" id="lh-seed" class="lh-input" maxlength="32" autocomplete="off" spellcheck="false" placeholder="Leave blank for a random world" value="${esc(nj.seed)}">
         <button type="button" class="lh-btn lh-btn-s" data-act="randseed">${icon("dice")}<span>Randomise</span></button></div>
@@ -222,6 +227,29 @@ const SCREENS = {
       ${data.save ? `<p class="lh-help lh-warnline">${icon("warn")}<span>You already have a journey${parts.length ? ` (${parts.slice(0, 2).map(esc).join(" · ")})` : ""}. Starting a new one replaces it – you will be asked to confirm.</span></p>` : ""}
       <div class="lh-btns"><button type="button" class="lh-btn lh-primary" data-act="start" data-autofocus>Start journey</button></div>`,
     { foot: navHint("Back") });
+  },
+
+  // A roadside conversation: who speaks, what they say, and the replies as a list. Never dismissable without a reply.
+  dialogue() {
+    const choices = dlgChoices(), hasBack = choices.some((c) => c.id === "back" && !c.disabled);
+    const speaker = data.speaker || "Stranger", lines = Array.isArray(data.lines) ? data.lines : data.lines ? [data.lines] : [];
+    const first = choices.findIndex((c) => !c.disabled && !c.danger && c.id !== "back"), auto = first >= 0 ? first : choices.findIndex((c) => !c.disabled);
+    const rows = choices.map((c, i) => `<button type="button" class="lh-choice${c.danger ? " lh-risk" : ""}" data-act="choice" data-arg="${esc(c.id)}"${c.disabled ? ` aria-disabled="true"` : ""}${i === auto ? " data-autofocus" : ""}>
+        ${i < 9 ? `<kbd aria-hidden="true">${i + 1}</kbd>` : `<kbd aria-hidden="true">·</kbd>`}
+        <span class="lh-cl"><b>${esc(c.label)}</b>${c.danger ? `<em class="lh-tagrisk">${icon("warn")}Risky</em>` : ""}
+          ${c.detail ? `<small>${esc(c.detail)}</small>` : ""}${c.disabled ? `<small class="lh-why">${icon("x")}<span>Not possible: ${esc(c.disabled === true ? "unavailable" : c.disabled)}</span></small>` : ""}</span>
+        ${c.cost != null && c.cost !== "" ? `<span class="lh-cost"><i>Cost</i><b>${esc(c.cost)}</b></span>` : ""}</button>`).join("");
+    return `<section class="lh-panel lh-over lh-narrow lh-dlg" role="dialog" aria-label="Conversation with ${esc(speaker)}">
+      <header class="lh-dlghead"><span class="lh-face" aria-hidden="true">${icon("person")}</span>
+        <div><div class="lh-kicker">${esc(data.role || "Stranger")}</div><h2>${esc(speaker)}</h2></div></header>
+      <div class="lh-scroll">
+        <div class="lh-said">${lines.map((l) => `<p>${esc(l)}</p>`).join("")}</div>
+        ${data.note ? `<p class="lh-dlgnote" role="status">${icon("warn")}<span>${esc(data.note)}</span></p>` : ""}
+        <h3 id="lh-dlg-q">Your answer</h3>
+        <div class="lh-choices" role="group" aria-labelledby="lh-dlg-q">${rows}</div>
+      </div>
+      <div class="lh-keys" aria-hidden="true"><span><kbd>↑</kbd><kbd>↓</kbd> Select</span><span><kbd>Enter</kbd> Answer</span>${choices.length > 1 ? `<span><kbd>1</kbd>–<kbd>${Math.min(9, choices.length)}</kbd> Quick answer</span>` : ""}${hasBack ? `<span><kbd>Esc</kbd> ${esc(choices.find((c) => c.id === "back").label)}</span>` : ""}</div>
+    </section>`;
   },
 
   settings() {
@@ -242,7 +270,7 @@ const SCREENS = {
         + toggle("invertY", "Invert mouse Y")
         + seg("gearbox", "Gearbox", [["auto", "Automatic"], ["manual", "Manual"]], `Manual: ${k("shiftUp")} shifts up, ${k("shiftDown")} shifts down. ${k("gearMode")} switches while driving.`)
         + seg("units", "Speed & distance", [["km", "KM/H"], ["mi", "MPH"]])
-        + `<div class="lh-bindwrap"><p class="lh-help">Key bindings (fixed in this version)</p>${bindingTable(["always", "drive", "foot"])}</div>`;
+        + `<div class="lh-bindwrap"><p class="lh-help">Key bindings (fixed in this version)</p>${bindingTable(["always", "drive", "foot", "photo"])}</div>`;
     } else if (t === "hud") {
       body = slider("hud.scale", "HUD size", 0.75, 1.5, 0.05, "pct", "Small windows cap the size so panels never overlap.")
         + slider("hud.opacity", "HUD opacity", 0.3, 1, 0.05, "pct")
@@ -301,6 +329,14 @@ const SCREENS = {
         <div><dt>${icon("battery")}Battery</dt><dd>A dead battery will not crank the engine. It charges while the engine runs. Swap it with a wrench, hood open.</dd></div>
         <div><dt>${icon("engine")}Engine & radiator</dt><dd>Removed and fitted with a wrench, hood open. Parts must fit the vehicle. A repair kit restores engine and body condition.</dd></div>
         </dl><p class="lh-help">Open the inventory (${k("inventory")}) and choose Vehicle to see the condition of every part.</p>`;
+    } else if (t === "strangers") {
+      body = `<p class="lh-lead">You are not alone out here. Most people on the road want a lift or a few dollars; some want everything you have.</p>
+        <dl class="lh-dl">
+        <div><dt>${icon("person")}Hitchhikers</dt><dd>Stop beside someone with a thumb out and press ${k("talk")} from the driver's seat, or walk up and press ${k("use")}. They tell you where they are going and what they offer. Take them or leave them – a passenger needs a free seat and gets out at the destination, or when you ask.</dd></div>
+        <div><dt>${icon("warn")}Roadblocks</dt><dd>Warning signs come first. When the leader waves you down you can <b>pay</b> what is asked, <b>refuse</b>, <b>back away</b> the way you came, <b>ram</b> the barricade or <b>go around</b> through the desert. Every price is shown before you agree, and paying settles it for good.</dd></div>
+        <div><dt>${icon("body")}Pursuit</dt><dd>Force your way past and they come after you in their cars. They give up only when they cannot drive on: out-drive them until they crash, roll, get stuck or break down. The plate at the top of the screen counts who is still chasing.</dd></div>
+        <div><dt>${icon("heart")}Capture</dt><dd>Stopped or on foot with a pursuer beside you, you are caught. That can cost supplies, money, health – or the journey.</dd></div>
+        </dl><p class="lh-help">Prefer a quiet road? Turn off “Hostile encounters” when you start a new journey: strangers stay peaceful.</p>`;
     } else {
       body = `<p class="lh-lead">Four needs sit in the top-right corner: health, food, water and energy. A “!” marks one that is running low.</p>
         <ul class="lh-list"><li>Eat and drink what you scavenge or buy. Select it in your pockets and press ${k("consume")}, or use it from the inventory.</li>
@@ -311,9 +347,16 @@ const SCREENS = {
         <li>The journey saves automatically.</li></ul>`;
     }
     return panel("Controls / How to Play", body, {
-      tabs: tabsBar("controls", [["driving", "Driving"], ["foot", "On foot"], ["cargo", "Carrying & cargo"], ["maint", "Maintenance"], ["survival", "Survival"]]),
+      tabs: tabsBar("controls", [["driving", "Driving"], ["foot", "On foot"], ["cargo", "Carrying & cargo"], ["maint", "Maintenance"], ["survival", "Survival"], ["strangers", "Strangers"]]),
       foot: `<div class="lh-keys" aria-hidden="true"><span><kbd>←</kbd><kbd>→</kbd> Section</span><span><kbd>Esc</kbd> Back</span></div>`,
     });
+  },
+
+  whatsnew() {
+    const body = CHANGELOG.map((r) => `
+      <h3>v${esc(r.version)}${r.name ? ` · ${esc(r.name)}` : ""} <small>${esc(r.date)}</small></h3>
+      ${r.sections.map(([head, lines]) => `<h4>${esc(head)}</h4><ul class="lh-list">${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`).join("")}`).join("");
+    return panel("What's New", `<div class="lh-changelog">${body}</div>`, { cls: "lh-narrow", foot: `<div class="lh-keys" aria-hidden="true"><span><kbd>Esc</kbd> Back</span></div>` });
   },
 
   credits() {
@@ -414,6 +457,17 @@ const SCREENS = {
 
   sleep: () => `<div class="lh-sleep" role="status">${icon("moon")}<p>${esc(data.text || "Sleeping…")}</p></div>`,
 };
+const dlgChoices = () => (Array.isArray(data.choices) ? data.choices.filter((c) => c && c.id != null) : []);
+// Answer the open dialogue. Fires onDialogueChoice at most once per show()/refresh(); disabled replies only explain why.
+function choose(id) {
+  if (rootName !== "dialogue" || stack.length) return;
+  const c = dlgChoices().find((x) => String(x.id) === String(id));
+  if (!c || dlgPicked || performance.now() < dlgReadyAt) return;
+  if (c.disabled) { sfx("error"); return; }
+  dlgPicked = true;
+  sfx(c.id === "back" ? "ui_back" : "ui_click");
+  call("onDialogueChoice", c.id);
+}
 const invOpts = () => ({
   cls: "lh-over", backLabel: "Close",
   tabs: tabsBar("inventory", [["pockets", "Pockets"], ["vehicle", "Vehicle"], ["journey", "Journey"]]),
@@ -472,6 +526,7 @@ function back() {
     sfx("ui_back"); render();
     return;
   }
+  if (rootName === "dialogue") { if (dlgChoices().some((c) => c.id === "back" && !c.disabled)) choose("back"); return; }
   if (rootName === "pause") { sfx("ui_back"); call("onResume"); }
   else if (rootName === "inventory" || rootName === "shop") { sfx("ui_back"); call("onCloseOverlay"); }
 }
@@ -494,7 +549,7 @@ function seedFrom(textv) {
 function startJourney() {
   const nj = ui.nj;
   sfx("ui_click");
-  call("onNewJourney", { difficulty: nj.difficulty, seed: seedFrom(nj.seed), seedText: nj.seed.trim() });
+  call("onNewJourney", { difficulty: nj.difficulty, hostile: nj.hostile, seed: seedFrom(nj.seed), seedText: nj.seed.trim() });
 }
 
 function act(e, a) {
@@ -502,7 +557,7 @@ function act(e, a) {
   switch (a) {
     case "gate": firstGesture(); break;
     case "continue": sfx("ui_click"); call("onContinue"); break;
-    case "newjourney": case "settings": case "controls": case "credits": push(a); break;
+    case "newjourney": case "settings": case "controls": case "credits": case "whatsnew": push(a); break;
     case "host": sfx("ui_click"); call("onReturnToHost"); break;
     case "back": back(); break;
     case "resume": sfx("ui_click"); call("onResume"); break;
@@ -519,6 +574,8 @@ function act(e, a) {
       } catch { /* not allowed here */ }
       break;
     case "radionext": sfx("ui_click"); call("onRadioNext"); break;
+    case "hostile": ui.nj.hostile = !ui.nj.hostile; sfx("ui_click"); render(true); break;
+    case "choice": choose(arg); break;
     case "diff": ui.nj.difficulty = arg; sfx("ui_click"); render(true); break;
     case "randseed": ui.nj.seed = String(Math.floor(Math.random() * 900000) + 100000); sfx("ui_click"); render(true); break;
     case "start": if (data.save) { ui.nj.confirm = true; sfx("ui_click"); render(); } else startJourney(); break;
@@ -550,6 +607,19 @@ function onKey(ev) {
   if (name === "gate" || name === "loading" || name === "sleep") return;   // the gate is handled by the first-gesture listener
   const t = ev.target, isText = t.tagName === "INPUT" && t.type === "text", isRange = t.tagName === "INPUT" && t.type === "range";
   const stop = () => { ev.preventDefault(); ev.stopPropagation(); };
+  if (name === "dialogue") {
+    if (/^[1-9]$/.test(ev.key) && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      stop();
+      const c = dlgChoices()[Number(ev.key) - 1];
+      if (c && !ev.repeat) {
+        const b = [...root.querySelectorAll(".lh-choice")][Number(ev.key) - 1];
+        if (b) b.focus({ preventScroll: true });
+        choose(c.id);
+      }
+      return;
+    }
+    if ((ev.key === "Enter" || ev.key === " ") && ev.repeat) { stop(); return; }   // a held key answers once
+  }
   switch (ev.key) {
     case "Escape": stop(); if (!ev.repeat) back(); return;
     case "Tab":
@@ -622,6 +692,8 @@ export const menus = {
     return menus;
   },
   // name: "gate" | "loading" | "main" | "pause" | "gameover" | "inventory" | "shop" | "sleep"
+  //     | "dialogue" { speaker, role, lines: [string], note?, choices: [{ id, label, detail?, cost?, disabled?, danger? }] }
+  //       → handlers.onDialogueChoice(id), once. refresh({ note, choices, … }) updates it in place and re-arms it.
   show(name, d = {}) {
     if (!root || !SCREENS[name]) return;
     if (name === "loading" && rootName === "loading" && !stack.length) { data = d || {}; updateLoading(); return; }
@@ -629,6 +701,7 @@ export const menus = {
     rootName = name;
     stack = [];
     message = "";
+    if (name === "dialogue") { dlgPicked = false; dlgReadyAt = performance.now() + 200; }
     // Audio needs a user gesture: the first time the main menu appears without one, a start gate is shown first.
     if (name === "main" && !gestureDone && !(navigator.userActivation && navigator.userActivation.hasBeenActive)) stack = ["gate"];
     else if (name === "main" && !gestureDone) { gestureDone = true; call("onFirstGesture"); }
@@ -639,6 +712,7 @@ export const menus = {
   refresh(d) {
     if (!rootName) return;
     data = { ...data, ...(d || {}) };
+    if (rootName === "dialogue") { if (dlgPicked) dlgReadyAt = performance.now() + 200; dlgPicked = false; }
     if (screen() === "loading") updateLoading(); else render(true);
   },
   hide() {
@@ -665,6 +739,6 @@ export const menus = {
     }
   },
   get current() { return rootName; },   // the name passed to show(), or null
-  get screen() { return rootName ? screen() : null; },   // includes sub-screens: "settings", "controls", "credits", "newjourney", "gate"
+  get screen() { return rootName ? screen() : null; },   // includes sub-screens: "settings", "controls", "credits", "whatsnew", "newjourney", "gate"
 };
 export default menus;

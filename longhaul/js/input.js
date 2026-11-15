@@ -1,14 +1,16 @@
 // Long Haul – keyboard and mouse input.
-// Action names are the contract (ARCHITECTURE §6). Modes: "drive" | "foot" | "overlay" | "none".
+// Action names are the contract (ARCHITECTURE §6). Modes: "drive" | "foot" | "photo" | "overlay" | "none".
 //   drive / foot : the bound keys of that mode (+ the "always" group) reach the game and are preventDefault-ed
+//   photo        : only the "photo" group (the free camera owns every key, M frees the mouse instead of muting)
 //   overlay      : nothing reaches the game – menus.js owns the keyboard (Esc = back/resume, Tab/I closes the inventory)
 //   none         : nothing is read and nothing is prevented (the page / host keeps its keys)
 // Everything is released on blur, tab hide, pointer-lock loss and whenever the mode changes.
 import { emit } from "./core/bus.js";
 
-// group: "always" | "drive" | "foot". keys: KeyboardEvent.code, or Mouse0 / Mouse2 / WheelDown / WheelUp.
+// group: "always" | "drive" | "foot" | "photo". keys: KeyboardEvent.code, or Mouse0 / Mouse2 / WheelDown / WheelUp.
 export const BINDINGS = [
-  { action: "pause", group: "always", keys: ["Escape", "KeyP"], desc: "Pause menu" },
+  { action: "pause", group: "always", keys: ["Escape"], desc: "Pause menu" },
+  { action: "photo", group: "always", keys: ["KeyP"], desc: "Photo mode" },
   { action: "inventory", group: "always", keys: ["Tab", "KeyI"], desc: "Inventory, vehicle and journey" },
   { action: "mute", group: "always", keys: ["KeyM"], desc: "Mute all sound" },
   { action: "radioNext", group: "always", keys: ["KeyN"], desc: "Radio: next track" },
@@ -27,6 +29,7 @@ export const BINDINGS = [
   { action: "horn", group: "drive", keys: ["KeyH"], desc: "Horn" },
   { action: "camera", group: "drive", keys: ["KeyC"], desc: "Camera: cab / chase" },
   { action: "exit", group: "drive", keys: ["KeyF"], desc: "Get out" },
+  { action: "talk", group: "drive", keys: ["KeyE"], desc: "Talk / respond" },
   { action: "sleep", group: "drive", keys: ["KeyZ"], desc: "Sleep in the cab" },
   { action: "recover", group: "drive", keys: ["KeyR"], desc: "Recover a stuck vehicle" },
 
@@ -53,6 +56,18 @@ export const BINDINGS = [
   { action: "slotPrev", group: "foot", keys: ["WheelUp"], desc: "Previous pocket" },
   { action: "consume", group: "foot", keys: ["KeyX"], desc: "Use the selected pocket item" },
   { action: "flashlight", group: "foot", keys: ["KeyT"], desc: "Flashlight" },
+
+  { action: "photoExit", group: "photo", keys: ["KeyP", "Escape"], desc: "Leave photo mode" },
+  { action: "photoShot", group: "photo", keys: ["Mouse0", "Enter"], desc: "Take a screenshot (saved as PNG)" },
+  { action: "photoMouse", group: "photo", keys: ["KeyM"], desc: "Release / recapture the mouse" },
+  { action: "fwd", group: "photo", keys: ["KeyW", "ArrowUp"], desc: "Fly forward" },
+  { action: "back", group: "photo", keys: ["KeyS", "ArrowDown"], desc: "Fly back" },
+  { action: "left", group: "photo", keys: ["KeyA", "ArrowLeft"], desc: "Fly left" },
+  { action: "right", group: "photo", keys: ["KeyD", "ArrowRight"], desc: "Fly right" },
+  { action: "up", group: "photo", keys: ["Space", "KeyE"], desc: "Fly up" },
+  { action: "down", group: "photo", keys: ["KeyQ", "ControlLeft", "ControlRight"], desc: "Fly down" },
+  { action: "fast", group: "photo", keys: ["ShiftLeft", "ShiftRight"], desc: "Fly faster (hold)" },
+  { action: "zoom", group: "photo", keys: ["WheelDown", "WheelUp"], desc: "Zoom (field of view)" },
 ];
 
 const KEY_LABELS = {
@@ -77,7 +92,7 @@ export function bindingLabels(binding) {
 }
 
 // code → actions per group
-const byCode = { always: new Map(), drive: new Map(), foot: new Map() };
+const byCode = { always: new Map(), drive: new Map(), foot: new Map(), photo: new Map() };
 for (const b of BINDINGS) for (const k of b.keys) {
   const m = byCode[b.group];
   if (!m.has(k)) m.set(k, []);
@@ -90,9 +105,10 @@ const held = new Set();      // action names currently down
 const pressed = new Set();   // action names pressed since the last endFrame()
 const downCodes = new Map(); // physical code → actions it put down (so key-up releases exactly those)
 
-// Shared look state. yaw/pitch in radians (+pitch looks down). dx/dy: raw mouse movement of the current frame (px).
+// Shared look state. yaw/pitch in radians (+pitch looks down). dx/dy: raw mouse movement of the current frame (px),
+// wheel: wheel movement of the current frame (px, photo mode).
 // clamp: limit head turn (cab view). sens / invertY come from prefs (main copies them here).
-export const look = { yaw: 0, pitch: 0, dx: 0, dy: 0, clamp: false, sens: 1, invertY: false };
+export const look = { yaw: 0, pitch: 0, dx: 0, dy: 0, wheel: 0, clamp: false, sens: 1, invertY: false };
 
 let canvas = null;
 let getMode = () => "none";
@@ -103,7 +119,8 @@ let lastPauseAt = -1e9;      // de-duplicates Esc key + pointer-lock loss
 let wheelAcc = 0, wheelAt = 0;
 let dragLook = false;
 
-const playing = (m) => m === "drive" || m === "foot";
+const playing = (m) => m === "drive" || m === "foot" || m === "photo";
+const groupsOf = (m) => (m === "photo" ? [byCode.photo] : [byCode.always, byCode[m]]);
 // A menu screen is open (set by menus.js) → behave as "overlay" whatever the game says.
 const menuOpen = () => !!document.documentElement.dataset.lhMenu;
 function mode() {
@@ -118,7 +135,7 @@ const typing = (e) => {
 };
 
 function press(code, m) {
-  const acts = [...(byCode.always.get(code) || []), ...(byCode[m]?.get(code) || [])];
+  const acts = groupsOf(m).flatMap((g) => g.get(code) || []);
   if (!acts.length) return false;
   if (!downCodes.has(code)) {
     downCodes.set(code, acts);
@@ -146,7 +163,7 @@ function onKeyDown(e) {
     if (now - lastPauseAt < 400) { e.preventDefault(); return; }   // lock loss already asked for a pause
     lastPauseAt = now;
   }
-  const bound = byCode.always.has(e.code) || byCode[m].has(e.code);
+  const bound = groupsOf(m).some((g) => g.has(e.code));
   if (!bound) return;
   e.preventDefault();                                // Tab, Space, arrows, Ctrl+S … stay in the game
   if (e.repeat) return;
@@ -164,7 +181,7 @@ function onMouseDown(e) {
     if (wasOk) { e.preventDefault(); return; }       // this click only re-acquires the mouse
     if (e.button === 0) dragLook = true;             // lock unavailable: drag to look, clicks still act
   }
-  if (m !== "foot") return;
+  if (m !== "foot" && m !== "photo") return;
   if (e.button === 0 || e.button === 2) { press("Mouse" + e.button, m); e.preventDefault(); }
 }
 function onMouseUp(e) { release("Mouse" + e.button); if (e.button === 0) dragLook = false; }
@@ -187,6 +204,7 @@ function onWheel(e) {
   const m = mode();
   if (!playing(m)) return;
   e.preventDefault();
+  if (m === "photo") { look.wheel += e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY; return; }
   if (m !== "foot") return;
   const now = performance.now();
   if (now - wheelAt > 250) wheelAcc = 0;
@@ -274,12 +292,12 @@ export function isDown(action) { mode(); return held.has(action); }
 // Call once at the end of every frame: clears edges and this frame's mouse deltas, and notices mode changes.
 export function endFrame() {
   pressed.clear();
-  look.dx = 0; look.dy = 0;
+  look.dx = 0; look.dy = 0; look.wheel = 0;
   mode();
 }
 export function releaseAll() {
   held.clear(); pressed.clear(); downCodes.clear();
-  look.dx = 0; look.dy = 0; dragLook = false; wheelAcc = 0;
+  look.dx = 0; look.dy = 0; look.wheel = 0; dragLook = false; wheelAcc = 0;
 }
 
 export function requestLock() {

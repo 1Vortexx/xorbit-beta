@@ -1,6 +1,7 @@
 // Vehicle physics / component checks. Run:
 //   node --import <scratchpad>/tools/node-three-loader.mjs tests/vehicle.test.mjs
 import assert from "node:assert";
+import { on } from "../js/core/bus.js";
 import { Vehicle } from "../js/vehicles/vehicle.js";
 import { setGround, resetGround } from "../js/vehicles/ground.js";
 import { VEHICLES } from "../js/vehicles/defs.js";
@@ -17,6 +18,30 @@ const mk = (type = "pickup", o = {}) => new Vehicle({ id: "t", type, seed: 7, ..
 const tests = [];
 const test = (name, fn) => tests.push([name, fn]);
 const started = (v) => { v.occupied = true; v.toggleIgnition(); run(v, 3, inp(0)); if (v.ign !== "running") { v.toggleIgnition(); run(v, 3, inp(0)); } return v; };
+
+test("vehicle actions emit sound once per change, with ignition feedback", () => {
+  const sounds = [], off = on("sfx", ({name}) => sounds.push(name));
+  try {
+    const v = mk();
+    v.setDoor("driver", true);
+    const count = sounds.length;
+    v.setDoor("driver", true);
+    assert.equal(sounds.length, count, "unchanged doors do not repeat sounds");
+    v.toggleParkingBrake(); assert(sounds.includes("parking_brake"));
+    v.setLights(true); assert(sounds.includes("switch"));
+    sounds.length = 0;
+    v.slots.battery.charge = 1;
+    v.toggleIgnition();
+    assert(sounds.includes("ignition_key") && sounds.includes("starter_click"));
+    assert(!sounds.includes("crank"), "dead battery does not crank");
+    v.slots.battery.charge = 100;
+    started(v);
+    assert(sounds.includes("crank") && sounds.includes("engine_catch"));
+    sounds.length = 0;
+    v.toggleIgnition();
+    assert.equal(sounds.filter((s) => s === "engine_stop").length, 1);
+  } finally { off(); }
+});
 
 test("settles and stays at rest on flat ground (both types)", () => {
   for (const type of ["pickup", "sedan"]) {

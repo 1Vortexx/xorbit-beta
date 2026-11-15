@@ -109,6 +109,7 @@ export class Player {
     // jump
     if (input.jump && this.grounded && !this.encumbered && !this._jumpHeld && this.stamina > 0.08) {
       this.vel.y = JUMP; this.grounded = false; this.crouched = false;
+      sfx("jump");
       this.stamina = Math.max(0, this.stamina - 0.06);
     }
     this._jumpHeld = !!input.jump;

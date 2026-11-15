@@ -12767,8 +12767,8 @@
       const IS_BETA_BUILD = true;
       // Exposed so the login page (auth.html, loaded in an iframe) can read the build channel
       window.IS_BETA_BUILD = IS_BETA_BUILD;
-      const CURRENT_VERSION = IS_BETA_BUILD ? "v7.0.1-beta" : "v7.0.0";
-      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v7.0.1 Beta" : "X-ORBIT Desktop v7.0.0 Dune";
+      const CURRENT_VERSION = IS_BETA_BUILD ? "v7.0.1-beta" : "v7.0.1";
+      const CURRENT_VERSION_NAME = IS_BETA_BUILD ? "X-ORBIT Desktop v7.0.1 Beta" : "X-ORBIT Desktop v7.0.1 Dune";
       // Short label for UI chips, e.g. "v6.2.4 Sahara"
       const CURRENT_VERSION_LABEL = CURRENT_VERSION_NAME.replace("X-ORBIT Desktop ", "");
       const UPDATE_CHECK_TABLE = IS_BETA_BUILD ? "update_check_beta" : "update_check";
@@ -13908,6 +13908,22 @@
     <script>
       // ── What's New – version changelog data ──
       const WHATSNEW_CHANGELOG = [
+        {
+          version: "v7.0.1",
+          name: "Dune",
+          date: "November 15, 2026",
+          sections: [
+            { type: "added", items: [
+              "Long Haul V2: rebuilt as a 3D desert road-trip survival game: an endless seeded road with homes, gas stations, garages, diners, motels and junkyards to scavenge, day and night, dust storms, hunger, thirst and sleep",
+              "Long Haul: drive a worn pickup with real suspension, fuel, oil, coolant and a gearbox, whose engine, battery, radiator and wheels you swap by hand with a wrench and a jack",
+              "Long Haul: meet strangers on the road – hitchhikers who pay a fare (or turn on you), armed roadblocks that toll or rob you, and pursuit drivers who chase you down",
+              "Long Haul: defend yourself with the knife you start with, plus a handgun, an AK-47 and ammo boxes to find",
+              "Long Haul: photo mode (P) freezes the game, flies the camera and saves clean screenshots",
+              "Long Haul: The Poopmobile, a rare red-and-white starting truck with a skin made from photos of a real truck",
+              "Long Haul: menu music, sound effects and an in-game What’s New screen"
+            ]}
+          ]
+        },
         {
           version: "v7.0.0",
           name: "Dune",

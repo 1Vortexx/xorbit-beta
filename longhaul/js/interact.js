@@ -150,7 +150,7 @@ export class Interaction {
   _updateHeld(dt, input) {
     const p = this.heldProp, pl = this.player, look = input.look;
     // rotate mode: R held + mouse turns the item, the view stays put
-    const rotating = !!(p && input.held && input.held.has("rotate"));
+    const rotating = !!(p && !p.def.weapon && input.held && input.held.has("rotate"));   // R reloads a weapon instead
     if (rotating && look) {
       if (!this.rot) this.rot = { yaw: look.yaw, pitch: look.pitch };
       const dyaw = (look.yaw - this.rot.yaw) || -(look.dx || 0) * 0.0025;
@@ -335,8 +335,10 @@ export class Interaction {
     let progress = null;
     const act = this.active;
     if (act && (act.target !== target || !down.has(act.key))) this.active = null;
+    const armed = !!(p && p.def.weapon);       // a held weapon owns LMB (js/combat.js): no drop / grab / secure
     for (const key of KEYS) {
       if (!down.has(key)) this.lock[key] = false;
+      if (armed && key === "grab") continue;
       const mine = list.filter((a) => a.key === key);
       for (const a of mine) out.push({ key: KEY_LABEL[key], label: a.label, blocked: a.blocked || null, progress: null, _a: a });
       // with full hands a blocked grab does not get in the way of dropping
@@ -379,9 +381,9 @@ export class Interaction {
     }
     let held = null;
     if (h) {
-      const hints = this.cargo ? (this.cargo.ok ? ["LMB secure"] : []) : ["LMB drop"];
+      const hints = h.def.weapon ? [...(this.hooks.weaponHints?.(h.item) || [])] : this.cargo ? (this.cargo.ok ? ["LMB secure"] : []) : ["LMB drop"];
       if (!pl.encumbered) hints.push("RMB throw");
-      hints.push("R rotate");
+      if (!h.def.weapon) hints.push("R rotate");
       if (this.placeSpot && !list.some((a) => a.key === "alt")) hints.push("F place");
       if (h.def.use && !list.some((a) => a.key === "use")) hints.push("E " + useVerb(h.def).toLowerCase());
       if (h.def.pocket) hints.push("Q stow");

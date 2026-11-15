@@ -54,7 +54,9 @@ terrain, so there is one ground function for wheels, feet and props. Single stor
 // COMPONENT_ITEMS (same shape) and merged into ITEMS by items.js.
 ItemDef = {
   name, icon,                    // icon: emoji / short glyph for UI
-  kind: "food"|"drink"|"med"|"tool"|"fluid"|"part"|"misc",
+  kind: "food"|"drink"|"med"|"tool"|"fluid"|"part"|"misc"|"weapon"|"ammo",
+  weapon?: { kind: "melee"|"gun", dmg, range, rate, auto?, big?, ammo?, spread? },   // js/combat.js; guns use cap/qty for rounds
+  unitMass?,                     // kg per unit of qty (ammo, rounds); fluids use their density
   mass, size: [x, y, z],         // kg, metres (prop collision box)
   price,                         // shop price, 0/undefined = not sold
   pocket: bool,                  // fits in a quick slot; otherwise it is carried in the hands / loaded as cargo
@@ -77,7 +79,9 @@ Fixed item type ids (all agents may reference these):
 - Parts: `engine_i6` (fits pickup + sedan), `engine_v8` (pickup only), `engine_i4` (sedan only), `battery` (universal),
   `radiator` (universal), `wheel_16` (pickup), `wheel_14` (sedan)
 
-Vehicle type ids: `pickup` (starter) and `sedan` (old four-door, recoverable).
+Vehicle type ids: `pickup` (starter, recoverable), `poopmobile` (the pickup chassis with a photo skin from
+`textures/poopmobile/`, takes pickup parts via `def.fitsAs`; replaces the starter for 1 journey seed in 1000) and `sedan`
+(old four-door, recoverable).
 
 ## 5. Vehicles (vehicle agent provides)
 
@@ -314,3 +318,214 @@ instances, texture size and particle counts. It must not change terrain height, 
 
 Each agent keeps a small harness page in `dev/` that exercises its modules in isolation (mock what you do not own) and
 Node tests in `tests/` for pure logic. The game must stay loadable: never leave a module that throws at import.
+
+## 14. Strangers: NPCs, hitchhikers, roadblocks, pursuit (V2.1)
+
+### 14.1 Ownership
+
+| Area | Files | Owner |
+|---|---|---|
+| Schedule, persistence slot, inventory facade, main loop glue, saves | `js/core/encgen.js`, `js/core/worldstate.js` (`ws.enc`), `js/stock.js`, `js/main.js`, `js/save.js`, `js/survival.js` | **lead** |
+| People | `js/npc/*`, `dev/npc.html`, `tests/npc*.test.mjs` | **npc agent** |
+| Roadblocks, demands, pursuit orchestration, capture | `js/encounters/*`, `tests/encounter*.test.mjs` | **encounter agent** |
+| NPC driving + vehicle hooks | `js/pursuit/*`, `js/vehicles/*`, `tests/pursuit*.test.mjs`, `tests/vehicle*.test.mjs` | **pursuit agent** |
+| Dialogue, HUD, sound, input | `js/ui/*`, `css/*`, `index.html`, `js/input.js`, `js/audio.js`, `dev/ui.html` | **ui agent** |
+
+Same rules as §1: do not edit files you do not own; code against the contract below and list deviations in your report.
+There is uncommitted work by the user in `js/audio.js`, `js/vehicles/*`, `js/items.js`, `js/player.js`: keep it.
+Everything stays procedural (no downloaded assets), static deploy, importable without throwing. Pure logic must import
+in Node (`node --import <three loader> tests/x.test.mjs`); keep THREE/DOM out of rule, generation and state-machine files
+or guard them (`typeof document`).
+
+### 14.2 Schedule and random streams (lead, `js/core/encgen.js`, done)
+
+`encountersBetween(z0, z1) -> [{ id, kind: "roadblock"|"hitch", slot, z, x, side, yaw, seed }]`, `encounterById(id)`,
+`encRng(key)`, `encSeed(key)`. Ids: `rb<slot>`, `hh<slot>`. All randomness for encounters and NPCs comes from
+`encRng("<encounter id>:<purpose>")` (or an `rng(seed)` derived from the encounter seed) – never `Math.random()` for
+anything that is an outcome (type, demands, betrayal, capture result, rewards). Each outcome is rolled once, at the
+transition that needs it, and written to the record before anything acts on it.
+
+### 14.3 Persistence (`ws.enc`, lead owns the map; owners own their records)
+
+`ws.enc: Map<id, record>` – plain JSON, saved with the world. A record exists from the moment an encounter is first
+instantiated; from then on the record, not the seed, is the truth. Owners write their record on every state transition
+and in `flush()` (called before each save, every 5 s). Vehicles that belong to an encounter are ordinary `ws.vehicles`
+records with ids `<encounter id>:v<n>`; people are `<encounter id>:p<n>` and live inside the encounter record
+(`people: [npc.serialize()]`). Save version is 4; v3 saves load with an empty `ws.enc`.
+
+### 14.4 People (npc agent, `js/npc/index.js`)
+
+```js
+export async function prepare(report)
+export const HITCH_RULES                              // tunables: see hitchhikers below
+export class Npcs {
+  constructor({ root, getColliders /* (x, z, r) static + vehicle colliders */, getVehicle /* id -> Vehicle|null */ })
+  list, get(id)
+  spawn({ id, role, name?, seed, x, z, yaw }) -> Npc  // look (build, clothes, skin, hair, hat) derives from seed
+  remove(npc)
+  update(dt, { playerPos, playerVehicle, lite, night })   // staggered thinking, animation LOD by distance
+  colliders(x, z, r, out = []) -> circle colliders of people standing/walking (for the player and props)
+  setQuality({ lite }), clear(), dispose()
+}
+Npc = {
+  id, role /* "hitchhiker"|"leader"|"guard" */, name, seed, pos /* Vector3 absolute, feet */, yaw, health /* 0..100 */,
+  state,          // "idle"|"walk"|"talk"|"enter"|"sit"|"exit"|"threaten"|"flee"|"pursue"|"strike"|"down"
+  seat,           // null | { vehicle: id, seat: name }
+  hostile,        // bool, set by the owner; drives posture + HUD role text
+  mesh,           // Object3D under worldRoot (or under the vehicle mesh while seated)
+  // Orders – each replaces the previous one. Movement uses collide.js, slows for obstacles, never walks through
+  // walls or vehicles, and steps out of the way of moving vehicles.
+  idle(), lookAt(Vector3 | null),
+  walkTo(x, z, { run?, arrive? /* m */ }) ,          // npc.arrived becomes true; emits "npc:arrived" { npc }
+  follow(getPos /* () => Vector3 */, { run?, keep? /* m */ }),   // pursue on foot
+  flee(from /* Vector3 */),
+  threaten(on),                                      // menacing stance (raised bat/arm), audible warning once
+  strike() -> Promise                                 // one swing; resolves at the moment of impact (owner applies damage)
+  enterVehicle(vehicle, seat) -> bool                 // claims the seat first (see 14.5); false if taken. Walks to that
+                                                      // door, opens it, sits, closes it. emits "npc:seated" { npc }
+  exitVehicle() -> bool                               // only when |vehicle.speed| < 1; frees the seat, stands at a free
+                                                      // exit spot. emits "npc:exited" { npc }
+  setTarget(def | null),                              // interaction target (§6) on the body: { name, info, actions }
+  say(text, ms?),                                     // emits "npc:say" { npc, name, text, ms } → HUD subtitle + blip
+  serialize() -> rec, restore(rec)                    // incl. state, seat, health, orders needed to resume
+}
+```
+
+Bus events from people: `npc:arrived`, `npc:seated`, `npc:exited`, `npc:say`, `npc:hit { npc, speed, vehicle }` (struck by
+a vehicle faster than 3 m/s: goes `down`, loses health; the owner decides what that means), `npc:step` is internal –
+footsteps go through `sfx("npc_step", { pos, surface })`.
+
+Seated people are parented to the vehicle mesh at `vehicle.seatPos(name)`. A restore of a seated NPC waits until its
+vehicle is loaded; if the seat is unexpectedly taken or the vehicle is gone, the NPC is placed standing at a free spot
+beside the saved position – never inside another occupant, never deleted silently.
+
+**Hitchhikers** (npc agent, `js/npc/hitch.js`, `export class Hitchhikers`): constructor gets the same `ctx` as
+Encounters (14.6). Instantiates `kind: "hitch"` schedule entries within ~350 m, standing on the shoulder on `side`,
+thumb out, watching the player. States: `waiting → talking → riding → arrived | declined | left | threat → resolved`.
+Stop within 8 m (or walk up and use the Talk action) to talk. The dialogue shows who they are, where they want to go
+(a real site further along the road from `nextSiteAfter`, 3–12 km away, by name and distance) and what they offer, with
+explicit **Offer a ride** / **Decline** choices. Riding: the passenger takes a real free seat (not the driver's seat;
+refuse politely if none), stays through vehicle exit/entry by the player, and gets out at the destination (within 120 m
+of the site and stopped), or on request (Talk → "This is where you get out"), or if left behind in another vehicle the
+player abandons >300 m away. Reward on arrival is rolled when the ride is accepted and shown truthfully: money and/or a
+supply and/or a tip about what is ahead (next station distance, a roadblock ahead and its kind). A modest share
+(`HITCH_RULES.betray`: easy 0, normal 0.12, hard 0.2; 0 when `ctx.hostile()` is false) turn threatening mid-ride: warning
+signs first (nervous lines via `say`, at least two, 20+ s apart), then a demand when the vehicle is slow or stopped
+(dialogue: hand over cash / refuse / stop and order them out). Refusing can cost a struck blow (`ctx.needs.hurt`,
+`HITCH_RULES.blow` range) before they run. Never while the player is driving fast. Peaceful rides must stay the norm.
+
+### 14.5 Vehicle hooks (pursuit agent, `js/vehicles/*`)
+
+```js
+def.seats = { driver: { pos: [x, y, z] /* vehicle-local hip point */, door: "driver" }, passenger: {…, door: "passenger"},
+              rearL?, rearR? /* sedan */ }
+vehicle.seats = { driver: null | occupantId, … }        // "player" for the player; serialized and restored
+vehicle.seatFree(name), vehicle.claimSeat(name, who) -> bool, vehicle.releaseSeat(name), vehicle.seatOf(who) -> name|null
+vehicle.seatPos(name, out) -> absolute Vector3; vehicle.doorSpot(name) -> { x, z } standing spot outside that seat's door
+vehicle.ai = null | input            // input object like the player's; used by Vehicles.step when the vehicle is not `driven`
+vehicle.pinned = bool                // never unloaded by Vehicles.sync while true (active pursuers)
+vehicle.disabledReason() -> null | "engine" | "wheels" | "rolled" | "fuel" | "battery"   // physical inability to drive
+```
+
+`vehicle.occupied` stays "someone is at the wheel" (player or NPC driver). Collider hook for breakable obstacles: a
+collider may carry `hit(vehicle, closingSpeed) -> number` (0..1). When a vehicle contacts it, the vehicle calls `hit`
+once per contact and scales the collision response *and* its own impact damage by the returned factor; the owner may
+set `solid = false` in that call (barricade smashed, barrel knocked away). A collider without `hit` behaves as before.
+Vehicle-vs-vehicle collisions must damage both (engine/body/wheels by closing speed and where they were hit).
+
+NPC driving (`js/pursuit/index.js`):
+
+```js
+export const PURSUIT_RULES                         // tunables (reaction, top aggression by difficulty, mistakes, stuck timing)
+export function disableCheck(vehicle, history) -> null | reason   // pure; incl. "stuck" (no progress under throttle ≥ N s) and "wrecked"
+export class Pursuer {
+  constructor({ id, vehicle, seed, diff, getColliders, getVehicles, terrain? })
+  setTarget(() => ({ pos, vel, vehicle | null }) | null)
+  update(dt)            // per frame: sense (staggered), plan, write vehicle.ai. Real controls only – no forces, no teleport.
+  state                 // "idle"|"chasing"|"closing"|"holding" (boxing a stopped target)|"recovering"|"disabled"
+  disabledReason        // null | "engine"|"wheels"|"rolled"|"fuel"|"stuck"|"wrecked"
+  canContinue           // false once disabled for good
+  serialize(), restore(rec)
+}
+```
+Bus: `pursuer:crash { id, severity }` (a real impact, not a tap), `pursuer:recovering { id }`, `pursuer:recovered { id }`,
+`pursuer:disabled { id, reason }`. Pursuers follow the road when the target is on it, cut across open ground when that
+is drivable, steer around colliders and each other, brake for bends and obstacles, make occasional seeded mistakes
+(late braking, wide lines) scaled by difficulty, reverse out when nose-in against something, and give up for good only
+through `disableCheck`.
+
+### 14.6 Roadblocks and capture (encounter agent, `js/encounters/index.js`)
+
+```js
+export const RULES            // every probability, demand table, damage range – documented in the file header
+export class Encounters {
+  constructor(ctx)
+  update(dt, { talk /* bool: the Talk key was pressed this frame */ })
+  colliders(x, z, r, out = []) -> barricade / barrel colliders (with `hit`, see 14.5)
+  focusPoints(out = []) -> Vector3[]   // things that must stay streamed (active pursuers, max 3)
+  hud() -> null | { title, text, level: "info"|"warn"|"crit", pursuers: { able, total } | null, prompt: string | null }
+  active -> null | { id, state }       // at most one hostile encounter is ever live
+  flush(), clear(), dispose()
+  dev                                   // scenario controls, only used behind ?dev=1
+}
+ctx = {                                  // built by main; also given to Hitchhikers
+  root, npcs, vehicles, world, getColliders,
+  player: () => ({ pos, vel, speed, vehicle /* Vehicle|null */, onFoot, health }),
+  stock,                                 // 14.7
+  needs,                                 // needs.hurt(amount, cause), needs.health
+  diff: () => "easy"|"normal"|"hard", hostile: () => bool /* false = peaceful journey: no robbery, pursuit or betrayal */,
+  progress: () => ({ km, day, money }),
+  dialogue(spec) ,                       // opens the dialogue overlay; spec.onChoose(id) is called once; simulation is
+                                         // paused while it is open. spec: { speaker, role, lines: [], note?, choices:
+                                         // [{ id, label, detail?, cost? /* exact text: "$45 + 2 food" */, disabled? /* reason */, danger? }] }
+  ejectPlayer() -> bool,                 // pull the player out of the vehicle (capture)
+  releasePlayer({ x, z }),               // put the player on foot at a safe spot near there, give control back
+  kill(cause /* short */, summary /* [[label, value]] */),
+  now: () => seconds of play time (monotonic, saved),
+  notify, sfx,
+}
+```
+
+Roadblock states: `unseen → spotted → challenged → negotiating → paid | complied | refused → …` and
+`challenged/refused → bypassed → mobilizing → pursuing → escaped | captured → released | dead`; `backedOff` returns to
+`spotted`. Type (`"robbery" | "toll"`, exactly 50/50 from `encRng(id + ":type")`), people, vehicles, layout and the
+demand are rolled at creation and stored. Layout: two parked vehicles and barrels/barricades across the lanes with the
+shoulders and desert passable on at least one side (verify with `heightAt`/colliders), warning signs/flares from 250 m,
+a leader who steps forward and guards who stand by the cars. Challenge = the player comes within the guarded zone
+(~45 m before the line) – the leader signals stop. Nothing hostile happens for looking, passing by far off-road before
+being challenged, or reversing away. Crossing the guarded line (ramming through or going around within the guarded
+radius) after a challenge, or refusing and then crossing, makes it `bypassed` → `mobilizing` (visible: people run to the
+cars, doors, engines; ≥ 4 s) → `pursuing` with real `Pursuer`s. Paying a toll / satisfying a robbery = `paid`/`complied`:
+people stand down, barricade opened, crossing is safe forever, no later punishment. Pursuit ends only when every
+pursuer is `canContinue === false`; a pursuer lost for technical reasons is re-instantiated from its record when
+streamed again, never counted as beaten. Capture needs the player slower than 2 m/s (or on foot) with a hostile person
+on foot within 3 m and line of sight; then the outcome (`RULES.capture[diff]`: killed / robbed / ransom / beaten) is
+rolled once from `encRng(id + ":capture")`, stored, applied exactly once, and the player is released with a grace
+period (`RULES.releaseGrace` seconds, saved) during which that group does nothing.
+
+### 14.7 Inventory facade (lead, `js/stock.js`)
+
+```js
+stock.money                                   // getter
+stock.list() -> [{ type, name, kind, count }] // pockets + hands + cargo secured in the vehicle the player is using / standing by (≤ 25 m)
+stock.count(type), stock.countKind("food"|"drink"|…)
+stock.check({ money?, items?: [{ type? | kind?, n }] }) -> null | "You only have $12" …
+stock.pay({ money?, items? }) -> bool         // atomic: verifies everything, then removes exactly that; false = nothing changed
+stock.strip({ money: fraction, kinds: […], max }) -> { money, items: [{ type, n }] }   // robbery; returns what was taken
+stock.give({ money?, items?: [{ type, n }] }) // rewards: pockets first, else dropped at the player's feet
+```
+
+### 14.8 UI and sound (ui agent)
+
+- `menus.show("dialogue", { speaker, role, lines, note, choices })` + `handlers.onDialogueChoice(id)`; keyboard (↑↓/Enter,
+  1–9) and mouse; Esc picks the choice with `id: "back"` when there is one, otherwise does nothing. Costs are shown
+  exactly as given. `disabled` choices show their reason and cannot be picked.
+- `hud.update({ …, encounter: { title, text, level, pursuers: { able, total } | null } | null, subtitle: { name, text } | null,
+  prompt })` – an encounter plate (threat/pursuit/surrender/escape states, "2 of 3 still chasing"), subtitles for `say`.
+- Input: drive action `talk` (KeyE, "Talk / respond"). New-journey screen: toggle "Hostile encounters" → `onNewJourney({ …, hostile })`
+  (default on; off = peaceful strangers only).
+- Sound: all through `sfx(name, { pos, vol })`. `audio.setListener(pos)` is called by main every frame; any sfx with
+  `opts.pos` is attenuated by distance (inaudible beyond ~120 m). New names: `npc_step` (opts.surface), `npc_talk`,
+  `threat`, `pursuit_alert`, `pursuit_end`, `barricade_hit`, `barrel_hit`, `punch`, `pay`, `npc_horn`, `tyre_skid`;
+  existing `door_open/door_close/crank/engine_catch/engine_stop/crash` accept `pos`. `audio.update` additionally takes
+  `others: [{ tel, dist }]` (≤ 2) for the engines of nearby NPC-driven vehicles.

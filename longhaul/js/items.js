@@ -297,6 +297,46 @@ function meshFlashlight() {
   box(g, 0.008, 0.005, 0.018, M(0xd9a13a), 0, 0.017, 0.0);
   return g;
 }
+// Weapons are modelled pointing down −z: the hands hold items turned half a turn, so −z faces where you look.
+function meshKnife() {
+  const g = new THREE.Group(), steel = M(0xc9ced4, { r: 0.22, m: 0.95 });
+  const blade = box(g, 0.004, 0.026, 0.16, steel, 0, 0.002, -0.06);
+  blade.scale.set(1, 1, 1);
+  box(g, 0.004, 0.012, 0.03, steel, 0, 0.009, -0.152).rotation.x = 0.45;          // the point
+  box(g, 0.03, 0.03, 0.012, M(0x2a2a2c, { r: 0.4, m: 0.7 }), 0, 0, 0.026);          // guard
+  box(g, 0.022, 0.024, 0.11, M(0x4a2e1c, { r: 0.75 }), 0, -0.002, 0.087);           // handle
+  return g;
+}
+function meshHandgun() {
+  const g = new THREE.Group(), blk = M(0x1b1c1f, { r: 0.4, m: 0.75 }), grip = M(0x232120, { r: 0.85 });
+  box(g, 0.03, 0.034, 0.19, blk, 0, 0.045, -0.005);                                 // slide
+  cyl(g, 0.006, 0.006, 0.012, M(0x050505), 0, 0.045, -0.103, 8).rotation.x = Math.PI / 2;   // muzzle
+  box(g, 0.026, 0.02, 0.15, blk, 0, 0.02, -0.01);                                   // frame
+  const gr = box(g, 0.028, 0.11, 0.045, grip, 0, -0.035, 0.055); gr.rotation.x = -0.25;
+  box(g, 0.006, 0.03, 0.04, blk, 0, 0.0, 0.01);                                     // trigger guard
+  box(g, 0.004, 0.008, 0.006, blk, 0, 0.066, -0.09);                                // front sight
+  return g;
+}
+function meshAK() {
+  const g = new THREE.Group(), steel = M(0x26272a, { r: 0.45, m: 0.7 }), wood = M(0x7a3f1c, { r: 0.6 }), dark = M(0x111214, { r: 0.6, m: 0.5 });
+  box(g, 0.05, 0.07, 0.3, steel, 0, 0.03, 0.02);                                    // receiver
+  const b = cyl(g, 0.009, 0.009, 0.42, steel, 0, 0.045, -0.33, 10); b.rotation.x = Math.PI / 2;   // barrel
+  const gas = cyl(g, 0.011, 0.011, 0.2, steel, 0, 0.068, -0.24, 10); gas.rotation.x = Math.PI / 2;
+  box(g, 0.056, 0.05, 0.2, wood, 0, 0.035, -0.22);                                  // handguard
+  box(g, 0.012, 0.03, 0.012, steel, 0, 0.085, -0.5);                                // front sight
+  const st = box(g, 0.044, 0.08, 0.26, wood, 0, -0.005, 0.3); st.rotation.x = 0.12;   // stock
+  const pg = box(g, 0.034, 0.09, 0.04, wood, 0, -0.04, 0.12); pg.rotation.x = -0.3;    // pistol grip
+  const mag = box(g, 0.03, 0.13, 0.06, dark, 0, -0.07, -0.05); mag.rotation.x = 0.35; // curved magazine
+  box(g, 0.006, 0.035, 0.05, steel, 0, -0.02, 0.06);                                // trigger guard
+  return g;
+}
+function meshAmmo(key, bg, title, sub, w, h, d) {
+  return () => {
+    const g = new THREE.Group(), card = M(0xb09a6e, { r: 0.9 });
+    labelBox(g, w, h, d, card, flatLabel(key, bg, title, sub, "#f2ead6"), 0, 0, 0, card);
+    return g;
+  };
+}
 // Placeholder part meshes – the real defs from js/vehicles/components.js override these when they bring a makeMesh.
 function meshEngine(cyls, vee) {
   return () => {
@@ -428,9 +468,24 @@ export const ITEMS = {
   flashlight: { name: "Flashlight", icon: "🔦", kind: "tool", mass: 0.25, size: [0.05, 0.05, 0.18], price: 12, pocket: true, stack: 1,
     desc: "T switches it on while you carry it.", makeMesh: meshFlashlight },
 
+  // Weapons. weapon: { kind: "melee"|"gun", dmg per hit, range m, rate s between attacks, auto, ammo item, spread rad }
+  knife: { name: "Hunting knife", icon: "🔪", kind: "weapon", mass: 0.2, size: [0.03, 0.03, 0.28], price: 15, pocket: true, stack: 1,
+    desc: "Hold it and press LMB to stab. Three good stabs put someone down.", weapon: { kind: "melee", dmg: 36, range: 1.9, rate: 0.55 }, makeMesh: meshKnife },
+  handgun: { name: "Handgun", icon: "🔫", kind: "weapon", mass: 0.9, size: [0.035, 0.15, 0.21], price: 260, pocket: true, stack: 1,
+    cap: 15, unit: "rds", unitMass: 0.012, desc: "9mm, 15 rounds. Hold it: LMB fires, R reloads from 9mm boxes you carry.",
+    weapon: { kind: "gun", dmg: 40, range: 70, rate: 0.26, ammo: "ammo_9mm", spread: 0.012 }, makeMesh: meshHandgun },
+  ak47: { name: "AK-47", icon: "🔫", kind: "weapon", mass: 3.6, size: [0.07, 0.24, 0.9], price: 650, pocket: false,
+    cap: 30, unit: "rds", unitMass: 0.016, desc: "7.62mm rifle, 30 rounds, fully automatic. Hold LMB to fire, R reloads from 7.62 boxes.",
+    weapon: { kind: "gun", dmg: 34, range: 140, rate: 0.1, auto: true, big: true, ammo: "ammo_762", spread: 0.02 }, makeMesh: meshAK },
+  ammo_9mm: { name: "9mm ammo box", icon: "📦", kind: "ammo", mass: 0.12, size: [0.1, 0.06, 0.13], price: 30, pocket: true, stack: 1,
+    cap: 50, unit: "rds", unitMass: 0.012, desc: "Handgun rounds. Reloading takes them straight from the box.", makeMesh: meshAmmo("ammo9", "#2f4a2a", "9MM", "50 RDS", 0.1, 0.06, 0.13) },
+  ammo_762: { name: "7.62 ammo box", icon: "📦", kind: "ammo", mass: 0.2, size: [0.12, 0.08, 0.16], price: 45, pocket: true, stack: 1,
+    cap: 60, unit: "rds", unitMass: 0.016, desc: "Rifle rounds for the AK-47.", makeMesh: meshAmmo("ammo762", "#5a2a1c", "7.62", "60 RDS", 0.12, 0.08, 0.16) },
+
   // Parts – placeholders, overridden by COMPONENT_ITEMS from js/vehicles/components.js
   engine_i6: { name: "Inline-six engine", icon: "⚙️", kind: "part", mass: 190, size: [0.5, 0.66, 0.9], price: 0, pocket: false, slot: "engine", fits: ["pickup", "sedan"], makeMesh: meshEngine(6, false) },
   engine_v8: { name: "V8 engine", icon: "⚙️", kind: "part", mass: 240, size: [0.62, 0.66, 0.78], price: 0, pocket: false, slot: "engine", fits: ["pickup"], makeMesh: meshEngine(8, true) },
+  engine_bigblock: { name: "Big-block V8", icon: "⚙️", kind: "part", mass: 290, size: [0.78, 0.76, 0.9], price: 0, pocket: false, slot: "engine", fits: ["pickup", "sedan"], makeMesh: meshEngine(8, true) },
   engine_i4: { name: "Four-cylinder engine", icon: "⚙️", kind: "part", mass: 130, size: [0.5, 0.66, 0.7], price: 0, pocket: false, slot: "engine", fits: ["sedan"], makeMesh: meshEngine(4, false) },
   battery: { name: "Battery", icon: "🔋", kind: "part", mass: 16, size: [0.265, 0.2, 0.175], price: 60, pocket: false, slot: "battery", fits: ["pickup", "sedan"], makeMesh: meshBattery },
   radiator: { name: "Radiator", icon: "♨️", kind: "part", mass: 9, size: [0.62, 0.46, 0.1], price: 80, pocket: false, slot: "radiator", fits: ["pickup", "sedan"], makeMesh: meshRadiator },
@@ -440,7 +495,7 @@ export const ITEMS = {
 
 export const FIXED_IDS = ["water", "waterjug", "beans", "jerky", "chips", "soda", "coffee", "medkit", "bandage",
   "fuelcan", "jerrycan", "oil", "oiljug", "coolant", "wrench", "jack", "repairkit", "flashlight",
-  "engine_i6", "engine_v8", "engine_i4", "battery", "radiator", "wheel_16", "wheel_14"];
+  "knife", "handgun", "ak47", "ammo_9mm", "ammo_762", "engine_i6", "engine_v8", "engine_i4", "battery", "radiator", "wheel_16", "wheel_14"];
 
 // Merge definitions (same ItemDef shape). Missing fields fall back to the existing def, so a component def without
 // a makeMesh keeps the placeholder mesh.
@@ -491,14 +546,14 @@ export function makeItem(type, overrides = {}) {
 export const defOf = (item) => ITEMS[item.type];
 export function itemMass(item) {
   const def = ITEMS[item.type];
-  return def ? def.mass + (def.cap ? (item.qty || 0) * (LIQUID_KG[def.fluid] || 1) : 0) : 1;
+  return def ? def.mass + (def.cap ? (item.qty || 0) * (def.unitMass ?? LIQUID_KG[def.fluid] ?? 1) : 0) : 1;
 }
 const num = (v) => (Math.abs(v - Math.round(v)) < 0.05 && v >= 10 ? String(Math.round(v)) : v.toFixed(1));
 // "6.0 / 10 L" for containers, null otherwise
 export function qtyText(item) {
   const def = ITEMS[item.type];
   if (!def || !def.cap) return item.qty !== undefined ? String(item.qty) : null;
-  return `${num(item.qty || 0)} / ${def.cap} ${def.unit || ""}`.trim();
+  return `${def.unit === "rds" ? Math.round(item.qty || 0) : num(item.qty || 0)} / ${def.cap} ${def.unit || ""}`.trim();
 }
 // "Fuel can · 6.0 / 10 L", "Wheel 16" · 72%"
 export function itemLabel(item) {
@@ -527,7 +582,7 @@ export function useItem(ctx, item) {
   if (!def || !def.use) return { ok: false, msg: "You can't use that on its own", consumed: false };
   try {
     const msg = def.use(ctx, item) || "";
-    if (ctx.sfx) ctx.sfx(def.kind === "food" ? "eat" : def.kind === "drink" ? "drink" : "pickup");
+    if (ctx.sfx) ctx.sfx(def.kind === "food" ? "eat" : def.kind === "drink" ? "drink" : item.type === "bandage" ? "bandage" : item.type === "repairkit" ? "ratchet" : "pickup");
     if (ctx.notify && msg) ctx.notify(msg, { level: "good", icon: def.icon, key: "use" });
     return { ok: true, msg, consumed: !def.keep };
   } catch (e) {

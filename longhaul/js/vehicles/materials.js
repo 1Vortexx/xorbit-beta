@@ -127,15 +127,15 @@ function glassTexture(kind, seed) {
   g.clearRect(0, 0, S, S);
   g.fillStyle = "rgba(150,172,160,0.16)"; g.fillRect(0, 0, S, S);            // tint
   const dust = 0xc4ad85;
-  for (let i = 0; i < 90; i++) blotch(g, R, R() * S, R() * S, 30 + R() * 90, dust, 0.03 + R() * 0.05, 4);
+  for (let i = 0; i < 60; i++) blotch(g, R, R() * S, R() * S, 30 + R() * 90, dust, 0.02 + R() * 0.03, 4);
   const eg = g.createLinearGradient(0, S, 0, S * 0.55);                       // dust banked along the bottom
-  eg.addColorStop(0, css(dust, 0.5)); eg.addColorStop(1, css(dust, 0));
+  eg.addColorStop(0, css(dust, 0.35)); eg.addColorStop(1, css(dust, 0));
   g.fillStyle = eg; g.fillRect(0, S * 0.55, S, S * 0.45);
   if (kind === "windshield") {
     // Wiper-swept fans are cleaner: cut dust back to the plain tint. The texture covers one half (u 0 = edge … 1 = centre).
     g.save();
     g.globalCompositeOperation = "destination-out";
-    g.fillStyle = "rgba(0,0,0,0.72)";
+    g.fillStyle = "rgba(0,0,0,0.82)";
     g.beginPath(); g.moveTo(S * 0.62, S * 0.99); g.arc(S * 0.62, S * 0.99, S * 0.74, Math.PI * 1.08, Math.PI * 1.9); g.closePath(); g.fill();
     g.restore();
     g.fillStyle = "rgba(150,172,160,0.1)"; g.fillRect(0, 0, S, S);
@@ -293,6 +293,108 @@ function grimeTexture() {
   return tex(c, { repeat: [2, 2] });
 }
 
+// ── Photo skins ───────────────────────────────────────────────────────────────────────────────
+// Paint made from patches of real photos (textures/<skin>/*.jpg): a two-tone body sheet split where the cab meets the
+// bed, plain sheets for the end caps, the photographed tailgate and rust-eaten bumpers. loadSkins() fetches the images
+// once (from prepare()); until they arrive, or if they fail, skinMaterials() returns null and the plain paint is used.
+export const SKINS = {
+  poopmobile: { front: 0xa5382a, rear: 0xdcd9cf, frontTile: "red", rearTile: "white", tailgate: "tailgate", bumper: "bumper" },
+};
+const skinImg = new Map();       // "skin/file" → HTMLImageElement
+const skinCache = new Map();
+export async function loadSkins(base = new URL("../../textures/", import.meta.url)) {
+  if (typeof Image === "undefined") return;
+  const jobs = [];
+  for (const [name, s] of Object.entries(SKINS)) {
+    for (const f of [s.frontTile, s.rearTile, s.tailgate, s.bumper]) {
+      const key = name + "/" + f;
+      if (skinImg.has(key)) continue;
+      const img = new Image();
+      img.src = new URL(key + ".jpg", base).href;
+      jobs.push(img.decode().then(() => skinImg.set(key, img), () => console.warn("Vehicle skin image missing:", key)));
+    }
+  }
+  await Promise.all(jobs);
+}
+// Fill a rect with mirrored copies of an image (mirroring hides the tile seams)
+function tileMirror(g, img, x0, y0, x1, y1, tw, th) {
+  g.save();
+  g.beginPath(); g.rect(x0, y0, x1 - x0, y1 - y0); g.clip();
+  for (let y = y0, r = 0; y < y1; y += th, r++) for (let x = x0, c = 0; x < x1; x += tw, c++) {
+    g.save();
+    g.translate(x + (c & 1 ? tw : 0), y + (r & 1 ? th : 0));
+    g.scale(c & 1 ? -1 : 1, r & 1 ? -1 : 1);
+    g.drawImage(img, 0, 0, tw, th);
+    g.restore();
+  }
+  g.restore();
+}
+function skinBodyTexture(imgF, imgR, uSplit, seed) {
+  const W = 1024, H = 512, R = mulberry(seed), X = uSplit * W;
+  const c = canvas(W, H), g = c.getContext("2d");
+  const rc = canvas(W, H), rg = rc.getContext("2d");
+  const Y = (v) => (1 - v) * H;
+  rg.fillStyle = "rgb(0,110,0)"; rg.fillRect(0, 0, W, H);
+  // 1 texel ≈ 5 mm along the body and 6 mm up the profile; the photo patches cover roughly a metre each
+  tileMirror(g, imgF, 0, 0, X, H, 260, 100);
+  tileMirror(g, imgR, X, 0, W, H, 180, 94);
+  g.fillStyle = css(0x1a1210, 0.8); g.fillRect(X - 1, 0, 2, H);        // shadow line in the cab / bed gap
+  // Chipped white bed: dark primer flecks, rust where the paint has gone at the bottom and around the arch
+  const rust = [0x6a3418, 0x8a4a22, 0x4f260f, 0x9c5a2c];
+  for (let i = 0; i < 160; i++) {
+    const x = X + R() * (W - X), y = R() * Y(0.02), w = 2 + R() * 9, h = 1 + R() * 3;
+    g.fillStyle = css(R() < 0.7 ? 0x1c1714 : 0x5a3018, 0.55 + R() * 0.4);
+    g.save(); g.translate(x, y); g.rotate((R() - 0.5) * 1.2); g.fillRect(-w / 2, -h / 2, w, h); g.restore();
+  }
+  for (let i = 0; i < 26; i++) {
+    const x = X + R() * (W - X), y = Y(R() * R() * 0.12), r = 6 + R() * 22;
+    blotch(g, R, x, y, r, rust[(R() * 4) | 0], 0.5, 6);
+    blotch(rg, R, x, y, r, 0x00ff00, 0.9, 4);
+  }
+  // Red cab and front: sun-chalked top surfaces
+  const fg = g.createLinearGradient(0, Y(0.27), 0, Y(0.45));
+  fg.addColorStop(0, css(0xd8b8a8, 0)); fg.addColorStop(1, css(0xd8b8a8, 0.22));
+  g.fillStyle = fg; g.fillRect(0, 0, X, Y(0.27));
+  // Dust banked along the bottom of the whole body
+  const dust = 0xb39a74;
+  const dg = g.createLinearGradient(0, Y(0), 0, Y(0.22));
+  dg.addColorStop(0, css(dust, 0.6)); dg.addColorStop(0.4, css(dust, 0.25)); dg.addColorStop(1, css(dust, 0));
+  g.fillStyle = dg; g.fillRect(0, Y(0.22), W, H - Y(0.22));
+  const dr = rg.createLinearGradient(0, Y(0), 0, Y(0.22));
+  dr.addColorStop(0, "rgba(0,245,0,0.9)"); dr.addColorStop(1, "rgba(0,245,0,0)");
+  rg.fillStyle = dr; rg.fillRect(0, Y(0.22), W, H - Y(0.22));
+  return { map: tex(c, { aniso: 8 }), roughnessMap: tex(rc, { srgb: false }) };
+}
+function tileTexture(img, repeat) {
+  const t = new THREE.Texture(img);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.MirroredRepeatWrapping; t.repeat.set(repeat[0], repeat[1]);
+  t.anisotropy = 4; t.needsUpdate = true;
+  return t;
+}
+
+// { body, front, rear, tailgate, bumper } materials for a skinned vehicle def, or null (unknown skin / images missing)
+export function skinMaterials(def) {
+  const s = SKINS[def.skin];
+  if (!s) return null;
+  const img = (f) => skinImg.get(def.skin + "/" + f);
+  if (![s.frontTile, s.rearTile, s.tailgate, s.bumper].every(img)) return null;
+  let m = skinCache.get(def.type);
+  if (m) return m;
+  const b = def.body, uSplit = (def.zFront - (b.zCabBack + b.zBedFront) / 2) / (def.zFront - def.zRear);
+  const t = skinBodyTexture(img(s.frontTile), img(s.rearTile), uSplit, 1969);
+  const paint = (o) => { const p = new THREE.MeshStandardMaterial({ roughness: 0.85, metalness: 0.12, side: THREE.DoubleSide, envMapIntensity: 0.9, ...o }); p.name = "paint"; return p; };
+  m = {
+    body: paint({ map: t.map, roughnessMap: t.roughnessMap, roughness: 1 }),
+    front: paint({ map: tileTexture(img(s.frontTile), [9, 9]) }),       // cap UVs: 1 unit = 2 m
+    rear: paint({ map: tileTexture(img(s.rearTile), [10, 10]) }),
+    tailgate: new THREE.MeshStandardMaterial({ map: tileTexture(img(s.tailgate), [1, 1]), roughness: 0.9, metalness: 0.2, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }),
+    bumper: new THREE.MeshStandardMaterial({ vertexColors: true, map: tileTexture(img(s.bumper), [6, 6]), roughness: 0.8, metalness: 0.25 }),
+  };
+  skinCache.set(def.type, m);
+  return m;
+}
+
 export function prepareMaterials() {
   if (ready) return M;
   const std = (o) => new THREE.MeshStandardMaterial(o);
@@ -334,4 +436,6 @@ export function lampMaterials() {
 export function disposeMaterials() {
   for (const m of paintCache.values()) { m.map?.dispose(); m.roughnessMap?.dispose(); m.dispose(); }
   paintCache.clear();
+  for (const m of skinCache.values()) for (const k of Object.values(m)) { k.map?.dispose(); k.roughnessMap?.dispose(); k.dispose(); }
+  skinCache.clear();
 }

@@ -1,5 +1,5 @@
 import assert from "node:assert";
-import { setStorage, loadSave, writeSave, clearSave, loadPrefs, savePrefs, previewOf, migrateV2 } from "../js/save.js";
+import { setStorage, loadSave, writeSave, clearSave, loadPrefs, savePrefs, previewOf, migrateV2, migrateV3 } from "../js/save.js";
 const mem = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k), m }; };
 
 let s = mem(); setStorage(s);
@@ -7,7 +7,7 @@ assert.deepEqual(loadSave(), { save: null, error: null });
 const good = { seed: 5, day: 3, time: 0.4, diff: "hard", needs: { health: 90 }, player: { pos: [1, 2, 3], yaw: 0 }, world: {}, stats: { distance: 1234 } };
 assert(writeSave(good));
 let r = loadSave();
-assert(r.save && r.save.v === 3 && r.save.day === 3 && r.error === null);
+assert(r.save && r.save.v === 4 && r.save.day === 3 && r.error === null);
 assert.equal(previewOf(r.save).distance, 1234);
 
 // corrupt → reported and backed up, not deleted
@@ -49,3 +49,17 @@ assert.equal(p.vol.master, 0.3); assert.equal(p.vol.sfx, 0.8); assert.equal(p.hu
 assert.equal(p.quality, "auto"); assert.equal(p.fov, 110); assert.equal(p.units, "mi");
 p.hud.scale = 1.25; savePrefs(p); assert.equal(loadPrefs().hud.scale, 1.25);
 console.log("save ok");
+
+// v3 journeys (before strangers) continue: same data, empty encounter store, hostile on
+{
+  const s3 = mem(); setStorage(s3);
+  const v3 = { v: 3, seed: 9, day: 6, time: 0.2, diff: "normal", needs: { health: 80 }, player: { pos: [4, 0, 9000], yaw: 1 }, world: { counter: 7, flags: [["site:s6", 1]], vehicles: [], props: [], removed: [] }, stats: { distance: 9100 }, wallet: { money: 33 } };
+  s3.setItem("longhaul-save-v3", JSON.stringify(v3));
+  const r3 = loadSave();
+  assert.equal(r3.error, null);
+  assert.equal(r3.save.v, 4); assert.equal(r3.save.day, 6); assert.equal(r3.save.wallet.money, 33);
+  assert.deepEqual(r3.save.world.enc, []); assert.equal(r3.save.hostile, true); assert.equal(r3.save.playTime, 0);
+  assert.deepEqual(r3.save.world.flags, [["site:s6", 1]]);
+  assert.equal(migrateV3(r3.save), r3.save, "a v4 save is left alone");
+}
+console.log("save v4 ok");

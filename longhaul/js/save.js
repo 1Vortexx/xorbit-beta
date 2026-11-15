@@ -1,9 +1,11 @@
-// Long Haul – local saves (version 3), settings and best-trip record.
+// Long Haul – local saves (version 4), settings and best-trip record.
+// Version 4 adds strangers: world.enc (encounter records), `hostile` and `playTime`. The storage key keeps its old
+// name so a version-3 journey is found and carried on.
 // Storage can be missing or full (private windows, embedded frames): every call reports failure instead of throwing.
 const KEY = "longhaul-save-v3";
 const KEY_V2 = "longhaul-save-v2";
 const BACKUP = "longhaul-save-backup";
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 let store = null;
 try { store = globalThis.localStorage || null; } catch (e) { store = null; }
@@ -17,8 +19,15 @@ const del = (k) => { try { store && store.removeItem(k); } catch (e) {} };
 const isNum = (v) => typeof v === "number" && isFinite(v);
 
 function valid(d) {
-  return d && d.v === SAVE_VERSION && isNum(d.seed) && isNum(d.day) && d.player && Array.isArray(d.player.pos)
+  return d && (d.v === SAVE_VERSION || d.v === 3) && isNum(d.seed) && isNum(d.day) && d.player && Array.isArray(d.player.pos)
     && d.player.pos.every(isNum) && d.world && d.needs;
+}
+
+// A version-3 journey has no strangers yet: it continues as it was, and encounters appear on the road ahead
+// (none are created behind the player or on top of them – the schedule only instantiates what is approached).
+export function migrateV3(d) {
+  if (!d || d.v !== 3) return d;
+  return { ...d, v: SAVE_VERSION, hostile: true, playTime: 0, world: { ...d.world, enc: [] } };
 }
 
 // A version-2 save knew one truck on a different road. The road is new, so the journey restarts at the garage
@@ -46,7 +55,7 @@ export function loadSave() {
   if (raw) {
     try {
       const d = JSON.parse(raw);
-      if (valid(d)) return { save: d, error: null };
+      if (valid(d)) return { save: migrateV3(d), error: null };
       if (d && d.v > SAVE_VERSION) return { save: null, error: "newer" };
       set(BACKUP, raw);
       return { save: null, error: "corrupt" };

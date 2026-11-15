@@ -3,6 +3,7 @@ import assert from "node:assert";
 import * as T from "../js/world/terrain.js";
 import * as S from "../js/world/sites.js";
 import { planSite, ITEM_TYPES } from "../js/world/plan.js";
+const ROUND_CAPS = { handgun: 15, ak47: 30, ammo_9mm: 50, ammo_762: 60 };   // guns and ammo count rounds, not litres
 import { scatter } from "../js/world/scatter.js";
 import { naturalHeight } from "../js/world/base.js";
 
@@ -104,7 +105,7 @@ for (const seed of [1, 987654]) {
       assert(sp.pos[1] >= s.y - 1e-6 && sp.pos[1] < s.y + 2.2, "spawn height");
       const loc = { x: 0, z: 0 }; S.padFactor(s.pad, sp.pos[0], sp.pos[2], loc);
       assert(Math.abs(loc.x) <= s.pad.hx && Math.abs(loc.z) <= s.pad.hz, "spawn off its pad");
-      if (sp.qty !== undefined) assert(sp.qty > 0 && sp.qty <= 20);
+      if (sp.qty !== undefined) assert(sp.qty > 0 && sp.qty <= (ROUND_CAPS[sp.type] ?? 20));
       if (sp.cond !== undefined) assert(sp.cond > 0 && sp.cond <= 100);
     }
     for (const v of p.vehicleSpawns) { assert(["sedan", "pickup"].includes(v.type) && !spawnIds.has(v.id)); spawnIds.add(v.id); if (!sedan && v.type === "sedan") sedan = s; }

@@ -125,7 +125,7 @@ export function registerTargets(v, rig) {
   const doorActs = (name, label, getIn) => (ctx) => {
     const open = v.doorTarget[name] > 0.5;
     const acts = [{ key: "use", label: `${open ? "Close" : "Open"} ${label}`, run: () => v.toggleDoor(name) }];
-    if (getIn) acts.push({ key: "alt", label: "Get in", blocked: ctx.enterVehicle ? undefined : "Cannot get in", run: (c) => c.enterVehicle?.(v) });
+    if (getIn) acts.push({ key: "alt", label: "Get in", blocked: !v.seatFree("driver") ? "Driver seat occupied" : ctx.enterVehicle ? undefined : "Cannot get in", run: (c) => c.enterVehicle?.(v) });
     return acts;
   };
   addTarget(P.doors.driver, { id: id("door:driver"), name: () => `${d.name} – driver door`, reach: 2.8, actions: doorActs("driver", "door", true) });

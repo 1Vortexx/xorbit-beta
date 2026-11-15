@@ -6,6 +6,7 @@ export const ws = {
   props: new Map(),     // id → PropRecord for every item that is not sitting at its seeded spawn
   flags: new Map(),     // "door:<id>" → 1 (open), "site:<id>" → 1 (discovered), any other persistent toggle
   vehicles: new Map(),  // id → VehicleRecord for every vehicle that differs from its seeded spawn
+  enc: new Map(),       // id → EncounterRecord: roadblocks, hitchhikers and their people (ARCHITECTURE §14)
 
   // Stable id for things created during play (bought, crafted, removed from a vehicle…)
   newId(prefix = "U") { return prefix + (this.counter++).toString(36); },
@@ -13,9 +14,9 @@ export const ws = {
   flag(key) { return this.flags.get(key); },
   setFlag(key, value) { if (value === undefined || value === null || value === 0 || value === false) this.flags.delete(key); else this.flags.set(key, value); },
 
-  reset() { this.counter = 1; this.removed.clear(); this.props.clear(); this.flags.clear(); this.vehicles.clear(); },
+  reset() { this.counter = 1; this.removed.clear(); this.props.clear(); this.flags.clear(); this.vehicles.clear(); this.enc.clear(); },
   serialize() {
-    return { counter: this.counter, removed: [...this.removed], props: [...this.props], flags: [...this.flags], vehicles: [...this.vehicles] };
+    return { counter: this.counter, removed: [...this.removed], props: [...this.props], flags: [...this.flags], vehicles: [...this.vehicles], enc: [...this.enc] };
   },
   restore(d) {
     this.reset();
@@ -25,5 +26,6 @@ export const ws = {
     (d.props || []).forEach(([k, v]) => this.props.set(k, v));
     (d.flags || []).forEach(([k, v]) => this.flags.set(k, v));
     (d.vehicles || []).forEach(([k, v]) => this.vehicles.set(k, v));
+    (d.enc || []).forEach(([k, v]) => this.enc.set(k, v));
   },
 };

@@ -1,6 +1,7 @@
 // Long Haul – synthesized sound. One AudioContext, three buses under the master:
 //   master → sfx (engine, tyres, tools, UI) / ambience (wind, rain, thunder) / music (soundtrack elements, see music.js)
 // Other modules never touch WebAudio: they call sfx(name) on the bus, and main feeds update() every frame.
+// A one-shot with opts.pos (absolute world position) is attenuated by its distance to the listener (setListener).
 import { on } from "./core/bus.js";
 
 let ctx = null, master, busSfx, busAmb, busMusic, cabFilter;
@@ -10,7 +11,26 @@ let muted = false;
 
 // Continuous voices
 let eng = null, road = null, wind = null, rain = null, horn = null, pour = null;
-let rattleT = 0, lastRpm = 0;
+let rattleT = 0;
+let others = [];             // engine voices of nearby NPC-driven vehicles (created lazily, dropped on suspend)
+
+// Positioned one-shots: full volume within NEAR metres, smooth roll-off, nothing beyond FAR.
+const NEAR = 6, FAR = 120;
+let listener = null, listenerInCab = false;
+let dest = null;             // where tone()/burst() connect while a one-shot is being built (null = the sfx bus)
+const lastPlayed = new Map();   // "name@x,z" → ms: the same sound from the same spot at most every RATE_MS
+const RATE_MS = 60;
+function distTo(pos) {
+  if (!pos || !listener) return 0;
+  const dx = (pos.x || 0) - listener.x, dy = (pos.y || 0) - listener.y, dz = (pos.z || 0) - listener.z;
+  return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+// 1 inside NEAR, about 0.2 at 30 m, 0.07 at 60 m, 0 from FAR on.
+export function attenuation(d) {
+  if (!(d > NEAR)) return 1;
+  if (d >= FAR) return 0;
+  return (NEAR / d) ** 0.75 * (1 - (d - NEAR) / (FAR - NEAR)) ** 1.5;
+}
 
 function noiseBuffer(c, seconds) {
   const b = c.createBuffer(1, c.sampleRate * seconds, c.sampleRate);
@@ -90,7 +110,7 @@ function tone(f, dur, o = {}) {
   g.gain.setValueAtTime(0.0001, t);
   g.gain.linearRampToValueAtTime(o.vol || 0.1, t + (o.attack || 0.005));
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  s.connect(g); g.connect(o.bus || busSfx);
+  s.connect(g); g.connect(o.bus || dest || busSfx);
   s.onended = () => { s.disconnect(); g.disconnect(); };
   s.start(t); s.stop(t + dur + 0.05);
 }
@@ -104,7 +124,7 @@ function burst(dur, o = {}) {
   g.gain.setValueAtTime(0.0001, t);
   g.gain.linearRampToValueAtTime(o.vol || 0.15, t + (o.attack || 0.004));
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  s.connect(f); f.connect(g); g.connect(o.bus || busSfx);
+  s.connect(f); f.connect(g); g.connect(o.bus || dest || busSfx);
   s.onended = () => { s.disconnect(); f.disconnect(); g.disconnect(); };
   s.start(t, Math.random() * 2); s.stop(t + dur + 0.05);
 }
@@ -115,7 +135,26 @@ const STEP = {
   sand: { f: 320, q: 0.5, vol: 0.07, dur: 0.18 }, rock: { f: 1500, q: 1.2, vol: 0.05, dur: 0.06 },
   wood: { f: 260, q: 2.5, vol: 0.09, dur: 0.09 },
 };
+const vol01 = (v, d) => Math.max(0, Math.min(1, v ?? d));
 const SFX = {
+  jump: () => burst(0.12, { f: 650, vol: 0.09, to: 1300 }),
+  bandage: () => { burst(0.24, { f: 2200, vol: 0.08 }); burst(0.13, { f: 1300, vol: 0.07, delay: 0.2 }); },
+  inventory: () => burst(0.15, { f: 950, vol: 0.1, to: 1600 }),
+  switch: () => { burst(0.025, { f: 2400, q: 3, vol: 0.12 }); tone(340, 0.035, { vol: 0.04 }); },
+  ignition_key: () => { burst(0.045, { f: 3000, q: 3, vol: 0.13 }); tone(800, 0.055, { vol: 0.025, to: 500 }); },
+  starter_click: () => { for (let i = 0; i < 3; i++) burst(0.025, { f: 1800, q: 3, vol: 0.16, delay: i * 0.1 }); },
+  engine_catch: () => { burst(0.22, { type: "lowpass", f: 420, vol: 0.25 }); tone(55, 0.35, { type: "sawtooth", vol: 0.06, to: 95 }); },
+  engine_stop: () => { tone(85, 0.32, { type: "sawtooth", vol: 0.06, to: 18 }); burst(0.15, { f: 250, vol: 0.12, delay: 0.12 }); },
+  engine_fail: () => { burst(0.15, { type: "lowpass", f: 330, vol: 0.18 }); tone(75, 0.2, { type: "triangle", vol: 0.07, to: 25 }); },
+  parking_brake: () => { for (let i = 0; i < 4; i++) burst(0.025, { f: 1700 + i * 150, q: 3, vol: 0.11, delay: i * 0.035 }); },
+  gear_shift: () => { burst(0.06, { f: 700, q: 2, vol: 0.12 }); tone(110, 0.08, { type: "triangle", vol: 0.06, to: 75 }); },
+  crash: (o) => {
+    const v = Math.max(0.05, Math.min(1, o.vol ?? 0.7));
+    SFX.thud({ vol: v });
+    burst(0.24, { f: 1400, q: 1.5, vol: 0.35 * v, to: 400 });
+    tone(190, 0.32, { type: "triangle", vol: 0.13 * v, to: 70 });
+    if (v > 0.55) burst(0.2, { f: 3800, vol: 0.16 * v, delay: 0.04 });
+  },
   ui_click: () => tone(660, 0.07, { vol: 0.04 }),
   ui_back: () => tone(440, 0.08, { vol: 0.04, to: 330 }),
   error: () => { tone(180, 0.12, { type: "square", vol: 0.04 }); tone(140, 0.14, { type: "square", vol: 0.04, delay: 0.1 }); },
@@ -164,7 +203,104 @@ const SFX = {
     const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(), lp = filter("lowpass", 320, 0.5, g);
     o.type = "sawtooth"; o.frequency.setValueAtTime(16, t); o.frequency.linearRampToValueAtTime(30, t + 0.8);
     g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.16, t + 0.05); g.gain.linearRampToValueAtTime(0.0001, t + 0.95);
-    o.connect(lp); g.connect(busSfx); o.start(t); o.stop(t + 1);
+    o.connect(lp); g.connect(dest || busSfx); o.start(t); o.stop(t + 1);
+    o.onended = () => { o.disconnect(); lp.disconnect(); g.disconnect(); };
+  },
+  // ── strangers (§14.8) ──
+  npc_step: (o) => {      // someone else's footstep: the player's, at roughly half the level
+    const s = STEP[o.surface] || STEP.dirt, v = vol01(o.vol, 1);
+    burst(s.dur, { f: s.f * (0.85 + Math.random() * 0.3), q: s.q, vol: s.vol * v * 0.9 });
+    tone(o.surface === "wood" ? 140 : 95, 0.07, { type: "triangle", vol: 0.026 * v, to: 55 });
+  },
+  npc_talk: (o) => {      // two or three soft syllables; opts.rate sets the voice pitch
+    const v = vol01(o.vol, 1), r = Math.max(0.5, Math.min(2, o.rate || 1)), n = 2 + (Math.random() < 0.5 ? 1 : 0);
+    for (let i = 0; i < n; i++) {
+      const f = 165 * r * (0.92 + Math.random() * 0.2), d = i * 0.085;
+      tone(f, 0.075, { type: "triangle", vol: 0.04 * v, to: f * (i === n - 1 ? 0.82 : 1.06), attack: 0.012, delay: d });
+      burst(0.06, { f: 880 * r * (0.85 + Math.random() * 0.35), q: 5, vol: 0.03 * v, attack: 0.012, delay: d });
+    }
+  },
+  threat: (o) => {        // low, tense: two saws a semitone apart beating against each other
+    const v = vol01(o.vol, 1);
+    tone(73.4, 1.1, { type: "sawtooth", vol: 0.06 * v, to: 69.3, attack: 0.09 });
+    tone(77.8, 1.1, { type: "sawtooth", vol: 0.05 * v, to: 73.4, attack: 0.09 });
+    burst(0.9, { type: "lowpass", f: 240, vol: 0.14 * v, to: 110, attack: 0.12 });
+  },
+  pursuit_alert: (o) => { // urgent, rising
+    const v = vol01(o.vol, 1);
+    [330, 440, 587].forEach((f, i) => tone(f, 0.16, { type: "square", vol: 0.035 * v, to: f * 1.12, delay: i * 0.11 }));
+    tone(784, 0.4, { type: "triangle", vol: 0.06 * v, to: 880, delay: 0.33 });
+    burst(0.5, { f: 500, q: 1.2, vol: 0.07 * v, to: 3200, attack: 0.3 });
+  },
+  pursuit_end: (o) => {   // release: a falling, settling figure
+    const v = vol01(o.vol, 1);
+    tone(659, 0.28, { type: "triangle", vol: 0.05 * v });
+    tone(523, 0.32, { type: "triangle", vol: 0.05 * v, delay: 0.15 });
+    tone(392, 0.8, { type: "triangle", vol: 0.06 * v, delay: 0.31 });
+    burst(0.8, { f: 2200, q: 0.6, vol: 0.04 * v, to: 350, attack: 0.05 });
+  },
+  barricade_hit: (o) => { // wood crack, then loose boards clattering
+    const v = vol01(o.vol, 0.8);
+    burst(0.05, { f: 1900, q: 1.2, vol: 0.34 * v });
+    burst(0.1, { f: 620, q: 2.5, vol: 0.3 * v });
+    tone(135, 0.13, { type: "triangle", vol: 0.16 * v, to: 80 });
+    let d = 0.09;
+    for (let i = 0; i < 5; i++) {
+      burst(0.045, { f: 480 + Math.random() * 520, q: 3.5, vol: (0.17 - i * 0.025) * v, delay: d });
+      d += 0.06 + Math.random() * 0.1;
+    }
+  },
+  barrel_hit: (o) => {    // hollow steel boom, then the drum rolling away
+    const v = vol01(o.vol, 0.8);
+    burst(0.04, { f: 2500, q: 2, vol: 0.2 * v });
+    tone(92, 0.6, { type: "triangle", vol: 0.26 * v, to: 78 });
+    tone(238, 0.42, { vol: 0.1 * v, to: 214 });
+    tone(415, 0.25, { vol: 0.05 * v, to: 388 });
+    for (let i = 0; i < 4; i++) {
+      const d = 0.28 + i * 0.17, k = (1 - i * 0.2) * v;
+      tone(118 - i * 5, 0.11, { type: "triangle", vol: 0.1 * k, to: 90, delay: d });
+      burst(0.04, { f: 1500, q: 2, vol: 0.05 * k, delay: d });
+    }
+  },
+  punch: (o) => {         // dull body impact
+    const v = vol01(o.vol, 0.8);
+    burst(0.09, { type: "lowpass", f: 330, vol: 0.36 * v });
+    tone(110, 0.12, { vol: 0.17 * v, to: 50 });
+    burst(0.03, { f: 1100, q: 1, vol: 0.06 * v });
+  },
+  gunshot: (o) => {       // sharp crack and a low boom; opts.big = rifle
+    const v = vol01(o.vol, 1), big = !!o.big;
+    burst(0.03, { f: 3200, q: 0.4, vol: 0.5 * v });
+    burst(big ? 0.32 : 0.22, { type: "lowpass", f: big ? 700 : 950, vol: (big ? 0.62 : 0.5) * v, to: 140 });
+    tone(big ? 70 : 95, big ? 0.28 : 0.18, { vol: 0.32 * v, to: 35 });
+    burst(0.5, { type: "lowpass", f: 380, vol: 0.08 * v, delay: 0.06 });          // the desert answering
+  },
+  gun_empty: () => burst(0.025, { f: 2600, q: 4, vol: 0.12 }),
+  reload: () => { burst(0.05, { f: 1900, q: 3, vol: 0.12 }); burst(0.06, { f: 1300, q: 3, vol: 0.13, delay: 0.32 }); burst(0.04, { f: 2600, q: 4, vol: 0.12, delay: 0.55 }); },
+  knife_swing: () => burst(0.14, { f: 1800, q: 0.6, vol: 0.07, to: 3800 }),
+  knife_hit: (o) => { const v = vol01(o.vol, 1); burst(0.07, { type: "lowpass", f: 420, vol: 0.3 * v }); burst(0.05, { f: 2400, q: 1.5, vol: 0.06 * v }); },
+  pay: (o) => {           // notes counted out, a few coins
+    const v = vol01(o.vol, 1);
+    burst(0.11, { f: 3400, q: 0.7, vol: 0.05 * v, attack: 0.02 });
+    burst(0.1, { f: 2900, q: 0.7, vol: 0.05 * v, attack: 0.02, delay: 0.13 });
+    [2090, 2640, 1870].forEach((f, i) => tone(f, 0.09, { vol: 0.03 * v, delay: 0.24 + i * 0.07 }));
+  },
+  npc_horn: (o) => {      // another car's horn: opts.dur seconds (default 0.45), opts.rate shifts the pitch
+    const v = vol01(o.vol, 1), r = Math.max(0.6, Math.min(1.6, o.rate || 1)), dur = Math.max(0.12, Math.min(1.5, o.dur || 0.45));
+    const t = ctx.currentTime, g = ctx.createGain(), lp = filter("lowpass", 1500, 0.5, g);
+    const a = ctx.createOscillator(), b = ctx.createOscillator();
+    a.type = b.type = "square"; a.frequency.value = 370 * r; b.frequency.value = 466 * r;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.07 * v, t + 0.02);
+    g.gain.setValueAtTime(0.07 * v, t + dur); g.gain.linearRampToValueAtTime(0.0001, t + dur + 0.06);
+    a.connect(lp); b.connect(lp); g.connect(dest || busSfx);
+    a.onended = () => { a.disconnect(); b.disconnect(); lp.disconnect(); g.disconnect(); };
+    a.start(t); b.start(t); a.stop(t + dur + 0.1); b.stop(t + dur + 0.1);
+  },
+  tyre_skid: (o) => {     // short squeal
+    const v = vol01(o.vol, 0.8);
+    burst(0.45, { f: 1650, q: 9, vol: 0.2 * v, to: 1150, attack: 0.03 });
+    burst(0.4, { f: 2300, q: 6, vol: 0.07 * v, to: 1700, attack: 0.03 });
+    tone(1280, 0.4, { type: "sawtooth", vol: 0.012 * v, to: 980, attack: 0.03 });
   },
   rattle: (o) => { const v = o.vol || 0.5; burst(0.05, { f: 2100, q: 3, vol: 0.05 * v }); burst(0.09, { type: "lowpass", f: 220, vol: 0.2 * v }); },
   pour_start: () => { if (pour) set(pour.out.gain, 0.09, 0.05); },
@@ -180,9 +316,50 @@ const SFX = {
 export const SFX_NAMES = Object.keys(SFX);
 
 function play(name, opts = {}) {
-  if (!ctx || ctx.state !== "running") return;
+  if (!ctx) return;
+  if (ctx.state === "suspended" && ["ui_click", "ui_back", "error"].includes(name)) {
+    // Menu input is a user gesture; pause must not make its buttons silent.
+    ctx.resume().then(() => play(name, opts)).catch(() => {});
+    return;
+  }
+  if (ctx.state !== "running") return;
   const fn = SFX[name];
-  if (fn) { try { fn(opts); } catch (e) {} }
+  if (!fn) return;
+  const pos = opts.pos || null;
+  if (!STATEFUL.has(name)) {   // a caller bug must not machine-gun a sound: one per name and spot every RATE_MS
+    const key = pos ? `${name}@${Math.round((pos.x || 0) / 2)},${Math.round((pos.z || 0) / 2)}` : name;
+    const now = performance.now(), last = lastPlayed.get(key);
+    if (last !== undefined && now - last < RATE_MS) return;
+    if (lastPlayed.size > 200) for (const [k, t] of lastPlayed) if (now - t > 1000) lastPlayed.delete(k);
+    lastPlayed.set(key, now);
+  }
+  const d = pos && listener ? distTo(pos) : 0, a = attenuation(d);
+  if (a < 0.003) return;
+  let node = null;
+  if (a < 1 || (pos && listener && listenerInCab)) {
+    // Distance takes level and a little top end; sitting in a cab muffles what happens outside.
+    node = gain(a);
+    const lp = filter("lowpass", Math.min(listenerInCab ? 2600 : 18000, 16000 * a ** 0.5 + 1400), 0.3, busSfx);
+    node.connect(lp);
+    setTimeout(() => { try { node.disconnect(); lp.disconnect(); } catch (e) {} }, 4000);
+  }
+  dest = node;
+  try { fn(opts); } catch (e) {}
+  dest = null;
+}
+const STATEFUL = new Set(["pour_start", "pour_stop"]);
+
+// Engine of another vehicle: the main voice without the shaper, noise band and wobble.
+function otherVoice() {
+  const out = gain(0, busSfx), lp = filter("lowpass", 260, 1, out), mix = gain(0.5, lp);
+  const o1 = osc("sawtooth", 40, mix), o2 = osc("square", 20, gain(0.55, mix));
+  return { out, lp, mix, o1, o2 };
+}
+function dropOthers() {
+  for (const v of others) {
+    try { v.o1.stop(); v.o2.stop(); v.o1.disconnect(); v.o2.disconnect(); v.mix.disconnect(); v.lp.disconnect(); v.out.disconnect(); } catch (e) {}
+  }
+  others = [];
 }
 on("sfx", ({ name, opts }) => play(name, opts));
 
@@ -192,13 +369,21 @@ export const audio = {
   get musicBus() { return busMusic; },
   // Must be called from a user gesture the first time (browser autoplay rules)
   start() { try { if (!ctx) init(); if (ctx.state !== "running") ctx.resume(); } catch (e) {} },
-  suspend() { try { if (pour) pour.out.gain.value = 0; ctx && ctx.suspend(); } catch (e) {} },
+  suspend() { try { if (pour) pour.out.gain.value = 0; dropOthers(); ctx && ctx.suspend(); } catch (e) {} },
+  // Where the player's ears are (absolute world position); main calls this every frame.
+  setListener(pos) {
+    if (!pos) { listener = null; return; }
+    if (!listener) listener = { x: 0, y: 0, z: 0 };
+    listener.x = pos.x || 0; listener.y = pos.y || 0; listener.z = pos.z || 0;
+  },
   setVolumes(v, isMuted) { Object.assign(vol, v); muted = !!isMuted; applyVolume(); },
   play,
 
   // s: { active, tel (Telemetry|null: the vehicle you sit in or stand next to), inCab, dist (m to that vehicle),
-  //      indoors, wind 0..1, rain 0..1, horn, rough (0..1 suspension activity) }
+  //      indoors, wind 0..1, rain 0..1, horn, rough (0..1 suspension activity),
+  //      others: [{ tel, dist }] (at most 2: engines of nearby NPC-driven vehicles; keep the order stable) }
   update(s, dt = 0.016) {
+    listenerInCab = !!(s.active && s.inCab);
     if (!ctx) return;
     const tel = s.active ? s.tel : null;
     const near = tel ? (s.inCab ? 1 : Math.max(0, 1 - (s.dist || 0) / 45) ** 2) : 0;
@@ -212,8 +397,22 @@ export const audio = {
       set(eng.out.gain, (0.05 + load * 0.07 + (rpm / (tel.redline || 5000)) * 0.03) * near * (s.inCab ? 1 : 0.8), 0.08);
       eng.lfo.frequency.value = 4 + rpm / 400;
     } else set(eng.out.gain, 0, 0.12);
-    if (tel && tel.ignition === "cranking" && lastRpm !== "cranking") play("crank");
-    lastRpm = tel ? tel.ignition : null;
+    // Ignition one-shots come from drivetrain transitions, including failed starts.
+
+    // Other engines: audible further out than your own idling truck, duller from inside a cab
+    const list = s.active && Array.isArray(s.others) ? s.others : null;
+    for (let i = 0; i < 2; i++) {
+      const o = list && list[i], t = o && o.tel;
+      if (t && t.ignition === "running" && (o.dist || 0) < FAR) {
+        const v = others[i] || (others[i] = otherVoice());
+        const rpm = Math.max(500, t.rpm || 0), load = Math.max(0, Math.min(1, t.load || 0)), f = (rpm / 60) * 3;
+        const a = Math.max(0, 1 - (o.dist || 0) / FAR) ** 2;
+        set(v.o1.frequency, f, 0.05); set(v.o2.frequency, f / 2, 0.05);
+        set(v.lp.frequency, (160 + rpm * 0.1 + load * 700) * (s.inCab ? 0.6 : 1), 0.1);
+        set(v.out.gain, (0.05 + load * 0.07 + (rpm / (t.redline || 5000)) * 0.03) * a * (s.inCab ? 0.6 : 1), 0.1);
+      } else if (others[i]) set(others[i].out.gain, 0, 0.15);
+    }
+
 
     // Tyre noise by surface; loose surfaces add crackle
     const sp = tel ? Math.abs(tel.speed) : 0;

@@ -2,7 +2,7 @@
 // working instruments, wheels, and the per-frame animation rig. MODEL coordinates (y from the ground at rest);
 // the model root sits at −comH under vehicle.mesh.
 import * as THREE from "three";
-import { M, paintMaterial, lampMaterials, GAUGE, prepareMaterials, materialsReady } from "./materials.js";
+import { M, paintMaterial, skinMaterials, lampMaterials, GAUGE, prepareMaterials, materialsReady } from "./materials.js";
 import { Batch, box, rbox, cyl, sphere, torus, tube, extrudeX, capXY, roundedRect, seamStrip } from "./loft.js";
 import { buildShell, stationOutline, ringOutline } from "./body.js";
 import { makePartMesh, drumMesh } from "./partmeshes.js";
@@ -35,7 +35,11 @@ function halfDisc(R, faceX) {
 export function buildVisual(vehicle) {
   if (!materialsReady()) prepareMaterials();
   const def = vehicle.def, b = def.body, sedan = b.style === "sedan";
-  const paint = paintMaterial(vehicle.paint, vehicle.wearLook);
+  const skin = def.skin ? skinMaterials(def) : null;
+  const paint = skin ? skin.body : paintMaterial(vehicle.paint, vehicle.wearLook);
+  // Skinned trucks have separate sheets for the red cab end and the white bed / grille surround
+  const paintF = skin ? skin.front : paint, paintR = skin ? skin.rear : paint;
+  const TRIM = skin ? 0xe4e0d4 : CHROME, trimMat = skin ? M.vc : M.vcMetal;    // painted grille instead of chrome
   const lamps = lampMaterials();
   const root = new THREE.Group();
   root.name = "model";
@@ -104,16 +108,16 @@ export function buildVisual(vehicle) {
 
   // ── Front end ──
   const zN = P[at.N0][0][2];
-  S.add(capXY(stationOutline(grid, at.N0), zN, 1), paint);
+  S.add(capXY(stationOutline(grid, at.N0), zN, 1), paintR);
   const gy = lerp(b.creaseY, b.hoodYFront, 0.42), gh = (b.hoodYFront - b.creaseY) * (sedan ? 0.95 : 1.0) + 0.12, gw = hw * 2 - 0.16;
   S.add(box(gw - 0.03, gh - 0.03, 0.02), M.vc, { p: [0, gy, zN + 0.006], c: 0x080808 });
-  const fr = (w, h, x, y) => S.add(rbox(w, h, 0.04, 0.008, 1), M.vcMetal, { p: [x, y, zN + 0.025], c: CHROME });
+  const fr = (w, h, x, y) => S.add(rbox(w, h, 0.04, 0.008, 1), trimMat, { p: [x, y, zN + 0.025], c: TRIM });
   fr(gw, 0.028, 0, gy + gh / 2); fr(gw, 0.028, 0, gy - gh / 2); fr(0.028, gh, gw / 2, gy); fr(0.028, gh, -gw / 2, gy);
   const lampW = sedan ? 0.34 : 0.3, gx = gw / 2 - lampW;
   fr(0.024, gh, gx, gy); fr(0.024, gh, -gx, gy);
   const nb = sedan ? 7 : 4;
-  for (let i = 1; i <= nb; i++) S.add(box(gx * 2 - 0.03, sedan ? 0.01 : 0.014, 0.02), M.vcMetal, { p: [0, gy - gh / 2 + (i / (nb + 1)) * gh, zN + 0.02], c: sedan ? 0x9c9c98 : CHROME });
-  for (let i = 1; i < 12; i++) S.add(box(0.007, gh - 0.04, 0.014), M.vcMetal, { p: [-gx + (i / 12) * gx * 2, gy, zN + 0.016], c: 0x8c8c88 });
+  for (let i = 1; i <= nb; i++) S.add(box(gx * 2 - 0.03, sedan ? 0.01 : 0.014, 0.02), trimMat, { p: [0, gy - gh / 2 + (i / (nb + 1)) * gh, zN + 0.02], c: sedan ? 0x9c9c98 : TRIM });
+  for (let i = 1; i < 12; i++) S.add(box(0.007, gh - 0.04, 0.014), trimMat, { p: [-gx + (i / 12) * gx * 2, gy, zN + 0.016], c: skin ? TRIM : 0x8c8c88 });
   S.add(rbox(0.16, 0.05, 0.02, 0.008, 1), M.vcMetal, { p: [0, gy, zN + 0.034], c: 0xb9b9b4 });
   const lampPos = [];
   for (const s of [1, -1]) {
@@ -136,9 +140,10 @@ export function buildVisual(vehicle) {
   // Bumpers
   const bumper = (z, dir, w) => {
     const prof = [[0, -0.085], [0.05 * dir, -0.095], [0.085 * dir, -0.055], [0.09 * dir, 0], [0.085 * dir, 0.055], [0.05 * dir, 0.095], [0, 0.085]];
-    S.add(extrudeX(dir > 0 ? prof : prof.slice().reverse(), w, 0.012), M.vcMetal, { p: [0, b.bumperY, z], c: CHROME });
+    const bm = skin ? skin.bumper : M.vcMetal, bc = skin ? 0xffffff : CHROME;
+    S.add(extrudeX(dir > 0 ? prof : prof.slice().reverse(), w, 0.012), bm, { p: [0, b.bumperY, z], c: bc });
     for (const s of [1, -1]) {
-      S.add(rbox(0.05, 0.19, 0.16, 0.02), M.vcMetal, { p: [s * (w / 2 - 0.005), b.bumperY, z - dir * 0.03], c: CHROME });
+      S.add(rbox(0.05, 0.19, 0.16, 0.02), bm, { p: [s * (w / 2 - 0.005), b.bumperY, z - dir * 0.03], c: bc });
       S.add(box(0.05, 0.07, 0.3), M.vcRough, { p: [s * 0.46, b.bumperY - 0.02, z - dir * 0.14], c: DARK });
       if (sedan) S.add(rbox(0.07, 0.13, 0.05, 0.015), M.vc, { p: [s * 0.3, b.bumperY, z + dir * 0.085], c: BLACK });
     }
@@ -156,8 +161,8 @@ export function buildVisual(vehicle) {
   if (!sedan) {
     const iB0 = at.B0, iB2 = at.B2, wallX = P[iB2][8][0], top = belt + 0.015, fl = b.bedFloorY;
     for (const s of [1, -1]) {
-      S.add(capXY(ringOutline(grid, iB2, 0, 8, s), zT, -1), paint);
-      S.add(capXY(ringOutline(grid, iB0, 0, 8, s), b.zBedFront, 1), paint);
+      S.add(capXY(ringOutline(grid, iB2, 0, 8, s), zT, -1), paintR);
+      S.add(capXY(ringOutline(grid, iB0, 0, 8, s), b.zBedFront, 1), paintR);
       S.add(rbox(0.085, 0.27, 0.03, 0.01), lamps.tail, { p: [s * (wallX + 0.062), belt - 0.2, zT - 0.008] });
       S.add(rbox(0.085, 0.07, 0.03, 0.01), M.vc, { p: [s * (wallX + 0.062), belt - 0.39, zT - 0.008], c: 0xd9d6cc });
       S.add(box(0.3, 0.3, 0.012), M.vc, { p: [s * (hw - 0.2), 0.47, def.axleR - b.archR - 0.1], c: BLACK });      // mud flap
@@ -167,7 +172,7 @@ export function buildVisual(vehicle) {
     S.add(capXY(wall, b.zBedFront + 0.002, -1), M.vcRough, { c: BEDC });
     // Cab back panel with the rear window opening
     const wy = lerp(belt, b.roofY, 0.47);
-    S.add(capXY(stationOutline(grid, at.Sc), b.zCabBack, -1, [roundedRect(0, wy, 1.22, 0.36, 0.07)]), paint);
+    S.add(capXY(stationOutline(grid, at.Sc), b.zCabBack, -1, [roundedRect(0, wy, 1.22, 0.36, 0.07)]), paintF);
     S.add(new THREE.PlaneGeometry(1.26, 0.4), M.glassSide, { p: [0, wy, b.zCabBack + 0.004] });
     S.add(seamStrip(roundedRect(0, wy, 1.24, 0.38, 0.075).concat([roundedRect(0, wy, 1.24, 0.38, 0.075)[0]]).map(([x, y]) => [x, y, b.zCabBack]), Array(22).fill([0, 0, -1]), 0.03), M.vc, { c: 0x0b0b0b });
     // Bed floor ribs
@@ -175,10 +180,18 @@ export function buildVisual(vehicle) {
     // Tailgate (hinged at the bed floor)
     const tw = wallX * 2 - 0.012, th = top - fl;
     rearOrigin = [0, fl, zT + 0.03];
-    rearB.add(rbox(tw, th, 0.055, 0.014), paint, { p: [0, fl + th / 2, zT + 0.03] });
+    rearB.add(rbox(tw, th, 0.055, 0.014), skin ? M.vcRough : paint, { p: [0, fl + th / 2, zT + 0.03], c: 0x4a3027 });
     rearB.add(rbox(tw - 0.16, th - 0.14, 0.02, 0.008, 1), M.vcRough, { p: [0, fl + th / 2, zT + 0.058], c: BEDC });
     rearB.add(rbox(0.16, 0.035, 0.03, 0.01), M.vcMetal, { p: [0, top - 0.09, zT - 0.006], c: CHROME });
-    rearB.add(decal(1.3, 0.165, 0, 112, 512, 64), M.decal, { p: [0, fl + th * 0.42, zT + 0.0015], r: [0, Math.PI, 0] });
+    if (skin) rearB.add(new THREE.PlaneGeometry(tw - 0.01, th - 0.01), skin.tailgate, { p: [0, fl + th / 2, zT + 0.0015], r: [0, Math.PI, 0] });
+    else rearB.add(decal(1.3, 0.165, 0, 112, 512, 64), M.decal, { p: [0, fl + th * 0.42, zT + 0.0015], r: [0, Math.PI, 0] });
+    if (skin) {
+      // Bed-side trim: two chrome spears around a black stripe, nose of the bed to the tail lamps
+      const z0 = b.zBedFront - 0.04, z1 = zT + 0.25, ty = b.creaseY - 0.005;    // between the arch and the fuel filler
+      for (const s of [1, -1]) for (const [dy, h, c, m] of [[0.035, 0.016, CHROME, M.vcMetal], [0, 0.05, BLACK, M.vc], [-0.035, 0.016, CHROME, M.vcMetal]]) {
+        S.add(rbox(0.012, h, z0 - z1, 0.005, 1), m, { p: [s * (hw + 0.002), ty + dy, (z0 + z1) / 2], c });
+      }
+    }
     cargoBox = [b.cargo.x1 - b.cargo.x0, 0.03, b.cargo.z1 - b.cargo.z0, (b.cargo.x0 + b.cargo.x1) / 2, fl + 0.012, (b.cargo.z0 + b.cargo.z1) / 2];
   } else {
     const zR = P[at.D2][0][2];

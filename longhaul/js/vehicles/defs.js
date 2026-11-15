@@ -37,6 +37,14 @@ function finish(d) {
   ];
   const y = (my) => my - d.comH;
   d.seatEye = [b.seatX, y(b.eyeY), b.eyeZ];
+  d.seats = {
+    driver: { pos: [b.seatX, y(b.seatY), b.seatZ], door: "driver" },
+    passenger: { pos: [-b.seatX, y(b.seatY), b.seatZ], door: "passenger" },
+  };
+  if (b.style === "sedan") {
+    d.seats.rearL = { pos: [b.seatX, y(b.seatY), -0.88], door: "driver" };
+    d.seats.rearR = { pos: [-b.seatX, y(b.seatY), -0.88], door: "passenger" };
+  }
   d.exits = [[d.halfW + 0.75, b.eyeZ - 0.1], [-(d.halfW + 0.75), b.eyeZ - 0.1], [0, d.zRear - 1.0], [0, d.zFront + 1.0]];
   // Rollover / belly contact points
   const lo = y(b.rockerY + 0.02), hi = y(b.roofY);
@@ -49,31 +57,36 @@ function finish(d) {
   return d;
 }
 
+// The pickup chassis, fresh each call (finish() mutates its argument) so skinned variants can share it
+const pickupBase = () => ({
+  type: "pickup", name: "Brazos 150 pickup", year: 1978,
+  mass: 1850, comH: 0.78,
+  axleF: 1.55, axleR: -1.45, track: 1.66, wheelR: 0.38, wheelW: 0.25,
+  susp: { freqF: 1.45, freqR: 1.65, damp: 0.34, travel: 0.25, arb: 9000, lever: 0.55 },
+  steerLock: 0.6, brakeG: 1.05, brakeBias: 0.62,
+  cdA: 0.78, drive: "rear",
+  gears: [2.52, 1.52, 1.0], reverse: 2.0, final: 3.42, stall: 1900, convMult: 1.7, driveEff: 0.86,
+  tank: 75, oilCap: 5.5, coolantCap: 14,
+  engines: ["engine_i6", "engine_v8"], wheel: "wheel_16", defaultEngine: "engine_i6",
+  rearDoor: "tailgate",
+  doorHinge: { driver: { open: 1.15 }, passenger: { open: 1.15 }, hood: { open: 0.95 }, tailgate: { open: 1.5 } },
+  body: {
+    style: "pickup",
+    hw: 0.97, rockerY: 0.42, creaseY: 0.99, beltY: 1.27, hoodYFront: 1.2, hoodYRear: 1.275, roofY: 1.8, roofHw: 0.8,
+    zNose: 2.38, zHoodRear: 1.03, zCowl: 0.95, zRoofFront: 0.5, zDoorFront: 0.82, zDoorRear: -0.52,
+    zRoofRear: -0.6, zCabBack: -0.62, zBedFront: -0.67, zTail: -2.42,
+    floorY: 0.56, bedFloorY: 0.78, archR: 0.53, bumperY: 0.6,
+    seatX: 0.42, eyeY: 1.5, eyeZ: -0.02, seatY: 0.8, seatZ: -0.2, dashZ: 0.72, wheelDia: 0.42,
+    cargo: { x0: -0.8, x1: 0.8, y0: 0.79, y1: 1.7, z0: -2.36, z1: -0.74 },
+    fuelCap: [0.975, 1.08, -0.95], engineZ: 1.5, engineY: 0.84, batteryPos: [0.62, 1.0, 1.95], radiatorZ: 2.17, radiatorY: 0.9,
+    interior: 0x5b4030, dash: 0x33261d, headliner: 0xb9ad94,
+  },
+});
+
 export const VEHICLES = {
-  pickup: finish({
-    type: "pickup", name: "Brazos 150 pickup", year: 1978,
-    mass: 1850, comH: 0.78,
-    axleF: 1.55, axleR: -1.45, track: 1.66, wheelR: 0.38, wheelW: 0.25,
-    susp: { freqF: 1.45, freqR: 1.65, damp: 0.34, travel: 0.25, arb: 9000, lever: 0.55 },
-    steerLock: 0.6, brakeG: 1.05, brakeBias: 0.62,
-    cdA: 0.78, drive: "rear",
-    gears: [2.52, 1.52, 1.0], reverse: 2.0, final: 3.42, stall: 1900, convMult: 1.7, driveEff: 0.86,
-    tank: 75, oilCap: 5.5, coolantCap: 14,
-    engines: ["engine_i6", "engine_v8"], wheel: "wheel_16", defaultEngine: "engine_i6",
-    rearDoor: "tailgate",
-    doorHinge: { driver: { open: 1.15 }, passenger: { open: 1.15 }, hood: { open: 0.95 }, tailgate: { open: 1.5 } },
-    body: {
-      style: "pickup",
-      hw: 0.97, rockerY: 0.42, creaseY: 0.99, beltY: 1.27, hoodYFront: 1.2, hoodYRear: 1.275, roofY: 1.8, roofHw: 0.8,
-      zNose: 2.38, zHoodRear: 1.03, zCowl: 0.95, zRoofFront: 0.5, zDoorFront: 0.82, zDoorRear: -0.52,
-      zRoofRear: -0.6, zCabBack: -0.62, zBedFront: -0.67, zTail: -2.42,
-      floorY: 0.56, bedFloorY: 0.78, archR: 0.53, bumperY: 0.6,
-      seatX: 0.42, eyeY: 1.5, eyeZ: -0.02, seatY: 0.8, seatZ: -0.2, dashZ: 0.72, wheelDia: 0.42,
-      cargo: { x0: -0.8, x1: 0.8, y0: 0.79, y1: 1.7, z0: -2.36, z1: -0.74 },
-      fuelCap: [0.975, 1.08, -0.95], engineZ: 1.5, engineY: 0.84, batteryPos: [0.62, 1.0, 1.95], radiatorZ: 2.17, radiatorY: 0.9,
-      interior: 0x5b4030, dash: 0x33261d, headliner: 0xb9ad94,
-    },
-  }),
+  pickup: finish(pickupBase()),
+  // The real red-and-white farm truck: photo skin from textures/poopmobile (see SKINS in materials.js)
+  poopmobile: finish({ ...pickupBase(), type: "poopmobile", name: "The Poopmobile", year: 1969, skin: "poopmobile", fitsAs: "pickup" }),
   sedan: finish({
     type: "sedan", name: "Corvina sedan", year: 1984,
     mass: 1380, comH: 0.56,

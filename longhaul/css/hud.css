@@ -215,3 +215,38 @@
   .target { top: calc(50% - 1.1em); left: calc(50% + 1.8em); }
   .t-name { -webkit-line-clamp: 1; }
 }
+
+/* encounter plate: under the needs on narrow windows, top centre when there is room */
+.enc { display: grid; gap: 0.25em; padding: 0.5em 0.8em 0.55em 0.7em; width: max-content; max-width: 100%; border-left-width: 0.3em !important; border-left-color: var(--lh-sky) !important; text-align: left; }
+.enc-h { display: flex; align-items: center; gap: 0.45em; }
+.enc-h > span { display: inline-flex; color: var(--lh-sky); }
+.enc-h b { font: 700 1.05em/1.15 var(--lh-display); letter-spacing: 0.12em; text-transform: uppercase; overflow-wrap: anywhere; }
+.enc-t { font-size: 0.88em; overflow-wrap: anywhere; max-width: 30em; }
+.enc-p { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3em 0.6em; font-size: 0.88em; font-weight: 700; margin-top: 0.1em; }
+.pips { display: inline-flex; gap: 0.25em; }
+.pip { display: grid; place-items: center; width: 1.7em; height: 1.35em; border: 1px dashed rgba(241, 233, 216, 0.5); border-radius: 0.2em; color: var(--lh-sand); opacity: 0.75; }
+.pip .ic { width: 0.9em; height: 0.9em; }
+.pip.on { border: 1px solid var(--lh-bone); background: var(--lh-bone); color: #17120c; opacity: 1; text-shadow: none; }
+.pip.on .ic { width: 1.15em; height: 1.15em; }
+.enc[data-level="warn"] { border-left-color: var(--lh-amber) !important; }
+.enc[data-level="warn"] .enc-h > span { color: var(--lh-amber); }
+.enc[data-level="crit"] { background: rgba(120, 28, 14, 0.9) !important; border-color: #ff9d85 !important; }
+.enc[data-level="crit"] .enc-h > span { color: var(--lh-bone); animation: hud-blink 1s steps(2, jump-none) infinite; }
+@container (min-width: 80em) {
+  .enc { position: absolute; top: 0; right: calc(50cqw - var(--m)); transform: translateX(50%); max-width: 34em; }
+}
+#hud.show-off .enc:not([data-level="crit"]) { display: none !important; }
+
+/* NPC speech and the one-line prompt: bottom centre, above the key hints, clear of the cluster and the pockets */
+.hud-say { position: absolute; left: 50%; bottom: 8.6em; transform: translateX(-50%); width: max-content; max-width: min(42em, 100% - var(--m) * 2); display: flex; flex-direction: column; align-items: center; gap: 0.4em; }
+#hud[data-mode="drive"] .hud-say { bottom: 15em; }
+@container (min-width: 80em) { #hud[data-mode="drive"] .hud-say { bottom: 6.4em; } #hud.no-help[data-mode="drive"] .hud-say, #hud.show-minimal[data-mode="drive"] .hud-say { bottom: 2em; } }
+.subt { padding: 0.45em 0.9em; text-align: center; font-size: 1.02em; line-height: 1.35; background: rgba(var(--lh-plate), 0.82) !important; overflow-wrap: anywhere; max-width: 100%; }
+.subt b { font: 700 0.82em var(--lh-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--lh-amber); margin-right: 0.6em; }
+.subt b::after { content: ":"; }
+.promptp { display: flex; align-items: center; gap: 0.5em; padding: 0.35em 0.8em 0.35em 0.5em; font-size: 0.92em; font-weight: 600; max-width: 100%; overflow-wrap: anywhere; }
+.promptp:not(:has(kbd)) { padding-left: 0.8em; }
+.hint.h-talk { display: none; }
+#hud.has-enc .hint.h-talk { display: inline-flex; }
+#hud.hc .subt b, #hud.hc .enc-h > span, #hud.hc .pip { color: #fff; }
+#hud.hc .enc { border-color: #fff !important; }

@@ -26,7 +26,8 @@
   <div id="hud-vignette"></div><div id="hud" hidden></div><div id="hud-fade" hidden></div><div id="menus" hidden></div>
   <script type="module">
     // ?view=gate|loading|main|main-nosave|main-error|newjourney|confirm|settings|controls|credits|pause|inventory|shop|gameover|sleep
-    //       |hud-drive|hud-foot|hud-fade   &tab=<tab id>  &bg=night  &show=minimal|off  &scale=1.5  &hc=1  &units=mi  &still=1
+    //       |dialogue-toll|dialogue-robbery|dialogue-ransom|dialogue-hitch|gameover-enc
+    //       |hud-drive|hud-foot|hud-fade   &enc=info|warn|crit|done  &sub=1  &prompt=1  &say=1 (bus npc:say)  &tab=<tab id>  &bg=night  &show=minimal|off  &scale=1.5  &hc=1  &units=mi  &still=1
     import { hud } from "../js/ui/hud.js";
     import { menus } from "../js/ui/menus.js";
     import * as input from "../js/input.js";
@@ -45,6 +46,14 @@
     for (const n of ["onContinue", "onNewJourney", "onSaveAndMenu", "onReturnToHost", "onUseSlot", "onDropSlot", "onFirstGesture", "onRadioNext", "onMainMenu"]) handlers[n] = log(n);
     handlers.onPrefs = (p) => { calls.push(["onPrefs"]); hud.applyPrefs(p); };
     handlers.onResume = handlers.onCloseOverlay = () => { calls.push(["close"]); menus.hide(); hud.dim(false); gameMode = "foot"; };
+    // Like main: a reply closes the dialogue – except the robbery's Pay, which fails once and comes back with a note.
+    handlers.onDialogueChoice = (id) => {
+      calls.push(["onDialogueChoice", id]); console.debug("[handler] onDialogueChoice", id);
+      if (view === "dialogue-ransom" && id === "pay" && !calls.some((c) => c[0] === "payFailed")) {
+        calls.push(["payFailed"]);
+        menus.refresh({ note: "You reach for the money, but your wallet is $40 short. He is not amused." });
+      } else { menus.hide(); hud.dim(false); gameMode = "foot"; }
+    };
     handlers.onBuy = (t) => { calls.push(["onBuy", t]); menus.setMessage(`Bought: ${t}`); menus.refresh({ money: 12 }); };
 
     const music = { tracks: q.has("nomusic") ? 0 : 2, credits: q.has("nomusic") ? [] : [
@@ -80,6 +89,12 @@
       if (sub) document.querySelector(`[data-act="${sub}"]`).click();
       if (tab && tabId) document.querySelector(`[data-arg="${tabId}:${tab}"]`).click();
     };
+    const ENC = {
+      info: { title: "Rosa", text: "Looking for a ride", level: "info", pursuers: null, prompt: "Talk to the hitchhiker" },
+      warn: { title: "Roadblock ahead", text: "The leader is waving you down. Stop, or turn back now.", level: "warn", pursuers: null, prompt: "Talk to the roadblock leader" },
+      crit: { title: "Pursuit", text: "They are coming after you. Make them crash, or lose them.", level: "crit", pursuers: { able: 2, total: 3 }, prompt: null },
+      done: { title: "You got away", text: "Nobody is left to follow you.", level: "info", pursuers: { able: 0, total: 3 }, prompt: null },
+    };
     const hudState = (t) => {
       const drive = view === "hud-drive", w = q.has("still") ? 0.4 : (Math.sin(t / 900) + 1) / 2;
       return {
@@ -93,7 +108,10 @@
           { key: "LMB", label: "Pick up" }],
         held: { name: "Engine oil jug, synthetic (4 L)", qty: "2.5 L", hints: ["LMB drop", "RMB throw", "R rotate", "Q stow"] },
         cargoHint: "Put it down to secure it in the bed",
-        slots, selected: 4, progress: { label: "Refuelling", pct: w }, lite: true, music: { title: "Heat Shimmer", artist: "Dry Lake Radio" },
+        slots, selected: 4, progress: q.has("calm") ? null : { label: "Refuelling", pct: w }, lite: true, music: { title: "Heat Shimmer", artist: "Dry Lake Radio" },
+        encounter: ENC[q.get("enc")] || null,
+        subtitle: q.has("sub") ? { name: "Dutch", text: "Last warning. Turn that engine off and step out where I can see you." } : null,
+        prompt: q.has("prompt") ? "E  Talk to the hitchhiker" : drive && !q.has("enc") && !q.has("calm") ? "Engine stopped. Press K to start it." : null,
       };
     };
 
@@ -104,6 +122,7 @@
       if (view === "hud-fade") hud.fade(0.85, "Sleeping… 03:10");
       const loop = (t) => { hud.update(hudState(t)); input.endFrame(); requestAnimationFrame(loop); };
       requestAnimationFrame(loop);
+      if (q.has("say")) emit("npc:say", { name: "Rosa", text: "You can let me out anywhere past the water tower.", ms: 60000 });
       if (!q.has("calm")) {
         notify("Engine overheating – stop and let it cool", { level: "crit", key: "heat" });
         notify("Low fuel: 6 L left", { level: "warn", icon: "⛽", key: "fuel" });
@@ -117,6 +136,23 @@
       hud.dim(true);
       hud.update({ ...hudState(0), mode: "foot" });
       const V = {
+        "dialogue-toll": () => menus.show("dialogue", { speaker: "Mae Okafor", role: "Roadblock leader", lines: ["Road's closed, friend. Dry Creek keeps it open, and that costs.", "Pay the toll and we lift the barrier. No tricks."],
+          choices: [{ id: "pay", label: "Pay the toll", detail: "They open the barricade and you never owe them again.", cost: "$45 + 2 food" },
+            { id: "refuse", label: "Refuse", detail: "The road stays closed. Crossing the line after this will not be forgiven.", danger: true },
+            { id: "back", label: "Back away", detail: "Reverse out the way you came. Nobody follows." }] }),
+        "dialogue-robbery": () => menus.show("dialogue", { speaker: "“Dutch”", role: "Roadblock leader", lines: ["Engine off. Hands where I can see them.", "Everything in the bed, and your cash. Then you drive on."],
+          choices: [{ id: "pay", label: "Hand it over", cost: "$85 + 2 food + 1 fuel can", disabled: "You only have $12 and 1 food" },
+            { id: "refuse", label: "Refuse", detail: "He will not ask twice.", danger: true },
+            { id: "back", label: "Back away" }] }),
+        "dialogue-ransom": () => menus.show("dialogue", { speaker: "Ignatius “Two-Lane” Vanderbroek-Castellanos", role: "Captor – what is left of the Dry Creek roadblock crew",
+          lines: ["You cost us a truck back there, and Benny is still picking glass out of his arm, so do not look at me like that.", "Here is how it goes. You buy your way out, or we take it out of you. Your choice, driver."],
+          note: q.has("note") ? "You reach for the money, but your wallet is $40 short. He is not amused." : "",
+          choices: [{ id: "pay", label: "Pay the ransom", detail: "They let you walk back to your vehicle.", cost: "$160" },
+            { id: "goods", label: "Offer your supplies instead", detail: "Everything edible and drinkable you carry, and both fuel cans from the bed.", cost: "All food and water + 2 fuel cans" },
+            { id: "fight", label: "Refuse and take the beating", detail: "You keep your money. You will lose a lot of health, and it may kill you.", danger: true }] }),
+        "dialogue-hitch": () => menus.show("dialogue", { speaker: "Rosa", role: "Hitchhiker", lines: ["Thank God. Nobody's stopped all day.", "I'm trying to get to Halfway Garage, about 7 km up the road. I can give you $20 and I know where the next roadblock is."],
+          choices: [{ id: "ride", label: "Offer a ride", detail: "She takes the passenger seat and gets out at Halfway Garage (7.2 km)." },
+            { id: "back", label: "Decline", detail: "Drive on. She keeps waiting." }] }),
         gate: () => menus.show("gate"),
         loading: () => { let p = q.has("still") ? 0.62 : 0; menus.show("loading", { pct: p, label: "Building the road" });
           if (!q.has("still")) setInterval(() => { p = (p + 0.01) % 1; menus.show("loading", { pct: p, label: p < 0.5 ? "Building the road" : "Assembling vehicles" }); }, 60); },
@@ -137,6 +173,9 @@
           { type: "oil", price: 12, icon: "🛢" }, { type: "coolant", price: 18, icon: "🧊", bulky: true }, { type: "wheel_16", price: 140, icon: "🛞", bulky: true },
           { type: "battery", price: 95, icon: "🔋", bulky: true }, { type: "medkit", price: 45, icon: "🩹" }] }); menus.setMessage("Bought Water bottle – in your pockets."); },
         gameover: () => menus.show("gameover", { cause: "You died of thirst on day 4, 37 km from where you started.", stats }),
+        "gameover-enc": () => menus.show("gameover", { cause: "Caught on foot by the Dry Creek roadblock crew on day 6, 84 km from where you started. They did not take the refusal well.",
+          stats: [["Distance travelled", "84.3 km"], ["Days survived", "6"], ["Roadblocks met", "5"], ["Tolls paid", "2 ($90)"], ["Roadblocks run", "2"], ["Pursuers wrecked", "3 of 5"],
+            ["Hitchhikers carried", "4 (1 betrayal)"], ["Lost to robbery", "$140 + 3 food + 1 fuel can"]] }),
         sleep: () => menus.show("sleep", { text: "Sleeping until morning…" }),
       };
       (V[view] || V.main)();

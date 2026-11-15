@@ -8,7 +8,7 @@ import { ground, SURFACES, bumpNoise, mulberry } from "./ground.js";
 import { COMPONENT_ITEMS, ENGINES, fitProblem, makeComponent, partNote } from "./components.js";
 import {
   powertrainStep, conditionStep, applyImpact, beginCrank, stopEngine, warnings, batteryCharge, missingWheels,
-  startProblem, driveProblem, TUNING, OVERHEAT,
+  startProblem, driveProblem, TUNING, OVERHEAT, impactAt,
 } from "./powertrain.js";
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -60,6 +60,13 @@ export class Vehicle {
     this.doorTarget = { driver: 0, passenger: 0, hood: 0, [d.rearDoor]: 0 };
     this.cargo = { zone: d.cargoZone, items: [] };
     this.occupied = false;
+    this.seats = Object.fromEntries(Object.keys(d.seats).map(k => [k, null]));
+    this.ai = null;                  // input object written by an NPC driver (js/pursuit); used when not player-driven
+    this.pinned = false;             // never unloaded by Vehicles.sync while true; saved, so it streams back in after a reload
+    this._contacts = new Map();      // breakable-collider contact episodes: key → { response, time }
+    this._rolledT = 0;               // seconds spent on its side / roof
+    this.impactSum = 0;              // total crash severity ever taken (monotonic, never reset: for NPC drivers)
+    this.lastEnv = DEFAULT_ENV;
 
     // Drivetrain
     this.ign = "off"; this.crankT = 0; this._crankCool = 0;
@@ -83,7 +90,7 @@ export class Vehicle {
   }
 
   // ── Small API ───────────────────────────────────────────────────────────────────────────
-  say(text, level = "info", key = "veh") { if (text && (this.occupied || this._announce)) notify(text, { level, key: "veh:" + key, icon: "🚗" }); this.lastMessage = text; }
+  say(text, level = "info", key = "veh") { if (text && ((this.occupied && !this.ai) || this._announce)) notify(text, { level, key: "veh:" + key, icon: "🚗" }); this.lastMessage = text; }
   modified() { this.dirty = true; }
   wake() { this.asleep = false; this._still = 0; }
   get engineSpec() { const e = this.slots.engine; return e ? ENGINES[e.type] : null; }
@@ -98,10 +105,11 @@ export class Vehicle {
   setLights(mode) {
     const on = mode === undefined ? !this.lights : !!mode && mode !== "off";
     if (on && this.ign !== "running" && batteryCharge(this) <= 0.5) { this.lights = false; this.say("The lights stay dark. The battery is dead.", "warn", "lights"); return false; }
+    if (this.lights !== on) sfx("switch", { pos: this.pos });
     this.lights = on; this.modified();
     return on;
   }
-  toggleParkingBrake() { this.parkingBrake = !this.parkingBrake; this.wake(); this.modified(); return this.parkingBrake; }
+  toggleParkingBrake() { sfx("parking_brake"); this.parkingBrake = !this.parkingBrake; this.wake(); this.modified(); return this.parkingBrake; }
   setGearMode(mode) {
     this.gearMode = mode === "manual" ? "manual" : "auto";
     if (this.gearMode === "manual") { if (this.sel === "R") this.gear = -1; }
@@ -202,6 +210,43 @@ export class Vehicle {
   }
 
   // ── Queries ─────────────────────────────────────────────────────────────────────────────
+  seatFree(name) { return this.seats[name] === null; }
+  seatOf(who) { return who ? Object.keys(this.seats).find(k => this.seats[k] === who) || null : null; }
+  claimSeat(name, who) {
+    if (!who || !(name in this.def.seats)) return false;
+    if (this.seats[name] === who) return true;
+    if (!this.seatFree(name) || this.seatOf(who)) return false;
+    this.seats[name] = who;
+    if (name === "driver") this.occupied = true;
+    this.modified(); return true;
+  }
+  releaseSeat(name) {
+    if (!(name in this.def.seats)) return;
+    this.seats[name] = null;
+    if (name === "driver") this.occupied = false;
+    this.modified();
+  }
+  seatPos(name, out = new THREE.Vector3()) {
+    const p = this.def.seats[name].pos;
+    return this.localToWorld(...p, out);
+  }
+  doorSpot(name) {
+    const p = this.def.seats[name].pos;
+    const pos = this.localToWorld(Math.sign(p[0]) * (this.def.halfW + 0.85), 0, p[2]);
+    return { x: pos.x, z: pos.z };
+  }
+  // Physical inability to drive (null = it can). Uses the same condition model as the player's warnings.
+  disabledReason() {
+    const e = this.slots.engine;
+    if (!e || e.cond <= 0) return "engine";
+    let flat = 0;
+    for (const k of WHEEL_SLOTS) { const w = this.slots[k]; if (!w) return "wheels"; if (w.flat) flat++; }
+    if (flat >= 2) return "wheels";
+    if (this._rolledT > 2) return "rolled";
+    if (this.fuel <= 0.02) return "fuel";
+    if (this.ign !== "running" && this.ign !== "cranking" && batteryCharge(this) < 8) return "battery";
+    return null;
+  }
   seatEye(out = new THREE.Vector3()) {
     const e = this.def.seatEye;
     return out.set(e[0], e[1], e[2]).applyQuaternion(this.quat).add(this.pos);
@@ -238,9 +283,9 @@ export class Vehicle {
     return this.gear < 0 ? "R" : this.gear === 0 ? "N" : String(this.gear);
   }
   drivable() { return !startProblem(this) && !driveProblem(this); }
-  telemetry() {
+  telemetry(consumeImpact = true) {
     const d = this.def, s = this.slots;
-    const impact = this.impact; this.impact = 0;
+    const impact = this.impact; if (consumeImpact) this.impact = 0;
     return {
       speed: this.speed, rpm: this.rpm, redline: this.redline, gear: this.gearLabel(), gearMode: this.gearMode, ignition: this.ign,
       throttle: this.throttle, brake: this.brake, load: this.load, slip: this.slip, surface: this.surface, grounded: this.grounded,
@@ -257,9 +302,12 @@ export class Vehicle {
   // ── Fixed step ──────────────────────────────────────────────────────────────────────────
   // input = null → parked (brakes held). env see ARCHITECTURE §5.
   step(dt, input, env = DEFAULT_ENV, others = null) {
+    const previousGear = this.gear;
     const driven = !!input;
     if (driven !== this._wasDriven) { this._wasDriven = driven; this.wake(); }
     this.time += dt;
+    this.lastEnv = env;
+    if (this.upright < 0.35) this._rolledT += dt; else this._rolledT = 0;
     if (this.asleep && !driven) {
       if (this.ign !== "off") {
         if (!this.occupied && this.ign === "on") this.ign = "off";
@@ -304,6 +352,7 @@ export class Vehicle {
     const hand = !!inp.handbrake || this.parkingBrake || !driven;
 
     const drive = powertrainStep(this, dt, this.throttle, env);
+    if (this.gear !== previousGear && this.occupied) sfx("gear_shift", {pos: this.pos});
 
     // ── Forces ──
     force.set(0, -GRAVITY * d.mass, 0);
@@ -410,7 +459,7 @@ export class Vehicle {
       hullHits++;
       v1.copy(this.angVel).cross(r);
       vp.copy(this.vel).add(v1);
-      if (vp.y < -4) { const sev = (-vp.y - 4) * 3 * dt * 60; this.impact += sev; applyImpact(this, sev, false); }
+      if (vp.y < -4) { const sev = (-vp.y - 4) * 3 * dt * 60; this.impact += sev; this.impactSum += sev; applyImpact(this, sev, false); }
       const fN = Math.max(0, d.mass * 55 * Math.min(pen, 0.5) - d.mass * 4.5 * Math.min(0, vp.y));
       const fr = Math.min(d.mass * 1.1, (0.7 * fN) / (Math.hypot(vp.x, vp.z) + 0.3));
       v2.set(-vp.x * fr, fN, -vp.z * fr);
@@ -446,7 +495,7 @@ export class Vehicle {
     if (this.pos.y < floor + 0.1) { this.pos.y = floor + 0.1; if (this.vel.y < 0) this.vel.y = 0; }
 
     // Hard landing
-    if (wasGrounded < 2 && this.grounded >= 2 && vyBefore < -6) { const sev = (-vyBefore - 6) * 4; this.impact += sev; applyImpact(this, sev, false); }
+    if (wasGrounded < 2 && this.grounded >= 2 && vyBefore < -6) { const sev = (-vyBefore - 6) * 4; this.impact += sev; this.impactSum += sev; applyImpact(this, sev, false); }
 
     // ── Obstacles and other vehicles ──
     this._collide(dt, others);
@@ -486,7 +535,7 @@ export class Vehicle {
     // Refresh the nearby static collider list now and then
     this._colT -= dt;
     if (this.getColliders && (this._colT <= 0 || Math.abs(this.pos.x - this._colAt.x) + Math.abs(this.pos.z - this._colAt.z) > 4)) {
-      this._col = this.getColliders(this.pos.x, this.pos.z, 16) || [];
+      this._col = [...(this.getColliders(this.pos.x, this.pos.z, 16) || [])];
       this._colT = 0.35; this._colAt.copy(this.pos);
     }
     let list = this._col;
@@ -497,7 +546,7 @@ export class Vehicle {
         list.push(...o.colliders());
       }
     }
-    if (!list.length) return;
+    for (const [key, entry] of this._contacts) if (this.time - entry.time > 0.4) this._contacts.delete(key);
     fwd.set(0, 0, 1).applyQuaternion(this.quat);
     const R = d.halfW, base = this.pos.y - d.comH;
     const y0 = base + 0.3, y1 = base + d.height;
@@ -508,24 +557,54 @@ export class Vehicle {
       const px = pt.x, pz = pt.z;
       const c = resolveCircle(pt, R, list, y0, y1, hit);
       if (!c) continue;
-      this.pos.x += pt.x - px; this.pos.z += pt.z - pz;
       const nx = c.nx, nz = c.nz;
-      const rx = fwd.x * cz - nx * R, rz = fwd.z * cz - nz * R;
+      const rx = fwd.x * cz - nx * R, rz = fwd.z * cz - nz * R;          // contact point relative to the centre of mass
       const vpx = this.vel.x + this.angVel.y * rz, vpz = this.vel.z - this.angVel.y * rx;
       const ov = c.collider.vehicle;
+      let ox = 0, oz = 0;
+      if (ov) {
+        ox = this.pos.x + rx - ov.pos.x; oz = this.pos.z + rz - ov.pos.z;   // same point relative to the other vehicle
+        ov.wake();
+      }
       let vn = vpx * nx + vpz * nz;
-      if (ov) vn -= ov.vel.x * nx + ov.vel.z * nz;
-      if (vn >= 0) continue;
-      const rxn = rz * nx - rx * nz;
-      const invM = 1 / d.mass + (rxn * rxn) / d.inertia[1] + (ov ? 1 / ov.def.mass : 0);
-      const J = (-1.12 * vn) / invM;
+      if (ov) vn -= (ov.vel.x + ov.angVel.y * oz) * nx + (ov.vel.z - ov.angVel.y * ox) * nz;
+      // Breakable obstacles: hit() is called once per contact episode (an episode ends 0.4 s after the last touch)
+      // and its 0..1 answer scales the impulse and the damage. The owner may clear `solid` inside the call.
+      let response = 1, first = true;
+      const collider = c.collider;
+      if (collider.hit) {
+        const key = collider.id ?? collider, previous = this._contacts.get(key);
+        if (previous) { response = previous.response; first = false; previous.time = this.time; }
+        else if (vn < 0) {
+          const f = collider.hit(this, -vn);
+          response = clamp(typeof f === "number" && isFinite(f) ? f : 1, 0, 1);
+          this._contacts.set(key, { response, time: this.time });
+        }
+      }
+      if (collider.solid !== false) { this.pos.x += pt.x - px; this.pos.z += pt.z - pz; }
+      if (vn >= 0 || !response) continue;
+      const rxn = rz * nx - rx * nz, oxn = oz * nx - ox * nz;
+      const invM = 1 / d.mass + (rxn * rxn) / d.inertia[1] + (ov ? 1 / ov.def.mass + (oxn * oxn) / ov.def.inertia[1] : 0);
+      const J = (-1.12 * vn) * response / invM;
       this.vel.x += (nx * J) / d.mass; this.vel.z += (nz * J) / d.mass;
       this.angVel.y += (rxn * J) / d.inertia[1];
-      if (ov) { ov.vel.x -= (nx * J) / ov.def.mass; ov.vel.z -= (nz * J) / ov.def.mass; ov.wake(); }
-      if (-vn > 2.5) {
-        const sev = (-vn - 2.5) * 2.2;
-        this.impact += sev; applyImpact(this, sev, ci === 0);
-        if (ov) applyImpact(ov, sev * 0.6, false);
+      if (ov) {
+        ov.vel.x -= (nx * J) / ov.def.mass; ov.vel.z -= (nz * J) / ov.def.mass;
+        ov.angVel.y -= (oxn * J) / ov.def.inertia[1];
+      }
+      if (-vn > 2.5 && first) {
+        const sev = (-vn - 2.5) * 2.2 * response;
+        if (ov) {
+          // Both vehicles are damaged where they were struck, the lighter one more (it takes the bigger change of speed)
+          const mt = d.mass + ov.def.mass, mine = sev * 1.6 * ov.def.mass / mt, theirs = sev * 1.6 * d.mass / mt;
+          this.impact += mine; this.impactSum += mine;
+          impactAt(this, mine, rx * fwd.z - rz * fwd.x, rx * fwd.x + rz * fwd.z);
+          const oy = ov.yaw, os = Math.sin(oy), oc = Math.cos(oy);
+          ov.impact += theirs; ov.impactSum += theirs;
+          impactAt(ov, theirs, ox * oc - oz * os, ox * os + oz * oc);
+        } else {
+          this.impact += sev; this.impactSum += sev; applyImpact(this, sev, ci === 0);
+        }
       }
     }
   }
@@ -553,9 +632,10 @@ export class Vehicle {
       pos: a(this.pos), quat: [this.quat.x, this.quat.y, this.quat.z, this.quat.w], vel: a(this.vel), angVel: a(this.angVel),
       slots, fuel: this.fuel, oil: this.oil, coolant: this.coolant, waterFrac: this.waterFrac, temp: this.temp,
       bodyCond: this.bodyCond, odometer: this.odometer,
-      doors: { ...this.doorTarget }, cargo: this.cargo.items.map((c) => ({ item: c.item, lpos: c.lpos, lyaw: c.lyaw })),
+      seats: { ...this.seats }, doors: { ...this.doorTarget }, cargo: this.cargo.items.map((c) => ({ item: c.item, lpos: c.lpos, lyaw: c.lyaw })),
       ign: this.ign === "running" ? "running" : "off", gear: this.gear, sel: this.sel, gearMode: this.gearMode,
       parkingBrake: this.parkingBrake, lights: this.lights, rpm: this.rpm, steer: this.steer, time: this.time,
+      pinned: this.pinned || undefined, impactSum: this.impactSum, rolledT: this._rolledT,
     };
   }
   restore(rec) {
@@ -580,6 +660,11 @@ export class Vehicle {
     this._velPrev.copy(this.vel); this._acc.set(0, 0, 0);
     this.speed = this.vel.dot(v1.set(0, 0, 1).applyQuaternion(this.quat));
     this.throttle = 0; this.brake = 0; this.shiftT = 0; this.crankT = 0; this.impact = 0;
+    for (const k of Object.keys(this.seats)) this.seats[k] = typeof rec.seats?.[k] === "string" ? rec.seats[k] : null;
+    this.occupied = !!this.seats.driver;
+    this.upright = v1.copy(Y).applyQuaternion(this.quat).y;
+    this.pinned = !!rec.pinned; this.impactSum = num(rec.impactSum, 0, 0); this._rolledT = num(rec.rolledT, 0, 0);
+    this._contacts.clear();
     this.wake(); this.rig?.slotsChanged();
     return this;
   }

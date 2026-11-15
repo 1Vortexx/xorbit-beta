@@ -17,7 +17,8 @@ const C = {
 };
 const PAINTS = [C.white, C.cream, C.tan, C.adobe, C.teal, C.blue, C.pink, C.green];
 const CAR_COLS = [C.rust, C.rust2, lin(0x7d8a8f), lin(0x9a8d6a), lin(0x5d6b5a), lin(0x8a8a86)];
-const CAPS = { fuelcan: 10, jerrycan: 20, oil: 1, oiljug: 4, coolant: 4, waterjug: 4 };
+const CAPS = { fuelcan: 10, jerrycan: 20, oil: 1, oiljug: 4, coolant: 4, waterjug: 4, handgun: 15, ak47: 30, ammo_9mm: 50, ammo_762: 60 };
+const ROUNDS = new Set(["handgun", "ak47", "ammo_9mm", "ammo_762"]);     // counted in whole rounds
 const PART = { engine_i6: 1, engine_v8: 1, engine_i4: 1, battery: 1, radiator: 1, wheel_16: 1, wheel_14: 1 };
 const TABLES = {
   food: [["water", 5], ["beans", 4], ["jerky", 3], ["chips", 3], ["soda", 3], ["coffee", 2], ["waterjug", 1]],
@@ -25,10 +26,10 @@ const TABLES = {
   snack: [["chips", 4], ["jerky", 3], ["beans", 2], ["soda", 2]],
   med: [["bandage", 5], ["medkit", 2]],
   fluid: [["oil", 5], ["oiljug", 2], ["coolant", 3], ["fuelcan", 3], ["jerrycan", 1]],
-  tool: [["wrench", 3], ["jack", 2], ["repairkit", 2], ["flashlight", 2], ["oil", 2]],
+  tool: [["wrench", 3], ["jack", 4], ["repairkit", 2], ["flashlight", 2], ["oil", 2], ["ammo_9mm", 1]],
   part: [["battery", 3], ["radiator", 3], ["wheel_14", 3], ["wheel_16", 3]],
   bigpart: [["engine_i6", 3], ["engine_i4", 2], ["engine_v8", 1], ["wheel_14", 2], ["wheel_16", 2], ["radiator", 1], ["battery", 1]],
-  misc: [["water", 3], ["bandage", 2], ["flashlight", 2], ["beans", 2], ["oil", 1], ["jerky", 2]],
+  misc: [["water", 3], ["bandage", 2], ["flashlight", 2], ["beans", 2], ["oil", 1], ["jerky", 2], ["ammo_9mm", 1], ["ammo_762", 0.6]],
 };
 
 export class Plan {
@@ -38,6 +39,7 @@ export class Plan {
     this.occ = new Batch();       // invisible proxy that blocks the interaction ray (walls, big furniture)
     this.colliders = [];          // absolute world colliders
     this.spawns = []; this.vehicleSpawns = [];
+    this.extras = [];             // extra item rolls, see maybeItem()
     this.dyn = [];                // hinged parts
     this.targets = [];            // static interaction targets (pumps, shop counter, beds)
     this.signs = [];              // { text, style, rect:[x,y,w,h] px in the site atlas }
@@ -88,7 +90,7 @@ export class Plan {
   spawn(type, x, y, z, o = {}) {
     const X = this.X(x, z), Z = this.Z(x, z);
     const s = { id: this.site.id + ":" + this.n++, type, pos: [this.wx(X, Z), this.site.y + y, this.wz(X, Z)], yaw: this.site.yaw + this.fyaw + (o.yaw === undefined ? (this.rand() - 0.5) * 1.2 : o.yaw) };
-    if (CAPS[type]) s.qty = o.qty !== undefined ? o.qty : Math.round(CAPS[type] * (0.15 + this.rand() * 0.8) * 10) / 10;
+    if (CAPS[type]) s.qty = o.qty !== undefined ? o.qty : Math.round(CAPS[type] * (0.15 + this.rand() * 0.8) * (ROUNDS.has(type) ? 1 : 10)) / (ROUNDS.has(type) ? 1 : 10);
     if (PART[type]) s.cond = o.cond !== undefined ? o.cond : Math.round(18 + this.rand() * 70);
     this.spawns.push(s);
     return s;
@@ -107,6 +109,21 @@ export class Plan {
   vehicle(type, x, z, yaw) {
     const X = this.X(x, z), Z = this.Z(x, z), id = this.site.id + ":v" + this.vehicleSpawns.length;
     this.vehicleSpawns.push({ id, type, pos: [this.wx(X, Z), this.site.y, this.wz(X, Z)], yaw: this.site.yaw + this.fyaw + yaw, seed: hashStr(id + ":" + this.site.seed) });
+    this.at(x, z, yaw, () => this.maybeItem("jack", 0.45, 1.75, 0, 0.9, 1.3));      // left by the driver's door
+  }
+  // An item with chance p at (x, y, z). Rolled from its own stream and spawned after the plan (ids "<site>:x<n>"), so
+  // these extras (jacks, guns, ammo) never shift the seeded loot or spawn ids of an existing world.
+  maybeItem(type, p, x, y, z, yaw = 0) {
+    const R = rng(hashStr(this.site.id + ":x" + this.extras.length) ^ this.site.seed);
+    this.extras.push(R() < p ? { type, X: this.X(x, z), Z: this.Z(x, z), y, yaw: this.fyaw + yaw, f: R() } : null);
+  }
+  flushExtras() {
+    this.extras.forEach((e, i) => {
+      if (!e) return;
+      const s = { id: this.site.id + ":x" + i, type: e.type, pos: [this.wx(e.X, e.Z), this.site.y + e.y, this.wz(e.X, e.Z)], yaw: this.site.yaw + e.yaw };
+      if (CAPS[e.type]) s.qty = Math.max(1, Math.round(CAPS[e.type] * (0.25 + 0.75 * e.f)));
+      this.spawns.push(s);
+    });
   }
   target(type, name, x, y, z, sx, sy, sz, extra) {
     this.targets.push({ type, id: this.site.id + ":t" + this.targets.length, name, x: this.X(x, z), y, z: this.Z(x, z), sx, sy, sz, yaw: this.fyaw, ...extra });
@@ -424,6 +441,8 @@ function planStart(p) {
     p.fridge(0.6, -3.85, 0, { table: "food", p: 0.3 });
     p.table(1.5, 0.6, 1.3, 0.85); p.chair(1.5, -0.25, 0); p.chair(0.5, 0.6, H);
     p.spawn("bandage", 1.3, 0.74, 0.6);
+    p.maybeItem("handgun", 0.3, 1.85, 0.74, 0.8, 0.4);       // granddad's pistol on the kitchen table
+    p.maybeItem("ammo_9mm", 0.45, 1.0, 0.74, 0.4, -0.3);
     p.shelf(-5.25, 1.6, 1.6, H, { col: C.woodDark, table: "misc", p: 0.12, n: 3, h: 1.5, d: 0.3 });
   });
   // Porch table: the first things a new player sees
@@ -445,6 +464,8 @@ function planStart(p) {
     p.spawn("fuelcan", 3.7, 0, -3.9, { qty: 6, yaw: -0.2 });
     p.spawn("jack", -3.4, 0, -3.2, { yaw: 1.2 });
     p.spawn("wheel_16", 3.5, 0, -1.6, { cond: 78, yaw: 0 });
+    p.maybeItem("ak47", 0.12, -3.5, 0, 1.6, 0.2);            // wrapped in a blanket at the back of the garage
+    p.maybeItem("ammo_762", 0.3, 0.1, bh, -5.0, 0.2);
     p.shelf(-4.25, -1.2, 2.2, H, { table: "fluid", p: 0.1, d: 0.45 });
     p.tyreStack(3.6, 1.2, 2, 0.36);
     p.barrel(-3.7, 3.6, C.blue);
@@ -454,6 +475,7 @@ function planStart(p) {
   mailbox(p, 15.5, 14.5);
   p.barrel(1.8, -1.2); p.barrel(2.5, -1.5, C.rust2, true);
   p.hulk(16.5, -9, 0.5, { wheels: false, crush: 0.8 });
+  p.maybeItem("jack", 0.5, 9.75, 0, 7.2, 0.3);              // a spare jack by the truck on the driveway
   p.box("wood", -0.5, 0, 9.5, 0.1, 1.3, 0.1, C.woodDark); p.box("wood", -3.5, 0, 9.5, 0.1, 1.3, 0.1, C.woodDark);
   p.box("wood", -2, 0.95, 9.5, 3.4, 0.5, 0.05, C.woodPale); p.sign("HOME", "wood", -2, 0.97, 9.53, 3.2, 0.46, 0, true);
 }
@@ -543,6 +565,10 @@ function planHome(p) {
     // bedroom
     p.bed(4.9, -2.9, 0, { col: PAINTS[(s.seed >> 9) % PAINTS.length] });
     p.table(3.8, -3.9, 0.5, 0.45, 0.5, C.woodDark); p.row("med", 1, 0.45, 3.8, 0.5, -3.9, 0, 0);
+    p.maybeItem("handgun", 0.12, 3.65, 0.5, -3.8, 0.6);      // bedside table
+    p.maybeItem("ak47", 0.04, 4.0, 0, 1.0, 1.4);
+    p.maybeItem("ammo_9mm", 0.2, -3.0, 0.74, 0.35, 0.2);
+    p.maybeItem("ammo_762", 0.1, 2.6, 0, 3.0, -0.4);
     p.locker(5.65, 1.5, -H, { w: 1.0, h: 1.9, col: C.woodDark, table: "misc", p: 0.45, name: "Wardrobe" });
     p.crate(2.2, 3.6, 0.1, { table: "misc", p: 0.5, name: "Trunk", col: C.woodDark });
   });
@@ -552,6 +578,7 @@ function planHome(p) {
   mailbox(p, 13, 13.5);
   if (v === 0) { p.hulk(10.5, 4, 2.9, { wheels: false }); p.row("part", 2, 0.5, 8.6, 0, 3, 0.9, 0.6); }
   if (v === 3) { p.tyreStack(-11, 3, 3); p.crate(-12, 5, 0.6, { table: "tool", p: 0.5 }); }
+  p.maybeItem("jack", 0.4, -8.6, 0, -6.2, 0.8);             // by the barrel in the yard
   if (p.rand() < 0.16) p.vehicle(p.rand() < 0.6 ? "sedan" : "pickup", 9.5, -1 + p.rand() * 2, p.rand() * 0.6 - 0.3);
   // sagging wire fence posts along the front
   for (let x = -15; x <= 15; x += 3.75) if (Math.abs(x - 6) > 3) p.box("wood", x, 0, 13.6, 0.09, 1.0 + p.rand() * 0.15, 0.09, C.woodDark, { yaw: p.rand() * 0.2 });
@@ -580,11 +607,15 @@ function planGarage(p) {
     p.row("part", 3, 0.5, -0.6, 0, -2.6, 0, 1.0);
     p.barrel(0.7, 4.8, C.blue); p.barrel(0.75, 4.1);
     if (p.rand() < 0.6) p.spawn(p.pick("bigpart"), -3.4, 0, -3.4);
+    p.maybeItem("jack", 0.7, -1.6, 0, -1.0, 0.5);
     // engine hoist
     p.box("smooth", -3.4, 0, -4.2, 0.1, 2.1, 0.1, C.yellow); p.box("smooth", -3.4, 2.0, -3.6, 0.08, 0.08, 1.3, C.yellow); p.box("smooth", -3.4, 0, -3.8, 1.2, 0.08, 0.1, C.yellow);
     // office
     const dh = p.table(5.2, -2.8, 1.6, 0.8, 0.76, C.woodDark); p.chair(5.2, -3.7, 0);
     p.row("misc", 3, 0.4, 4.7, dh, -2.8, 0.45, 0);
+    p.maybeItem("handgun", 0.08, 5.65, dh, -2.95, 0.3);
+    p.maybeItem("ammo_9mm", 0.2, 4.85, dh, -2.55, -0.2);
+    p.maybeItem("ammo_762", 0.1, -5.6, bh, -5.45, 0.1);
     p.locker(7.55, -5.2, -H, { w: 0.9, h: 1.3, col: C.steel, table: "misc", p: 0.6, name: "Filing cabinet" });
     p.fridge(2.0, -5.4, H, { table: "drink", p: 0.4, col: C.cream, name: "Old fridge" });
     p.shelf(7.65, 2.5, 2.4, -H, { table: "fluid", p: 0.2 });
@@ -625,6 +656,8 @@ function planDiner(p) {
     const kh = p.counter(-4.5, -3.95, 7, 0.7, 0.92, C.steel, C.chrome);
     p.row("food", 7, 0.4, -7.4, kh, -3.95, 0.95, 0);
     p.box("smooth", 0.2, 0, -3.9, 1.1, 0.95, 0.75, C.dark, { solid: true, occ: true });      // stove
+    p.maybeItem("handgun", 0.06, -1.3, kh, -3.95, 0.5);      // under the till
+    p.maybeItem("ammo_9mm", 0.1, -1.0, kh, -3.85, -0.4);
     p.fridge(2.2, -3.95, 0, { table: "food", p: 0.6, col: C.steel });
     p.fridge(3.0, -3.95, 0, { table: "drink", p: 0.55, col: C.steel });
     p.shelf(5.4, -4.25, 2.6, 0, { table: "food", p: 0.3 });
@@ -662,6 +695,8 @@ function planMotel(p) {
     const ch = p.counter(ox + 0.6, -0.6, 4.4, 0.6, 1.05, C.woodDark, C.wood);
     p.box("smooth", ox + 1.8, ch, -0.6, 0.3, 0.16, 0.2, C.chrome);
     p.row("misc", 3, 0.4, ox - 0.8, ch, -0.6, 0.6, 0);
+    p.maybeItem("handgun", 0.1, ox + 1.2, ch, -0.6, 0.3);
+    p.maybeItem("ammo_9mm", 0.15, ox + 0.25, ch, -0.55, -0.3);
     p.locker(ox + 3.0, -3.6, -H, { w: 0.8, h: 1.2, col: C.woodDark, table: "misc", p: 0.6, name: "Key cabinet" });
     p.fridge(ox - 2.9, -3.5, 0, { table: "drink", p: 0.5, col: C.red, name: "Vending fridge" });
     p.chair(ox, -2.2, 0);
@@ -712,6 +747,10 @@ function planJunkyard(p) {
     p.locker(4.7, -0.9, -H, { table: "tool", p: 0.7, name: "Tool locker", col: C.green });
     p.crate(3.2, 2.6, 0.2, { table: "part", p: 0.7, w: 1.3, d: 0.8, h: 0.6 });
     p.spawn(p.pick("bigpart"), 0.5, 0, 0.8);
+    p.maybeItem("jack", 0.5, 2.5, 0, -2.2, 1.1);
+    p.maybeItem("ak47", 0.1, -1.5, 0, 1.8, 0.9);
+    p.maybeItem("ammo_762", 0.25, 3.7, bh, -3.4, 0.2);
+    p.maybeItem("ammo_9mm", 0.15, 0.2, bh, -3.3, -0.3);
     p.bed(-3.2, 2.6, H, { name: "Cot", col: C.canvas, frame: C.steel });
   });
   // rows of stacked hulks
@@ -765,6 +804,8 @@ function planWreck(p) {
     p.crate(4.6, 1.8, 1.1, { mat: "smooth", col: C.red, w: 0.56, d: 0.3, h: 0.28, table: "tool", p: 0.8, name: "Toolbox" });
     p.spawn(p.pick("med"), -2.6, 0, -1.8);
   }
+  p.maybeItem("ammo_9mm", 0.12, -2.2, 0, 1.6, 0.7);
+  p.maybeItem("handgun", 0.04, -3.0, 0, 2.2, 1.9);
 }
 
 const KIND_FN = { station: planStation, home: planHome, garage: planGarage, diner: planDiner, motel: planMotel, junkyard: planJunkyard, wreck: planWreck };
@@ -772,7 +813,8 @@ const KIND_FN = { station: planStation, home: planHome, garage: planGarage, dine
 export function planSite(site) {
   const p = new Plan(site);
   (site.start ? planStart : KIND_FN[site.kind])(p);
+  p.flushExtras();
   return p;
 }
 export const ITEM_TYPES = ["water", "waterjug", "beans", "jerky", "chips", "soda", "coffee", "medkit", "bandage", "fuelcan", "jerrycan", "oil", "oiljug", "coolant",
-  "wrench", "jack", "repairkit", "flashlight", "engine_i6", "engine_v8", "engine_i4", "battery", "radiator", "wheel_16", "wheel_14"];
+  "wrench", "jack", "repairkit", "flashlight", "knife", "handgun", "ak47", "ammo_9mm", "ammo_762", "engine_i6", "engine_v8", "engine_i4", "battery", "radiator", "wheel_16", "wheel_14"];
