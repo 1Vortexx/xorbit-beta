@@ -23,38 +23,34 @@
   <!-- Menus and overlay screens: rendered by js/ui/menus.js (menus.init / menus.show) -->
   <div id="menus" hidden></div>
 
-  <!-- Opening (css/base.css), over everything while the game loads behind it: the X-ORBIT Studios logo fades in and
-       collapses into the middle of the screen, the Long Haul logo pops out of it with a tip underneath, then it all
-       fades into the game. A click or key skips ahead (js/main.js). -->
   <div id="splash" aria-label="X-ORBIT Studios presents Long Haul">
-    <img class="sp-studio" src="assets/branding/xorbit-studios.png" alt="" decoding="async"/>
-    <i class="sp-spark" aria-hidden="true"></i>
-    <div class="sp-game">
-      <img src="assets/branding/long-haul-logo.png" alt="Long Haul" decoding="async"/>
-      <p class="sp-tip"><b>Tip</b><span id="sp-tip"></span></p>
+    <div class="studio-first">
+      <img src="assets/branding/xorbit-studios.png" alt="X-ORBIT Studios" width="2172" height="724">
+      <button id="studio-start" type="button">Click or press any key to start</button>
     </div>
   </div>
   <script>
-    // A tip for the opening, picked before the game's modules have loaded
-    (function () {
-      var tips = [
-        "Water first: in this heat, thirst gets you long before hunger does.",
-        "Check the oil at the dipstick before a long stretch. An engine run dry seizes.",
-        "Fuel stations are 5 to 8 km apart. A jerrycan in the bed buys you peace of mind.",
-        "Running hot? Pull over, open the hood and top up the radiator once it has cooled.",
-        "Press M for the map. It only shows the road you've actually driven.",
-        "A Digimap shows what's ahead, but places ahead are far more likely to have closed down.",
-        "Too tired to drive? Sleep in the cab with Z. Nodding off at the wheel ends badly.",
-        "Hitchhikers pay well, though not every passenger means well.",
-        "Roadblock crews want your money. Pay, talk your way out, or floor it and disable their cars.",
-        "Drive with friends: Play, then Convoy. Turn on voice chat to talk on the road.",
-        "In chase view, the mouse wheel zooms the camera. C switches views.",
-        "Smoke from under the hood means the engine is failing. Keep a repair kit handy.",
-        "Carry supplies to the truck bed and click to secure them for the drive."
-      ];
-      var el = document.getElementById("sp-tip");
-      if (el) el.textContent = tips[Math.floor(Math.random() * tips.length)];
-    })();
+    window.longHaulStart = new Promise(function (resolve) {
+      var started = false;
+      function start(event) {
+        if (started || (event.type === "keydown" && (event.repeat || event.ctrlKey || event.metaKey || event.altKey || ["Tab", "Shift", "Control", "Alt", "Meta"].includes(event.key)))) return;
+        started = true;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        window.removeEventListener("pointerdown", start, true);
+        window.removeEventListener("keydown", start, true);
+        // Unlock music synchronously if game modules are ready.
+        window.dispatchEvent(new Event("longhaul-start-audio"));
+        var splash = document.getElementById("splash");
+        splash.classList.add("studio-finish");
+        setTimeout(function () {
+          splash.remove();
+          resolve();
+        }, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 450);
+      }
+      window.addEventListener("pointerdown", start, true);
+      window.addEventListener("keydown", start, true);
+    });
   </script>
   <!-- Shown until the modules have loaded; removed by menus.init -->
   <div id="boot">Long Haul</div>

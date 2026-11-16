@@ -900,7 +900,7 @@ export const menus = {
     message = "";
     if (name === "dialogue") { dlgPicked = false; dlgReadyAt = performance.now() + 200; }
     // The studio splash appears once per page load, including after earlier loading-screen input.
-    if (name === "main" && !gestureDone) stack = ["gate"];
+    // The opening prompt is owned by index.html. Never insert another gate.
     document.documentElement.dataset.lhMenu = name;
     render();
   },

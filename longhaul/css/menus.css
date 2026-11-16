@@ -404,3 +404,7 @@
 @media(prefers-reduced-motion:reduce){.lh-studio-intro .lh-studio-splash{animation:none;}}
 
 .lh-menus[data-screen="gate"] .lh-stage { justify-content:center; }
+
+.lh-menus[data-screen="loading"] .lh-stage { justify-content:center; }
+.lh-menus[data-screen="loading"] .lh-loading { text-align:center; animation:lh-studio-reveal 450ms ease both; }
+@media(prefers-reduced-motion:reduce){.lh-menus[data-screen="loading"] .lh-loading{animation:none;}}
