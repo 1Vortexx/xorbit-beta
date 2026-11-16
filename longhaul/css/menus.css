@@ -383,3 +383,18 @@
 @media (max-width: 760px) { .lh-mapwrap { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(12em, 1fr) auto; } }
 
 .lh-discovery-toast { position: fixed; z-index: 100; top: 1rem; left: 50%; transform: translateX(-50%); padding: .65rem 1rem; background: var(--lh-ink); color: var(--lh-bone); border: 1px solid var(--lh-amber); pointer-events: none; }
+
+/* Studio introduction */
+.lh-menus[data-screen="gate"] .lh-stage { justify-content:center; }
+.lh-studio-splash { width:min(650px,100%); }
+.lh-studio-splash .lh-gatebtn { width:100%; align-self:center; text-align:center; }
+.lh-studio-splash img { display:block; width:100%; height:auto; margin-bottom:2rem; }
+.lh-studio-splash .lh-gatebtn span { font-size:.85em; letter-spacing:.13em; }
+.lh-studio-splash { transition:opacity 450ms ease; }
+.lh-splash-exit .lh-studio-splash { opacity:0; pointer-events:none; }
+.lh-menus[data-screen="main"] .lh-brand { animation:lh-studio-reveal 450ms ease both; }
+@keyframes lh-studio-reveal { from { opacity:0; } to { opacity:1; } }
+@media(prefers-reduced-motion:reduce) {
+  .lh-studio-splash { transition:none; }
+  .lh-menus[data-screen="main"] .lh-brand { animation:none; }
+}

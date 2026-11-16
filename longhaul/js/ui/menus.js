@@ -192,8 +192,11 @@ function boardPane() {
 
 // ── screens ───────────────────────────────────────────────────────────────
 const SCREENS = {
-  gate: () => `<div class="lh-col lh-gate">${brand("One road. One truck. Keep it running.")}
-    <button type="button" class="lh-gatebtn" data-act="gate" data-autofocus><span>Click or press any key to start</span></button></div>`,
+  gate: () => `<div class="lh-col lh-gate lh-studio-splash">
+    <button type="button" class="lh-gatebtn" data-act="gate" data-autofocus aria-label="Start Long Haul">
+      <img src="${new URL("../../download/xorbit-studios-logo.png", import.meta.url).href}" width="2172" height="724" alt="X-ORBIT Studios">
+      <span>Click or press any key to start</span>
+    </button></div>`,
 
   loading: () => `<div class="lh-col lh-loading">${brand()}
     <div class="lh-load" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Loading">
@@ -834,16 +837,26 @@ function onKey(ev) {
   }
 }
 
+let gateFading = false;
 function firstGesture() {
+  if (gateFading || screen() !== "gate") return;
   if (!gestureDone) { gestureDone = true; call("onFirstGesture"); }
-  if (screen() === "gate") {
-    if (stack.length) { stack.pop(); sfx("ui_click"); render(); }
-    else { const s = root.querySelector(".lh-gatebtn span"); if (s) s.textContent = "Starting…"; }
-  }
+  gateFading = true;
+  root.classList.add("lh-splash-exit");
+  const reveal = () => {
+    root.classList.remove("lh-splash-exit");
+    gateFading = false;
+    if (screen() !== "gate" || !stack.length) return;
+    stack.pop();
+    sfx("ui_click");
+    render();
+  };
+  setTimeout(reveal, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 450);
 }
+
 function onAnyGesture(ev) {
   if (ev.type === "keydown" && (["Shift", "Control", "Alt", "Meta", "Escape", "Tab"].includes(ev.key) || ev.metaKey || ev.ctrlKey || ev.altKey)) return;
-  if (gestureDone && screen() !== "gate") return;
+  if (screen() !== "gate") return;
   if (!root) return;
   if (screen() === "gate") { ev.preventDefault(); ev.stopPropagation(); }
   firstGesture();
@@ -885,9 +898,8 @@ export const menus = {
     stack = [];
     message = "";
     if (name === "dialogue") { dlgPicked = false; dlgReadyAt = performance.now() + 200; }
-    // Audio needs a user gesture: the first time the main menu appears without one, a start gate is shown first.
-    if (name === "main" && !gestureDone && !(navigator.userActivation && navigator.userActivation.hasBeenActive)) stack = ["gate"];
-    else if (name === "main" && !gestureDone) { gestureDone = true; call("onFirstGesture"); }
+    // The studio splash appears once per page load, including after earlier loading-screen input.
+    if (name === "main" && !gestureDone) stack = ["gate"];
     document.documentElement.dataset.lhMenu = name;
     render();
   },
