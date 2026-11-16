@@ -2,6 +2,21 @@
 
 Newest first. In game: main menu → What's New. Source of truth: `js/changelog.js`.
 
+## v2.4 · Convoy (2026-11-15)
+
+### New
+
+- Career & Achievements: lifetime totals across every journey (distance driven, journeys, days on the road, places found, fuel bought, pursuits escaped, passengers delivered, time played) and 18 achievements to unlock.
+- X-ORBIT accounts: when you're signed in (Account on the main menu), your journeys and achievements are saved to your account and add up across every device you play on. Signed out, your career stays on this browser.
+- Account screen (main menu): sign in to any X-ORBIT account with its username or email and password, or sign out. Long Haul only uses an account signed in here, never your X-ORBIT sign-in, and doesn't change it. Each account keeps its own career and achievements.
+- Global leaderboard: compete with other X-ORBIT players for the longest journey, the most total distance and the most days survived. Your journey is added as you drive.
+- Convoys (multiplayer): drive the same road with up to 5 friends. Start a convoy from the pause menu and share its 5-letter code; friends join from the main menu and start right behind you. You see each other's vehicles, name tags and how far ahead or behind everyone is. Supplies, loot, strangers and damage stay your own.
+- Cloud saves: when you're signed in, your journey is saved to your account and picks up on any device. If the account holds a newer or different journey than this device, the main menu offers it.
+
+### Changed
+
+- A tidier main menu: Play, Career, Settings and What's New, with Account and Credits underneath. Play holds Continue, Singleplayer, Convoy and Controls / How to Play. Career shows your stats and achievements beside the global leaderboard.
+
 ## v2.3.1 (2026-11-15)
 
 ### New

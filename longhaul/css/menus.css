@@ -302,3 +302,63 @@
 .lh-end .lh-kv > div { align-items: baseline; }
 .lh-end .lh-kv dd { overflow-wrap: anywhere; min-width: 0; }
 .lh-end .lh-kv dt { flex: none; max-width: 60%; }
+
+/* career, achievements and leaderboard */
+.lh-acct { display: flex; gap: 0.45em; align-items: center; }
+.lh-acct b { color: var(--lh-bone); }
+.lh-achs, .lh-board { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3em; font-size: 0.92em; }
+.lh-achs li { display: grid; grid-template-columns: auto 1fr auto; gap: 0.8em; align-items: center; padding: 0.45em 0; border-bottom: 1px solid rgba(241, 233, 216, 0.08); color: var(--lh-dim); }
+.lh-achs li div { display: grid; gap: 0.1em; }
+.lh-achs li span { font-size: 0.9em; }
+.lh-achs li em { font-style: normal; font-size: 0.85em; }
+.lh-achs li.lh-got { color: var(--lh-sand); }
+.lh-achs li.lh-got b, .lh-achs li.lh-got > svg { color: var(--lh-amber); }
+.lh-board li { display: grid; grid-template-columns: 2.2em minmax(0, 1fr) auto 4.5em; gap: 0.8em; align-items: baseline; padding: 0.4em 0.3em; border-bottom: 1px solid rgba(241, 233, 216, 0.08); }
+.lh-board li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lh-board li strong { font-variant-numeric: tabular-nums; text-align: right; }
+.lh-board li em { font-style: normal; font-size: 0.85em; color: var(--lh-dim); text-align: right; }
+.lh-board .lh-bhead { font-size: 0.75em; letter-spacing: 0.14em; text-transform: uppercase; color: var(--lh-dim); }
+.lh-board .lh-bhead strong { font-weight: 400; }
+.lh-board .lh-rank { color: var(--lh-sand); font-variant-numeric: tabular-nums; }
+.lh-board .lh-top { color: var(--lh-amber); }
+.lh-board .lh-me { background: rgba(241, 233, 216, 0.07); }
+.lh-board .lh-gap { display: block; text-align: center; color: var(--lh-dim); border: 0; padding: 0; }
+
+/* convoy */
+.lh-code { font: 700 2.4em/1 var(--lh-mono); letter-spacing: 0.3em; color: var(--lh-amber); margin: 0.1em 0 0.3em; user-select: text; -webkit-user-select: text; }
+#lh-code { text-transform: uppercase; letter-spacing: 0.25em; }
+/* the main menu has grown: keep it clear of the key hints on short windows */
+.lh-main { padding-bottom: 2.2em; }
+@media (max-height: 820px) {
+  .lh-main { gap: 0.7em; }
+  .lh-main .lh-logo { width: 80%; }
+  .lh-main .lh-item { padding-top: 0.32em; padding-bottom: 0.32em; }
+}
+/* account sign-in */
+.lh-login { display: grid; grid-template-columns: auto 1fr; gap: 0.5em 0.9em; align-items: center; }
+.lh-login label { font-size: 0.9em; color: var(--lh-sand); }
+@media (max-width: 560px) { .lh-login { grid-template-columns: 1fr; } }
+
+/* main menu links (account, credits) */
+.lh-links { display: flex; gap: 0.4em; flex-wrap: wrap; padding-left: 0.6em; }
+.lh-link { display: inline-flex; align-items: center; gap: 0.4em; background: none; border: 0; padding: 0.35em 0.5em; color: var(--lh-sand); font-size: 0.86em; cursor: pointer; border-radius: 0.15em; }
+.lh-link .ic { width: 1.1em; height: 1.1em; }
+.lh-link:hover, .lh-link:focus { outline: none; color: var(--lh-bone); background: rgba(242, 170, 46, 0.18); }
+.lh-link:focus-visible { box-shadow: 0 0 0 2px var(--lh-amber); }
+
+/* leaderboard: career and global board side by side */
+.lh-panel.lh-wide { width: min(68em, 100%); }
+/* each half scrolls on its own, so a long achievements list never pushes the board away */
+.lh-wide .lh-scroll { overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+.lh-split { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 2.2em; }
+.lh-pane { display: flex; flex-direction: column; min-height: 0; }
+.lh-pane > h3:first-child { margin-top: 0; }
+.lh-pane .lh-tabs { padding: 0; margin-bottom: 0.7em; }
+.lh-panebody { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; padding-right: 0.4em; }
+.lh-panebody .lh-kv { grid-template-columns: 1fr; }
+@media (max-width: 900px) {
+  .lh-wide .lh-scroll { overflow-y: auto; display: block; }
+  .lh-split { grid-template-columns: minmax(0, 1fr); gap: 1.6em; }
+  .lh-panebody { overflow: visible; }
+}
+.lh-menus[data-screen="leaderboard"] .lh-scrim { background: linear-gradient(90deg, rgba(13, 10, 7, 0.95) 0%, rgba(13, 10, 7, 0.86) 70%, rgba(13, 10, 7, 0.55) 100%); }

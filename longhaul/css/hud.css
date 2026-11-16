@@ -250,3 +250,15 @@
 #hud.has-enc .hint.h-talk { display: inline-flex; }
 #hud.hc .subt b, #hud.hc .enc-h > span, #hud.hc .pip { color: #fff; }
 #hud.hc .enc { border-color: #fff !important; }
+
+/* convoy (js/convoy.js): who else is on the road, left edge below the top-left plates */
+.lh-convoy {
+  position: fixed; left: 14px; top: 34%; z-index: 21; pointer-events: none; display: grid; gap: 0.2em;
+  font-size: clamp(10px, 0.55vh + 0.3vw + 5px, 17px); line-height: 1.3; color: var(--lh-bone); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+  background: rgba(var(--lh-plate), 0.6); border: 1px solid var(--lh-line); border-radius: 0.35em; padding: 0.45em 0.75em; max-width: 19em;
+}
+.lh-convoy[hidden] { display: none; }
+.lh-convoy-head { font-size: 0.82em; letter-spacing: 0.08em; text-transform: uppercase; color: var(--lh-sand); }
+.lh-convoy-head b { color: var(--lh-amber); letter-spacing: 0.14em; }
+.lh-convoy div:not(.lh-convoy-head) { display: flex; justify-content: space-between; gap: 1em; }
+.lh-convoy em { font-style: normal; color: var(--lh-sand); font-size: 0.92em; }

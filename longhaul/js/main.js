@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { on, emit, notify, sfx } from "./core/bus.js";
 import { worldRoot, origin, rebase, resetOrigin } from "./core/origin.js";
 import { ws } from "./core/worldstate.js";
-import { setSeed, getSeed, heightAt, surfaceAt, hashStr } from "./world/terrain.js";
+import { setSeed, getSeed, heightAt, surfaceAt, hashStr, roadX, roadDir } from "./world/terrain.js";
 import { startSite, sitesBetween } from "./world/sites.js";
 import { World, prepare as prepareWorld, setVehicleLookup } from "./world/index.js";
 import { Sky, DAY_SECONDS } from "./sky.js";
@@ -29,8 +29,11 @@ import { photo } from "./photo.js";
 import { Combat } from "./combat.js";
 import { devmap, DEV_AVAILABLE, DEV_SEED } from "./devmap.js";
 import { menus } from "./ui/menus.js";
-import { loadSave, writeSave, clearSave, previewOf, loadPrefs, savePrefs, loadBest, saveBest } from "./save.js";
+import { loadSave, writeSave, clearSave, checkSave, previewOf, loadPrefs, savePrefs, loadBest, saveBest } from "./save.js";
 import { watchPerformance, settingsFor, embedded } from "./perf.js";
+import { loadCareer, saveCareer, tripOf, track, endTrip, totals, unlock, mergeAchievements, ACHIEVEMENTS } from "./career.js";
+import { Convoy } from "./convoy.js";
+import { identity, signIn, signOut, newTripId, reportTrip, pushAchievements, fetchAchievements, fetchBoard, fetchMine, putSave, getSave, dropSave } from "./online.js";
 
 const STEP = 1 / 120;
 const HOUR = DAY_SECONDS / 24;          // real seconds per in-game hour
@@ -73,7 +76,7 @@ const wallet = { money: 0 };
 let state = "boot"; // boot | menu | playing | photo | paused | ui | sleeping | dead
 const game = {
   diff: "normal", day: 1, vehicle: null /* the Vehicle you sit in */, lights: "auto",
-  stats: { distance: 0, litres: 0, sites: 0 }, hints: {}, lastVehicleName: "Pickup",
+  stats: { distance: 0, litres: 0, sites: 0, escapes: 0, rides: 0 }, hints: {}, lastVehicleName: "Pickup", tripId: null,
 };
 let lastTime = 0.3, blackout = 0, nextBlackout = 20, stuckFor = 0, saveFailed = false, saveError = null;
 let menuFocus = { x: 0, y: 0, z: 0, yaw: 0 };
@@ -174,16 +177,27 @@ function showMain() {
   const best = loadBest();
   menus.show("main", {
     save: previewOf(save), saveError: error, hostAvailable: false, difficulties: DIFF_LIST, units: prefs.units,
-    best, music: musicInfo(), dev: DEV_AVAILABLE,
+    best, music: musicInfo(), dev: DEV_AVAILABLE, account: identity(), acct: accountView(), career: careerView(), convoy: convoyView(),
   });
+  checkCloud(save);
   music.setContext("menu");
   music.resume();
 }
 
 const handlers = {
   onFirstGesture() { audio.start(); music.unlock(); applyPrefs(); },
-  onContinue() { const { save } = loadSave(); if (save) startJourney(save); },
-  onNewJourney(opts) { clearSave(); startJourney(null, opts); },
+  onContinue() {
+    // The account's copy of this same journey is newer (played on another device): carry on from that
+    if (cloud && cloud.same && cloud.newer) { writeSave(cloud.save); cloud = null; }
+    const { save } = loadSave(); if (save) startJourney(save);
+  },
+  // A different journey kept on the account: it replaces the one on this device
+  onContinueCloud() {
+    if (!cloud) return;
+    writeSave(cloud.save); cloud = null;
+    const { save } = loadSave(); if (save) startJourney(save);
+  },
+  onNewJourney(opts) { if (loadSave().save) finishTrip("Abandoned"); clearSave(); startJourney(null, opts); },
   // A throwaway test range; your saved journey is left alone
   onDevMap() {
     devmap.active = true;                     // before startJourney: its closing persist() must not touch the save
@@ -210,9 +224,76 @@ const handlers = {
   onUseSlot(i) { useSlot(i); refreshInventory(); },
   onDropSlot(i) { dropSlot(i); refreshInventory(); },
   onBuy(type) { buy(type); },
+  async onOpenCareer() {
+    const user = identity();
+    const cloud = user ? await fetchMine(user) : null;
+    if (menus.screen === "leaderboard") menus.refresh({ cloud });
+  },
+  onOpenAccount() { accountMsg = ""; refreshAccount(); },
+  async onSignIn(id, password) {
+    if (accountBusy || state !== "menu") return;
+    accountBusy = true; accountMsg = "Signing in…"; refreshAccount();
+    const r = await signIn(id, password);
+    accountBusy = false;
+    accountMsg = r.user ? `Signed in as @${r.user}.`
+      : r.error === "blocked" ? `This account is blocked${r.reason ? ": " + r.reason : "."}`
+      : r.error === "offline" ? "X-ORBIT can't be reached right now. Check your connection and try again."
+      : "Wrong username, email or password.";
+    if (r.user) accountChanged(); else refreshAccount();
+    return !!r.user;
+  },
+  onSignOut() { signOut(); accountMsg = "Signed out."; accountChanged(); },
+  onOpenConvoy() { convoyMsg = ""; refreshConvoy(); },
+  onConvoyHost() {
+    if (devmap.active || state === "menu" || convoy.active) return;
+    convoy.host(myName(), convoyInfo);
+    convoyMsg = "";
+    refreshConvoy();
+  },
+  onConvoyLeave() { convoy.leave(); convoyMsg = "You left the convoy."; refreshConvoy(); },
+  async onConvoyJoin(code) {
+    code = String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (convoyBusy || convoy.active) return;
+    if (code.length !== 5) { convoyMsg = "A convoy code has 5 letters and numbers."; refreshConvoy(); return; }
+    const fromMenu = state === "menu";
+    convoyBusy = true; convoyMsg = `Looking for convoy ${code}…`; refreshConvoy();
+    let info = null;
+    try { info = await convoy.join(code, myName(), convoyInfo); }
+    catch (e) {
+      convoyMsg = e.message === "full" ? "That convoy is full (6 drivers)."
+        : `No convoy found with code ${code}. Check the code, and that someone in it is playing right now.`;
+    }
+    convoyBusy = false;
+    if (!info) { refreshConvoy(); return; }
+    if (fromMenu) {
+      if (state !== "menu") { convoy.leave(); return; }
+      // A new journey on the convoy's road, time of day and weather, starting just behind whoever answered
+      handlers.onNewJourney({ seed: String(info.seed), difficulty: info.diff, hostile: info.hostile !== false });
+      if (typeof info.time === "number") { sky.time = info.time; lastTime = sky.time; }
+      if (info.weather) weather.restore(info.weather);
+      regroup(info);
+      notify(`Joined convoy ${code}. Your truck is just behind @${info.n}.`, { level: "good", icon: "⛟", ms: 6000 });
+    } else if ((info.seed >>> 0) !== getSeed()) {
+      convoy.leave();
+      convoyMsg = "That convoy is on a different road. Join it from the main menu instead: it starts a new journey on their road.";
+    } else {
+      regroup(info);
+      convoyMsg = `Joined convoy ${code}. You're just behind @${info.n}.`;
+    }
+    refreshConvoy();
+  },
+  async onOpenBoard(kind) {
+    boardKind = kind;
+    menus.refresh({ board: { kind, loading: true } });
+    const user = identity(), res = await fetchBoard(kind, user);
+    if (boardKind !== kind || menus.screen !== "leaderboard") return;
+    menus.refresh({ board: res ? { kind, user, ...res } : { kind, error: true } });
+  },
 };
+let boardKind = null;
 
 function toMenu() {
+  convoy.leave();
   devmap.teardown();
   audio.update({ active: false, wind: 0, rain: 0 });
   releaseAll();
@@ -265,8 +346,10 @@ function startJourney(save, opts = {}) {
   Object.assign(game, {
     playTime: save?.playTime || 0, hostile: (save || opts).hostile !== false,
     diff: save ? save.diff : opts.difficulty || "normal", day: save ? save.day : 1, lights: (save && save.lights) || "auto",
-    stats: Object.assign({ distance: 0, litres: 0, sites: 0 }, save && save.stats), hints: (save && save.hints) || {},
+    stats: Object.assign({ distance: 0, litres: 0, sites: 0, escapes: 0, rides: 0 }, save && save.stats), hints: (save && save.hints) || {},
+    tripId: (save && save.tripId) || newTripId(),
   });
+  lastUpload = -Infinity;
   sky.time = save ? save.time : 0.31;
   if (save && save.weather) weather.restore(save.weather);
   else weather.restore({ current: "clear", target: "clear", blend: 1, hoursLeft: 5 });
@@ -332,7 +415,7 @@ function snapshot() {
   vehicles.flush();
   props.flush();
   return {
-    hostile: game.hostile, playTime: game.playTime, seed: getSeed(), time: sky.time, day: game.day, diff: game.diff, lights: game.lights, stats: game.stats, hints: game.hints,
+    tripId: game.tripId, hostile: game.hostile, playTime: game.playTime, seed: getSeed(), time: sky.time, day: game.day, diff: game.diff, lights: game.lights, stats: game.stats, hints: game.hints,
     needs: needs.serialize(), wallet: { money: wallet.money }, weather: weather.serialize(),
     player: player.serialize(), interact: interaction.serialize(), drivenId: game.vehicle ? game.vehicle.id : null,
     vehicleName: game.lastVehicleName, world: ws.serialize(),
@@ -346,6 +429,153 @@ function persist() {
   const best = loadBest() || { km: 0, days: 0 };
   const km = game.stats.distance / 1000;
   if (km > best.km) saveBest({ km, days: game.day });
+  careerTick();
+  cloudSave(state !== "playing");
+}
+
+// ── Career and the X-ORBIT account ─────────────────────
+// Lifetime totals and achievements live on this browser (career.js); when signed in to X-ORBIT the journey is also
+// reported to the account and the global leaderboard (online.js) about once a minute, and when it ends.
+let careerOwner = identity(), career = loadCareer(careerOwner);
+let lastReport = -Infinity;
+const keepCareer = () => saveCareer(career, careerOwner);
+function careerTick() {
+  if (devmap.active || !game.tripId) return;
+  if (career.live && career.live.id !== game.tripId) endTrip(career);   // a journey that ended without us seeing it
+  track(career, tripOf(game));
+  const got = unlock(career);
+  for (const a of got) notify(`Achievement unlocked: ${a.name}`, { level: "good", icon: "★", key: "ach-" + a.id, ms: 6000 });
+  keepCareer();
+  const user = identity();
+  if (!user) return;
+  if (got.length) pushAchievements(user, Object.keys(career.ach));
+  if (got.length || performance.now() - lastReport > 60000) {
+    lastReport = performance.now();
+    reportTrip(user, career.live);
+  }
+}
+// ── Convoy (multiplayer) ───────────────────────────────
+// Friends on the same seed see each other's vehicles and bodies (js/convoy.js). Each world is still private.
+const convoy = new Convoy({ root: worldRoot, onChange: () => refreshConvoy() });
+let convoyMsg = "", convoyBusy = false;
+function myName() {
+  const user = identity();
+  if (user) return user;
+  try {
+    let g = sessionStorage.getItem("longhaul-guest");
+    if (!g) { g = "guest-" + Math.floor(1000 + Math.random() * 9000); sessionStorage.setItem("longhaul-guest", g); }
+    return g;
+  } catch (e) { return "guest"; }
+}
+// What a newcomer needs to drive the same road; null while there's no journey to share
+function convoyInfo() {
+  if (!game.tripId || devmap.active || state === "menu" || state === "dead" || state === "boot") return null;
+  const p = focusPos();
+  return { seed: getSeed(), diff: game.diff, hostile: game.hostile, time: sky.time, weather: weather.serialize(), p: [p.x, p.z] };
+}
+function convoyLocal() {
+  const v = game.vehicle;
+  if (v) return { seed: getSeed(), m: "car", p: v.pos, q: v.quat, v: v.vel, sp: v.speed, vt: v.type, pa: v.paint, vs: v.seed, w: v.wearLook, st: v.steer, l: v.lights };
+  return { seed: getSeed(), m: "foot", p: player.pos, v: player.vel, sp: Math.hypot(player.vel.x, player.vel.z), yaw: player.yaw };
+}
+function convoyView() {
+  return {
+    code: convoy.code, status: convoy.status, me: myName(), busy: convoyBusy, msg: convoyMsg,
+    members: convoy.active && state !== "menu" ? convoy.list(focusPos(), prefs.units) : [],
+    inJourney: state !== "menu" && state !== "dead", dev: devmap.active, account: identity(),
+  };
+}
+function refreshConvoy() { if (menus.screen === "convoy") menus.refresh({ convoy: convoyView() }); }
+// Put this player (and the vehicle they sit in, or the starter truck on a fresh journey) on the road just behind
+// the convoy member at info.p
+function regroup(info) {
+  const [mx, mz] = info.p;
+  const z = mz - 22, off = Math.max(-3, Math.min(3, mx - roadX(mz))), x = roadX(z) + off;
+  const dir = roadDir(z), yaw = Math.atan2(dir.x, dir.z);
+  world.update([new THREE.Vector3(x, 0, z)], true);
+  let v = game.vehicle;
+  if (!v) { const s = vehicles.get("starter"); if (s && s.pos.distanceTo(player.pos) < 30) v = s; }
+  if (v) {
+    v.place(x, z, yaw);
+    v.vel.set(0, 0, 0); v.angVel.set(0, 0, 0); v.speed = 0; v.wake?.(); v.modified?.();
+    if (!game.vehicle) seat(v, true);
+  } else {
+    player.teleport(x + Math.cos(yaw) * 6, z - Math.sin(yaw) * 6, yaw);
+  }
+  vehicles.sync(focusPoints());
+  look.yaw = game.vehicle ? 0 : player.yaw; look.pitch = 0;
+  rig.snap();
+  persist();
+}
+
+// ── Account ────────────────────────────────────────────
+let accountMsg = "", accountBusy = false;
+function accountView() { return { user: identity(), busy: accountBusy, msg: accountMsg }; }
+function refreshAccount() { if (menus.screen === "account") menus.refresh({ acct: accountView() }); }
+// Another account now plays: its own career, its cloud journey and achievements
+function accountChanged() {
+  careerOwner = identity();
+  career = loadCareer(careerOwner);
+  lastReport = lastUpload = -Infinity; cloud = null; pendingUpload = null;
+  menus.refresh({ account: careerOwner, acct: accountView(), career: careerView(), cloudSave: null });
+  checkCloud(loadSave().save);
+  syncAccount();
+}
+
+// ── Cloud saves ────────────────────────────────────────
+// The journey is copied to the X-ORBIT account every minute while playing, and right away on pause, menu or tab
+// switch. One journey per account: the last device to save wins, and the menu offers whichever copy is newer.
+let lastUpload = -Infinity, cloud = null, pendingUpload = null;
+function cloudSave(now) {
+  const user = identity();
+  if (!user || devmap.active || !game.tripId) return;
+  const wait = (now ? 4000 : 60000) - (performance.now() - lastUpload);
+  if (wait > 0 && !now) return;
+  // The journey as it is now: by the time a held-back upload goes out, the menu may have replaced the scene
+  const data = { v: 4, at: Date.now(), ...snapshot() };
+  if (wait > 0) {
+    if (!pendingUpload) setTimeout(flushUpload, wait);
+    pendingUpload = { user, data };
+    return;
+  }
+  pendingUpload = null;
+  sendUpload({ user, data });
+}
+function sendUpload(p) { lastUpload = performance.now(); putSave(p.user, p.data); }
+function flushUpload() { const p = pendingUpload; pendingUpload = null; if (p) sendUpload(p); }
+addEventListener("pagehide", flushUpload);
+async function checkCloud(local) {
+  cloud = null;
+  const user = identity();
+  if (!user) return;
+  const got = await getSave(user);
+  if (state !== "menu" || !got) return;
+  const save = checkSave(got.data);
+  if (!save) return;
+  const same = !!local && !!save.tripId && local.tripId === save.tripId;
+  const newer = !local || (save.at || got.at) > (local.at || 0) + 1000;
+  if (same && !newer) return;                 // this device already has the latest copy
+  cloud = { save, same, newer };
+  if (state === "menu") menus.refresh({ cloudSave: { ...previewOf(save), same, replaces: !!local && !same } });
+}
+function finishTrip(cause) {
+  const t = endTrip(career);
+  keepCareer();
+  if (t) { pendingUpload = null; reportTrip(identity(), t, true, cause); dropSave(identity(), t.id); }
+}
+function careerView() {
+  return { totals: totals(career), best: career.best, ach: { ...career.ach }, list: ACHIEVEMENTS.map(({ id, name, desc }) => ({ id, name, desc })) };
+}
+// Achievements earned on another device show up here, and ones earned here before signing in reach the account
+async function syncAccount() {
+  const user = identity();
+  if (!user) return;
+  const remote = await fetchAchievements(user);
+  if (!remote) return;
+  mergeAchievements(career, remote);
+  keepCareer();
+  if (Object.keys(career.ach).some((id) => !remote.includes(id))) pushAchievements(user, Object.keys(career.ach));
+  if (state === "menu") menus.refresh({ career: careerView() });
 }
 setInterval(() => { if (state === "playing") persist(); }, 5000);
 addEventListener("pagehide", persist);
@@ -363,6 +593,7 @@ function pause() {
   hud.dim(true);
   menus.show("pause", {
     summary: `Day ${game.day} · ${fmtDist(game.stats.distance)} · ${diff().label}`, saved: !saveFailed, music: musicInfo(), hostAvailable: false,
+    convoy: convoyView(),
   });
 }
 function resume() {
@@ -378,10 +609,13 @@ function resume() {
 
 function die(cause, summary = []) {
   state = "dead";
+  convoy.leave();
   const best = loadBest() || { km: 0, days: 0 };
   if (!devmap.active) {                      // dying on the dev map leaves your real journey and record alone
     if (game.stats.distance / 1000 > best.km) saveBest({ km: game.stats.distance / 1000, days: game.day });
     clearSave();
+    careerTick();
+    finishTrip(cause || "Unknown");
   }
   audio.suspend();
   music.setContext("none");
@@ -605,6 +839,10 @@ function frame(now) {
     rig.finish(dt, 52, 0, 0);
     audio.update({ active: true, tel: null, wind: 0.25, rain: 0 }, dt);
   }
+  if (convoy.active && state !== "menu" && state !== "boot" && state !== "dead") {
+    convoy.tick(dt, state === "playing" ? convoyLocal() : null, focusPos());
+    convoy.showPanel(state === "playing" && prefs.hud.show !== "off", prefs.units);
+  }
   endFrame();
   if (state !== "boot" && state !== "dead") renderer.render(scene, camera);
 
@@ -826,6 +1064,8 @@ async function boot() {
   initInput(canvas, inputMode);
   on("pause:request", () => pause());
   on("fuel:bought", (e) => { game.stats.litres += (e && e.litres) || 0; });
+  on("encounter:end", (e) => { if (e && e.state === "escaped") game.stats.escapes++; });
+  on("hitch:arrived", () => { game.stats.rides++; });
   on("music:track", (t) => { menus.setNowPlaying?.(t); hud.setNowPlaying?.(t); });
   canvas.addEventListener("click", () => { if (state === "playing" && !locked()) requestLock(); });
 
@@ -870,6 +1110,7 @@ async function boot() {
     applyPrefs();
     buildBackdrop();
     showMain();
+    syncAccount();
     requestAnimationFrame(frame);
   } catch (e) {
     console.error(e);
@@ -883,7 +1124,7 @@ window.__lh = {
   get state() { return state; }, game, prefs, needs, wallet, player, pockets, ws, perfStats, renderer, camera,
   get world() { return world; }, get vehicles() { return vehicles; }, get props() { return props; }, get interaction() { return interaction; },
   get sky() { return sky; }, get weather() { return weather; }, get tel() { return lastTel; }, origin,
-  get npcs() { return npcs; }, get combat() { return combat; },
+  get npcs() { return npcs; }, get combat() { return combat; }, convoy,
   get encounters() { return new URLSearchParams(location.search).get("dev") === "1" ? encounters : undefined; },
   startJourney, persist, pause, resume, snapshot, seat, exitVehicle, getColliders, handlers, music, audio,
   tick, makeItem,

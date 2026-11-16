@@ -1,6 +1,7 @@
 // Roadside rides. All decisions that affect the player belong to a saved encounter and its own random stream.
 import { encountersBetween, encRng } from "../core/encgen.js";
 import { ws } from "../core/worldstate.js";
+import { emit } from "../core/bus.js";
 import { nextSiteAfter } from "../world/sites.js";
 import { ROAD_HALF } from "../world/terrain.js";
 import { pathBlocked } from "../core/collide.js";
@@ -273,6 +274,7 @@ export class Hitchhikers {
       if(this.drop(entry,"arrived")) {
         this.ctx.stock.give(r.reward); this.ctx.sfx("pay",{pos:npc.pos}); npc.say("Right here is perfect. Thanks for the lift!");
         this.ctx.notify(`Dropped off ${npc.name} at ${r.dest.name}. Received ${fare(r)}.`);
+        emit("hitch:arrived", { name: npc.name });
       }
       return;
     }

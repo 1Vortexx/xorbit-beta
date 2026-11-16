@@ -76,6 +76,11 @@ export function loadSave() {
   return { save: null, error: null };
 }
 
+// A journey from somewhere else (the X-ORBIT account): the same checks as a local save → save | null
+export function checkSave(d) {
+  return d && typeof d === "object" && valid(d) ? migrateV3(d) : null;
+}
+
 // Returns true when the save reached storage
 export function writeSave(data) {
   let json;

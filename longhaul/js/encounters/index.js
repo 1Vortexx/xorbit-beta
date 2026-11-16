@@ -1,5 +1,6 @@
 // Each live roadblock owns one saved record. Crew cars are ordinary vehicles and use the same collisions/fuel as the player.
 import { ws } from "../core/worldstate.js";
+import { emit } from "../core/bus.js";
 import { encSeed, encRng, encountersBetween } from "../core/encgen.js";
 import { captureEligible } from "./capture.js";
 import { feeDemand, settle, costText, cannotPay } from "./demand.js";
@@ -276,6 +277,7 @@ export class Encounters {
     }
     this.result = { title, text, until: this.ctx.now() + 6 };
     this.ctx.notify(text);
+    emit("encounter:end", { state: this.rec.state });
   }
   hud() {
     const r = this.rec;
