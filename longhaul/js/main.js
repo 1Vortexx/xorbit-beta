@@ -1320,13 +1320,30 @@ async function boot() {
   await window.longHaulStart;
   window.removeEventListener("longhaul-start-audio", beginMusic);
   beginMusic();
-  const report = (base, span) => (pct, label) => menus.show("loading", { pct: base + span * Math.max(0, Math.min(1, pct)), label });
-  menus.show("loading", { pct: 0, label: "Warming up" });
+  const loadingDuration = 5000 + Math.random() * 25000;
+  const loadingStarted = performance.now();
+  let prepared = 0, loadingLabel = "Warming up";
+  let shownProgress = 0, lastLoadingFrame = loadingStarted;
+  menus.show("loading", { pct: 0, label: loadingLabel });
+  const paintLoading = () => {
+    const now = performance.now();
+    // Pace the presentation while retaining real readiness as the upper bound.
+    const elapsed = Math.max(0, now - loadingStarted - 400);
+    const target = Math.min(prepared, elapsed / Math.max(1, loadingDuration - 400), 1);
+    shownProgress = Math.min(target, shownProgress + (now - lastLoadingFrame) / loadingDuration);
+    lastLoadingFrame = now;
+    menus.show("loading", { pct: shownProgress, label: prepared === 1 ? "Getting ready for the road" : loadingLabel });
+  };
+  const loadingTimer = setInterval(paintLoading, 50);
+  const report = (base, span) => (pct, label) => {
+    prepared = Math.max(prepared, base + span * Math.max(0, Math.min(1, pct)));
+    loadingLabel = label;
+  };
   try {
     await prepareWorld(report(0.02, 0.5));
     await prepareVehicles(report(0.52, 0.38));
     await prepareNpcs(report(0.90, 0.04));
-    menus.show("loading", { pct: 0.95, label: "Parking the truck" });
+    prepared = 0.95; loadingLabel = "Parking the truck";
     sky = new Sky(worldRoot, scene);
     weather = new Weather(worldRoot, scene);
     weather.onThunder = () => sfx("thunder");
@@ -1363,10 +1380,23 @@ async function boot() {
     applyQuality();
     applyPrefs();
     buildBackdrop();
+    prepared = 1;
+    await new Promise(resolve => {
+      const finish = () => {
+        paintLoading();
+        if (shownProgress >= 1) resolve();
+        else setTimeout(finish, 50);
+      };
+      finish();
+    });
+    clearInterval(loadingTimer);
+    menus.show("loading", { pct: 1, label: "Ready" });
+    await new Promise(resolve => setTimeout(resolve, 300));
     showMain();
     syncAccount();
     requestAnimationFrame(frame);
   } catch (e) {
+    clearInterval(loadingTimer);
     console.error(e);
     menus.show("loading", { pct: 1, label: "Long Haul could not start: " + (e && e.message ? e.message : e), error: true });
   }
