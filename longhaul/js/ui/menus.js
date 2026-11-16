@@ -237,6 +237,7 @@ const SCREENS = {
     h += `<nav class="lh-nav" aria-label="Main menu">`
       + item("play", "Play", { focus: true, sub: s ? `Continue · ${parts.slice(0, 2).join(" · ")}` : "Singleplayer or convoy" })
       + item("leaderboard", "Career", { sub: data.career ? achSummary() : "" })
+      + item("download", "Download", { sub: "Windows & Mac desktop app" })
       + item("settings", "Settings") + item("whatsnew", "What's New", { sub: "v" + CHANGELOG[0].version });
     if (data.hostAvailable) h += item("host", "Return to X-ORBIT", { cls: "lh-quiet" });
     h += `</nav><div class="lh-links">
@@ -715,6 +716,7 @@ function act(e, a) {
     case "convoyhost": sfx("ui_click"); call("onConvoyHost"); break;
     case "convoyjoin": sfx("ui_click"); call("onConvoyJoin", ui.code); break;
     case "convoyleave": sfx("ui_back"); call("onConvoyLeave"); break;
+    case "download": sfx("ui_click"); window.open("https://beta.xorbit.org/longhaul/download/", "_blank", "noopener,noreferrer"); break;
     case "host": sfx("ui_click"); call("onReturnToHost"); break;
     case "devmap": sfx("ui_click"); call("onDevMap"); break;
     case "back": back(); break;
