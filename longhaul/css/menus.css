@@ -385,7 +385,7 @@
 .lh-discovery-toast { position: fixed; z-index: 100; top: 1rem; left: 50%; transform: translateX(-50%); padding: .65rem 1rem; background: var(--lh-ink); color: var(--lh-bone); border: 1px solid var(--lh-amber); pointer-events: none; }
 
 /* Studio introduction */
-.lh-menus[data-screen="gate"] .lh-stage { justify-content:center; }
+.lh-menus.lh-studio-intro .lh-stage { justify-content:center; }
 .lh-studio-splash { width:min(650px,100%); }
 .lh-studio-splash .lh-gatebtn { width:100%; align-self:center; text-align:center; }
 .lh-studio-splash img { display:block; width:100%; height:auto; margin-bottom:2rem; }
@@ -398,3 +398,7 @@
   .lh-studio-splash { transition:none; }
   .lh-menus[data-screen="main"] .lh-brand { animation:none; }
 }
+
+.lh-studio-intro .lh-studio-splash { animation:lh-studio-reveal 400ms ease both; }
+.lh-studio-intro.lh-splash-exit .lh-studio-splash { animation:none; }
+@media(prefers-reduced-motion:reduce){.lh-studio-intro .lh-studio-splash{animation:none;}}

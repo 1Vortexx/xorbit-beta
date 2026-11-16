@@ -192,11 +192,8 @@ function boardPane() {
 
 // ── screens ───────────────────────────────────────────────────────────────
 const SCREENS = {
-  gate: () => `<div class="lh-col lh-gate lh-studio-splash">
-    <button type="button" class="lh-gatebtn" data-act="gate" data-autofocus aria-label="Start Long Haul">
-      <img src="${new URL("../../download/xorbit-studios-logo.png", import.meta.url).href}" width="2172" height="724" alt="X-ORBIT Studios">
-      <span>Click or press any key to start</span>
-    </button></div>`,
+  gate: () => `<div class="lh-col lh-gate">${brand("One road. One truck. Keep it running.")}
+    <button type="button" class="lh-gatebtn" data-act="gate" data-autofocus><span>Click or press any key to start</span></button></div>`,
 
   loading: () => `<div class="lh-col lh-loading">${brand()}
     <div class="lh-load" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Loading">
@@ -842,16 +839,23 @@ function firstGesture() {
   if (gateFading || screen() !== "gate") return;
   if (!gestureDone) { gestureDone = true; call("onFirstGesture"); }
   gateFading = true;
-  root.classList.add("lh-splash-exit");
-  const reveal = () => {
-    root.classList.remove("lh-splash-exit");
-    gateFading = false;
-    if (screen() !== "gate" || !stack.length) return;
-    stack.pop();
-    sfx("ui_click");
-    render();
-  };
-  setTimeout(reveal, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 450);
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const stage = root.querySelector(".lh-stage");
+  stage.innerHTML = `<div class="lh-col lh-gate lh-studio-splash">
+    <img src="${new URL("../../download/xorbit-studios-logo.png", import.meta.url).href}" width="2172" height="724" alt="X-ORBIT Studios">
+  </div>`;
+  root.classList.add("lh-studio-intro");
+  setTimeout(() => {
+    root.classList.add("lh-splash-exit");
+    setTimeout(() => {
+      root.classList.remove("lh-splash-exit", "lh-studio-intro");
+      gateFading = false;
+      if (screen() !== "gate" || !stack.length) return;
+      stack.pop();
+      sfx("ui_click");
+      render();
+    }, reduced ? 0 : 450);
+  }, reduced ? 800 : 1600);
 }
 
 function onAnyGesture(ev) {
