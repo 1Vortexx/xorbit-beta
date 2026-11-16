@@ -15,6 +15,7 @@
 @media(max-width:740px){.hero{padding-top:55px;min-height:550px}.hero:before{background:linear-gradient(90deg,#11120eef,#11120e90),linear-gradient(0deg,#11120e,transparent),url('../audio/music/covers/mojang-please-hire-me.png') center/cover}.grid,.features{grid-template-columns:1fr}.features{gap:25px}.section-head{align-items:start;flex-direction:column;gap:8px}footer{gap:20px}.logo{margin-block:30px 15px}}
 @media(prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
 pre{overflow-x:auto;padding:16px;background:#080a08;border:1px solid var(--line);border-radius:4px}code{font-family:ui-monospace,monospace;font-size:.9em}
+details[id^="install-"]{scroll-margin-top:24px}details:focus-within{border-color:var(--amber)}
 </style>
 </head>
 <body>
@@ -31,9 +32,9 @@ pre{overflow-x:auto;padding:16px;background:#080a08;border:1px solid var(--line)
 <section class="downloads" id="downloads" aria-labelledby="download-title">
 <div class="section-head"><h2 id="download-title">Choose your ride.</h2><span class="version">Desktop edition · Version 1.0.0</span></div>
 <div class="grid">
-<article class="card"><h3 class="platform">Windows</h3><p class="arch">64-bit Intel & AMD PCs</p><a class="primary" href="https://github.com/1Vortexx/xorbit-beta/releases/download/long-haul-desktop-v1.0.0/Long-Haul-1.0.0-Windows-x64.exe" download>Download for Windows ↓</a><p class="size">EXE installer · <span data-size="win">117 MB</span></p></article>
-<article class="card"><h3 class="platform">Mac · Apple Silicon</h3><p class="arch">Macs with an Apple M-series chip</p><a class="primary" href="https://github.com/1Vortexx/xorbit-beta/releases/download/long-haul-desktop-v1.0.0/Long-Haul-1.0.0-Mac-Apple-Silicon.dmg" download>Download for Apple Silicon ↓</a><p class="size">DMG installer · <span data-size="arm">118 MB</span></p></article>
-<article class="card"><h3 class="platform">Mac · Intel</h3><p class="arch">Macs with an Intel processor</p><a class="primary" href="https://github.com/1Vortexx/xorbit-beta/releases/download/long-haul-desktop-v1.0.0/Long-Haul-1.0.0-Mac-Intel.dmg" download>Download for Intel ↓</a><p class="size">DMG installer · <span data-size="intel">121 MB</span></p></article>
+<article class="card"><h3 class="platform">Windows</h3><p class="arch">64-bit Intel & AMD PCs</p><a class="primary" href="https://github.com/1Vortexx/xorbit-beta/releases/download/long-haul-desktop-v1.0.0/Long-Haul-1.0.0-Windows-x64.exe" data-install="windows" target="_blank" rel="noopener" download>Download for Windows ↓</a><p class="size">EXE installer · <span data-size="win">117 MB</span></p></article>
+<article class="card"><h3 class="platform">Mac · Apple Silicon</h3><p class="arch">Macs with an Apple M-series chip</p><a class="primary" href="https://github.com/1Vortexx/xorbit-beta/releases/download/long-haul-desktop-v1.0.0/Long-Haul-1.0.0-Mac-Apple-Silicon.dmg" data-install="mac" target="_blank" rel="noopener" download>Download for Apple Silicon ↓</a><p class="size">DMG installer · <span data-size="arm">118 MB</span></p></article>
+<article class="card"><h3 class="platform">Mac · Intel</h3><p class="arch">Macs with an Intel processor</p><a class="primary" href="https://github.com/1Vortexx/xorbit-beta/releases/download/long-haul-desktop-v1.0.0/Long-Haul-1.0.0-Mac-Intel.dmg" data-install="mac" target="_blank" rel="noopener" download>Download for Intel ↓</a><p class="size">DMG installer · <span data-size="intel">121 MB</span></p></article>
 </div>
 <a class="checksum" href="https://github.com/1Vortexx/xorbit-beta/releases/download/long-haul-desktop-v1.0.0/SHA256SUMS.txt">Download SHA-256 checksums</a>
 </section>
@@ -45,13 +46,13 @@ pre{overflow-x:auto;padding:16px;background:#080a08;border:1px solid var(--line)
 <section class="help" aria-label="Installation help">
 <h2>Before you head out.</h2>
 <details><summary>Which Mac download do I need?</summary><p>Open the Apple menu and choose About This Mac. If you see “Chip” with an Apple M-series name, choose Apple Silicon. If you see an Intel processor, choose Intel.</p></details>
-<details><summary>Install on Mac · unsigned app instructions</summary>
+<details id="install-mac"><summary>Install on Mac · unsigned app instructions</summary>
 <p>Open the DMG and drag Long Haul into Applications. These builds are unsigned and not notarized. If macOS blocks the app, first try System Settings → Privacy &amp; Security → Open Anyway after attempting to open it.</p>
 <p>If you trust this download and need to remove its quarantine flag, open Terminal and run the following command after copying the app to Applications. This removes quarantine only from Long Haul and its contents.</p>
 <pre><code>xattr -dr com.apple.quarantine "/Applications/Long Haul.app"</code></pre>
 <p>Then open Long Haul from Applications. The command is <code>xattr</code>, with the flags <code>-dr</code>. If Terminal reports “No such xattr,” the quarantine flag is already absent.</p>
 </details>
-<details><summary>Install on Windows · unsigned installer instructions</summary>
+<details id="install-windows"><summary>Install on Windows · unsigned installer instructions</summary>
 <p>Download and run the Windows EXE. If Microsoft Defender SmartScreen shows “Windows protected your PC,” choose More info, then Run anyway only if you trust this download. Follow the installer and launch Long Haul from the Start menu.</p>
 <p>If Windows marks the downloaded installer as blocked, right-click the EXE → Properties → General. If an Unblock checkbox appears, select it, choose Apply, then run the installer again. If your organization blocks installation or no Run anyway option is available, contact its administrator. Keep antivirus protection enabled.</p>
 </details>
@@ -60,4 +61,19 @@ pre{overflow-x:auto;padding:16px;background:#080a08;border:1px solid var(--line)
 </section>
 </main>
 <footer><span>Long Haul · X-ORBIT Game Studios</span><a href="https://xorbit.org/longhaul/">Play online ↗</a></footer>
+<script>
+document.querySelectorAll('[data-install]').forEach(link => {
+  link.addEventListener('click', event => {
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    const instructions = document.getElementById('install-' + link.dataset.install);
+    instructions.open = true;
+    const heading = instructions.querySelector('summary');
+    heading.focus({ preventScroll: true });
+    instructions.scrollIntoView({
+      behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+      block: 'start'
+    });
+  });
+});
+</script>
 </body></html>
