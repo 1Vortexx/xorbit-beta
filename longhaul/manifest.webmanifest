@@ -1,0 +1,15 @@
+{
+  "id": "/longhaul/",
+  "name": "Long Haul",
+  "short_name": "Long Haul",
+  "start_url": "/longhaul/",
+  "scope": "/longhaul/",
+  "display": "standalone",
+  "background_color": "#0f0c09",
+  "theme_color": "#0f0c09",
+  "description": "Desert road-trip survival from X-ORBIT.",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}

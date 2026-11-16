@@ -31,6 +31,11 @@ details[id^="install-"]{scroll-margin-top:24px}details:focus-within{border-color
 <main>
 <section class="downloads" id="downloads" aria-labelledby="download-title">
 <div class="section-head"><h2 id="download-title">Choose your ride.</h2><span class="version">Desktop edition · Version 1.0.0</span></div>
+<article class="card" id="chromebook-download" hidden style="margin-bottom:16px">
+<h3 class="platform">Chromebook</h3><p class="arch">Install Long Haul as a web app on ChromeOS.</p>
+<a class="primary" href="https://xorbit.org/longhaul/?install=1" target="_blank" rel="noopener">Install on Chromebook ↗</a>
+<p class="size">Opens Long Haul, where Chrome will ask you to confirm installation. Internet required.</p>
+</article>
 <div class="grid">
 <article class="card"><h3 class="platform">Windows</h3><p class="arch">64-bit Intel & AMD PCs</p><a class="primary" href="https://github.com/1Vortexx/xorbit-beta/releases/download/long-haul-desktop-v1.0.0/Long-Haul-1.0.0-Windows-x64.exe" data-install="windows" target="_blank" rel="noopener" download>Download for Windows ↓</a><p class="size">EXE installer · <span data-size="win">117 MB</span></p></article>
 <article class="card"><h3 class="platform">Mac · Apple Silicon</h3><p class="arch">Macs with an Apple M-series chip</p><a class="primary" href="https://github.com/1Vortexx/xorbit-beta/releases/download/long-haul-desktop-v1.0.0/Long-Haul-1.0.0-Mac-Apple-Silicon.dmg" data-install="mac" target="_blank" rel="noopener" download>Download for Apple Silicon ↓</a><p class="size">DMG installer · <span data-size="arm">118 MB</span></p></article>
@@ -62,6 +67,9 @@ details[id^="install-"]{scroll-margin-top:24px}details:focus-within{border-color
 </main>
 <footer><span>Long Haul · X-ORBIT Game Studios</span><a href="https://xorbit.org/longhaul/">Play online ↗</a></footer>
 <script>
+const chromeOS = /CrOS/.test(navigator.userAgent) || navigator.userAgentData?.platform === 'Chrome OS';
+document.getElementById('chromebook-download').hidden = !chromeOS;
+
 document.querySelectorAll('[data-install]').forEach(link => {
   link.addEventListener('click', event => {
     if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
