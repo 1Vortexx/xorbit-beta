@@ -402,3 +402,5 @@
 .lh-studio-intro .lh-studio-splash { animation:lh-studio-reveal 400ms ease both; }
 .lh-studio-intro.lh-splash-exit .lh-studio-splash { animation:none; }
 @media(prefers-reduced-motion:reduce){.lh-studio-intro .lh-studio-splash{animation:none;}}
+
+.lh-menus[data-screen="gate"] .lh-stage { justify-content:center; }

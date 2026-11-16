@@ -192,8 +192,10 @@ function boardPane() {
 
 // ── screens ───────────────────────────────────────────────────────────────
 const SCREENS = {
-  gate: () => `<div class="lh-col lh-gate">${brand("One road. One truck. Keep it running.")}
-    <button type="button" class="lh-gatebtn" data-act="gate" data-autofocus><span>Click or press any key to start</span></button></div>`,
+  gate: () => `<div class="lh-col lh-gate lh-studio-splash">
+    <img src="${new URL("../../download/xorbit-studios-logo.png", import.meta.url).href}" width="2172" height="724" alt="X-ORBIT Studios">
+    <button type="button" class="lh-gatebtn" data-act="gate" data-autofocus><span>Click or press any key to start</span></button>
+  </div>`,
 
   loading: () => `<div class="lh-col lh-loading">${brand()}
     <div class="lh-load" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Loading">
@@ -839,35 +841,18 @@ function onKey(ev) {
   }
 }
 
-let gateFading = false, studioVisible = false, studioReady = false;
+let gateFading = false;
 function firstGesture() {
   if (gateFading || screen() !== "gate") return;
-  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  if (!studioVisible) {
-    if (!gestureDone) { gestureDone = true; call("onFirstGesture"); }
-    studioVisible = true;
-    root.querySelector(".lh-stage").innerHTML = `<div class="lh-col lh-gate lh-studio-splash">
-      <img src="${new URL("../../download/xorbit-studios-logo.png", import.meta.url).href}" width="2172" height="724" alt="X-ORBIT Studios">
-      <button type="button" class="lh-gatebtn" data-act="gate" hidden><span>Click or press any key to start</span></button>
-    </div>`;
-    root.classList.add("lh-studio-intro");
-    setTimeout(() => {
-      if (screen() !== "gate") return;
-      studioReady = true;
-      root.querySelector(".lh-studio-splash button").hidden = false;
-    }, reduced ? 400 : 1600);
-    return;
-  }
-  if (!studioReady) return;
   gateFading = true;
-  // Start audio inside the second gesture so browser playback permission is retained.
+  if (!gestureDone) { gestureDone = true; call("onFirstGesture"); }
   call("onStudioStart");
   root.classList.add("lh-splash-exit");
   setTimeout(() => {
-    root.classList.remove("lh-splash-exit", "lh-studio-intro");
+    root.classList.remove("lh-splash-exit");
     gateFading = false;
     call("onStudioContinue");
-  }, reduced ? 0 : 450);
+  }, matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 450);
 }
 
 function onAnyGesture(ev) {
