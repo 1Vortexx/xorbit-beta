@@ -1329,8 +1329,8 @@ async function boot() {
     const now = performance.now();
     // Pace the presentation while retaining real readiness as the upper bound.
     const elapsed = Math.max(0, now - loadingStarted - 400);
-    const target = Math.min(prepared, elapsed / Math.max(1, loadingDuration - 400), 1);
-    shownProgress = Math.min(target, shownProgress + (now - lastLoadingFrame) / loadingDuration);
+    const target = Math.min(prepared, elapsed / Math.max(1, loadingDuration - 700), 1);
+    shownProgress = Math.min(target, shownProgress + (now - lastLoadingFrame) / (loadingDuration - 700));
     lastLoadingFrame = now;
     menus.show("loading", { pct: shownProgress, label: prepared === 1 ? "Getting ready for the road" : loadingLabel });
   };
