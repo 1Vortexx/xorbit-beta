@@ -2,13 +2,14 @@
 // working instruments, wheels, and the per-frame animation rig. MODEL coordinates (y from the ground at rest);
 // the model root sits at −comH under vehicle.mesh.
 import * as THREE from "three";
-import { M, paintMaterial, skinMaterials, lampMaterials, GAUGE, prepareMaterials, materialsReady } from "./materials.js";
+import { M, paintMaterial, skinMaterials, lampMaterials, GAUGE, prepareMaterials, materialsReady, crackedGlass } from "./materials.js";
 import { Batch, box, rbox, cyl, sphere, torus, tube, extrudeX, capXY, roundedRect, seamStrip } from "./loft.js";
 import { buildShell, stationOutline, ringOutline } from "./body.js";
 import { makePartMesh, drumMesh } from "./partmeshes.js";
 import { WHEEL_SLOTS } from "./defs.js";
 import { COMPONENT_ITEMS } from "./components.js";
 import { batteryCharge } from "./powertrain.js";
+import { sfx } from "../core/bus.js";
 
 const CHROME = 0xdadad6, BLACK = 0x111111, DARK = 0x1d1a18, STEEL = 0x8f8f8a, RUSTY = 0x4a3324;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -109,7 +110,8 @@ export function buildVisual(vehicle) {
   // ── Front end ──
   const zN = P[at.N0][0][2];
   S.add(capXY(stationOutline(grid, at.N0), zN, 1), paintR);
-  const gy = lerp(b.creaseY, b.hoodYFront, 0.42), gh = (b.hoodYFront - b.creaseY) * (sedan ? 0.95 : 1.0) + 0.12, gw = hw * 2 - 0.16;
+  const nhw = P[at.N0][3][0];                             // half width of the (rounded) nose at the crease
+  const gy = lerp(b.creaseY, b.hoodYFront, 0.42), gh = (b.hoodYFront - b.creaseY) * (sedan ? 0.95 : 1.0) + 0.12, gw = sedan ? hw * 2 - 0.16 : nhw * 2 - 0.1;
   S.add(box(gw - 0.03, gh - 0.03, 0.02), M.vc, { p: [0, gy, zN + 0.006], c: 0x080808 });
   const fr = (w, h, x, y) => S.add(rbox(w, h, 0.04, 0.008, 1), trimMat, { p: [x, y, zN + 0.025], c: TRIM });
   fr(gw, 0.028, 0, gy + gh / 2); fr(gw, 0.028, 0, gy - gh / 2); fr(0.028, gh, gw / 2, gy); fr(0.028, gh, -gw / 2, gy);
@@ -149,7 +151,7 @@ export function buildVisual(vehicle) {
     }
     if (sedan) S.add(box(w - 0.06, 0.035, 0.012), M.vc, { p: [0, b.bumperY, z + dir * 0.092], c: BLACK });
   };
-  bumper(zN + 0.035, 1, hw * 2 + 0.06);
+  bumper(zN + 0.035, 1, sedan ? hw * 2 + 0.06 : nhw * 2 + 0.1);
   S.add(decal(0.3, 0.15, 0, 0, 192, 96), M.decal, { p: [0, b.bumperY - (sedan ? 0 : 0.005), zN + 0.132] });
   S.add(box(hw * 2 - 0.4, 0.14, 0.02), M.vcRough, { p: [0, b.bumperY - 0.2, zN - 0.08], c: DARK });       // valance
 
@@ -192,7 +194,10 @@ export function buildVisual(vehicle) {
         S.add(rbox(0.012, h, z0 - z1, 0.005, 1), m, { p: [s * (hw + 0.002), ty + dy, (z0 + z1) / 2], c });
       }
     }
-    cargoBox = [b.cargo.x1 - b.cargo.x0, 0.03, b.cargo.z1 - b.cargo.z0, (b.cargo.x0 + b.cargo.x1) / 2, fl + 0.012, (b.cargo.z0 + b.cargo.z1) / 2];
+    // The whole bed opening up to a hand's width above the rails, so aiming over a bed wall finds it (a soft target:
+    // anything secured inside it still wins the raycast, see targets.js)
+    const cx = hw - 0.05, cz0 = zT + 0.04, cz1 = b.zBedFront - 0.01, cy1 = top + 0.3;
+    cargoBox = [cx * 2, cy1 - fl, cz1 - cz0, 0, (cy1 + fl) / 2, (cz0 + cz1) / 2];
   } else {
     const zR = P[at.D2][0][2];
     S.add(capXY(stationOutline(grid, at.D2), zR, -1), paint);
@@ -265,7 +270,7 @@ export function buildVisual(vehicle) {
   // ── Hood furniture ──
   const hoodOrigin = [0, b.hoodYRear + 0.02, b.zHoodRear];
   for (const s of [1, -1]) HB.add(box(0.03, 0.02, b.zNose - b.zHoodRear - 0.2), M.vcRough, { p: [s * 0.3, lerp(b.hoodYFront, b.hoodYRear, 0.55) - 0.02, (b.zNose + b.zHoodRear) / 2], r: [(b.hoodYFront - b.hoodYRear) / (b.zNose - b.zHoodRear) * -1, s * 0.25, 0], c: 0x1f1c1a });
-  if (!sedan) HB.add(rbox(0.5, 0.012, 0.03, 0.004, 1), M.vcMetal, { p: [0, b.hoodYFront + 0.058, b.zNose - 0.05], c: CHROME });
+  if (!sedan) HB.add(rbox(0.5, 0.012, 0.03, 0.004, 1), M.vcMetal, { p: [0, b.hoodYFront + 0.023 + (b.hoodCrown ?? 0.035), b.zNose - 0.05], c: CHROME });
   else HB.add(rbox(0.03, 0.05, 0.03, 0.008, 1), M.vcMetal, { p: [0, b.hoodYFront + 0.07, b.zNose - 0.06], c: CHROME });
 
   // ── Interior ──
@@ -330,6 +335,41 @@ export function buildVisual(vehicle) {
   ab.add(sphere(0.13, 10, 8), M.vcRough, { s: [1, 1, 1.1], c: 0x221e1b });
   ab.build(axle); root.add(axle);
 
+  // ── Crash damage (Vehicle.addDent): skin vertices near a dent are pushed in with a crumpled, faceted finish and the
+  // paint scraped toward bare metal; a heavy front hit or a crushed roof cracks the windscreen. Wheels, axle and the engine-bay
+  // parts are left alone. Undamaged positions are kept per geometry so a repair can rebuild from them.
+  const keepOut = new Set([...hubs.map((h) => h.hub), axle, bays.engine.g, bays.battery.g, bays.radiator.g, fuelCap, cargo]);
+  const painted = new Set([paint, paintF, paintR]);
+  const skinMeshes = () => {
+    const out = [];
+    const walk = (o) => { if (keepOut.has(o)) return; if (o.isMesh && o.material !== M.proxy) out.push(o); for (const c of o.children) walk(c); };
+    walk(root);
+    return out;
+  };
+  let quiet = true;                                       // rebuilding saved dents makes no noise
+  const dent = (dn) => {
+    vehicle.mesh.updateMatrixWorld(true);
+    _inv.copy(vehicle.mesh.matrixWorld).invert();
+    for (const mesh of skinMeshes()) dentMesh(mesh, _m4.multiplyMatrices(_inv, mesh.matrixWorld), dn, painted.has(mesh.material));
+    if ((dn.depth > 0.14 && dn.p[2] > b.zCowl - 0.35) || (dn.depth > 0.1 && dn.n[1] < -0.5)) {    // heavy front hit or roof crush
+      let broke = false;
+      root.traverse((o) => { if (o.isMesh && o.material === M.glassFront) { o.material = crackedGlass(); broke = true; } });
+      if (broke && quiet === false) sfx("glass_crack", { pos: vehicle.localToWorld(0, b.beltY - def.comH + 0.2, b.zCowl - 0.2) });
+    }
+  };
+  const resetDents = () => {
+    for (const mesh of skinMeshes()) {
+      const g = mesh.geometry, o = g.userData.undamaged;
+      if (!o) continue;
+      g.attributes.position.array.set(o.p); g.attributes.normal.array.set(o.n); if (o.c) g.attributes.color.array.set(o.c);
+      for (const k of ["position", "normal", "color"]) if (g.attributes[k]) g.attributes[k].needsUpdate = true;
+      g.computeBoundingSphere();
+      if (mesh.material === crackedGlass()) mesh.material = M.glassFront;
+    }
+    for (const dn of vehicle.dents) dent(dn);
+  };
+  const bursts = [];
+
   const rig = {
     root, parts: { doors: { driver: doorL, passenger: doorR, hood: hoodG, [def.rearDoor]: rearG }, fuelCap, oilCap, dipstick, radCap, hubs: hubs.map((h) => h.hub), bays: { engine: bays.engine.g, battery: bays.battery.g, radiator: bays.radiator.g }, cargo },
     lampPos, lamps, needles: interior.needles, _n: { speed: 0, rpm: 0, fuel: 0, temp: 0 }, lit: false,
@@ -361,6 +401,18 @@ export function buildVisual(vehicle) {
 
     update(dt, env) {
       const d = def, v = vehicle;
+      // Crash damage and sparks
+      if (v.dentsReset) { v.dentsReset = false; v.dentQ.length = 0; resetDents(); }
+      while (v.dentQ.length) {
+        const dn = v.dentQ.shift(), at = v.localToWorld(dn.p[0], dn.p[1], dn.p[2]);
+        if (dn.depth > 0) {
+          quiet = false; dent(dn); quiet = true;
+          sfx("metal_crunch", { pos: at, vol: Math.min(1, 0.3 + dn.depth * 4) });
+          if (dn.depth > 0.06) sfx("debris", { pos: at, vol: Math.min(1, dn.depth * 5) });
+        } else if (dn.sparks > 0) sfx("metal_scrape", { pos: at, vol: Math.min(1, 0.35 + dn.sparks * 0.65) });
+        if (dn.sparks > 0 && vehicle.mesh.parent) bursts.push(sparkBurst(vehicle, dn));
+      }
+      for (let i = bursts.length - 1; i >= 0; i--) if (!bursts[i].step(dt)) bursts.splice(i, 1);
       // Wheels and suspension
       for (let i = 0; i < 4; i++) {
         const h = hubs[i], w = v.wheels[i], item = v.slots[WHEEL_SLOTS[i]];
@@ -415,10 +467,178 @@ export function buildVisual(vehicle) {
       vehicle.mesh.remove(root);
       disposeTree(root);
       for (const m of Object.values(lamps)) m.dispose();
+      for (const bu of bursts) bu.dispose();
+      bursts.length = 0;
     },
   };
   rig.slotsChanged();
+  vehicle.dentQ.length = 0; vehicle.dentsReset = false;
+  for (const dn of vehicle.dents) dent(dn);
   return rig;
+}
+
+// ── Crash damage helpers ──
+const _m4 = new THREE.Matrix4(), _inv = new THREE.Matrix4(), _mi = new THREE.Matrix4(), _a = new THREE.Vector3(), _b = new THREE.Vector3();
+const _c = new THREE.Vector3(), _e1 = new THREE.Vector3(), _e2 = new THREE.Vector3(), _n3 = new THREE.Matrix3();
+// Smooth 0..1 noise (continuous, so split edges stay closed when pushed)
+const crumple = (x, y, z) => 0.5 + 0.25 * Math.sin(x * 9.1 + z * 6.3 + y * 2.1) * Math.sin(y * 11.7 - z * 4.1) + 0.25 * Math.sin(x * 17.3 - y * 5.9 + z * 13.1);
+const MAX_LEVEL = 4;
+
+// Split the triangles near dent dn (in mesh space: P, radius R) until no edge is longer than MAX_EDGE, so a flat panel
+// built from a few big triangles can crumple. Every attribute, and the undamaged copy, is interpolated alike.
+function densify(g, toLocal, dn) {
+  const pos = g.attributes.position, A = pos.array, und = g.userData.undamaged;
+  const near = new Uint8Array(pos.count / 3);
+  let count = 0;
+  const P = dn.p, N = dn.n, R = dn.r + 0.1, MAX_EDGE = Math.min(0.16, Math.max(0.1, dn.r / 5));
+  const Nm = g.attributes.normal.array;
+  const seg = (ax, ay, az, bx, by, bz) => {               // distance from the dent centre to a segment (vehicle-local)
+    const ex = bx - ax, ey = by - ay, ez = bz - az, l2 = ex * ex + ey * ey + ez * ez;
+    const t = l2 > 0 ? Math.max(0, Math.min(1, ((P[0] - ax) * ex + (P[1] - ay) * ey + (P[2] - az) * ez) / l2)) : 0;
+    return Math.hypot(ax + ex * t - P[0], ay + ey * t - P[1], az + ez * t - P[2]);
+  };
+  const L = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  for (let t = 0; t < near.length; t++) {
+    for (let j = 0; j < 3; j++) L[j].fromArray(A, (t * 3 + j) * 3).applyMatrix4(toLocal);
+    const long = Math.max(L[0].distanceTo(L[1]), L[1].distanceTo(L[2]), L[2].distanceTo(L[0]));
+    if (long <= MAX_EDGE) continue;
+    // Only skin facing the blow: interior trim and panels turned away from it stay coarse
+    _b.fromArray(Nm, t * 9).applyMatrix3(_n3.setFromMatrix4(toLocal)).normalize();
+    if (_b.x * N[0] + _b.y * N[1] + _b.z * N[2] > -0.25) continue;
+    const cx = (L[0].x + L[1].x + L[2].x) / 3 - P[0], cy = (L[0].y + L[1].y + L[2].y) / 3 - P[1], cz = (L[0].z + L[1].z + L[2].z) / 3 - P[2];
+    if (cx * N[0] + cy * N[1] + cz * N[2] > 0.25) continue;              // deep inside: interior, not skin
+    const d = Math.min(seg(L[0].x, L[0].y, L[0].z, L[1].x, L[1].y, L[1].z), seg(L[1].x, L[1].y, L[1].z, L[2].x, L[2].y, L[2].z), seg(L[2].x, L[2].y, L[2].z, L[0].x, L[0].y, L[0].z));
+    if (d < R) { near[t] = 1; count++; }
+  }
+  if (!count) return;
+  // Parallel float arrays: [array, itemSize, normalise after lerp]
+  const chans = [[A, 3, false], [g.attributes.normal.array, 3, true], [g.attributes.uv.array, 2, false]];
+  if (g.attributes.color) chans.push([g.attributes.color.array, 3, false]);
+  chans.push([und.p, 3, false], [und.n, 3, true]);
+  if (und.c) chans.push([und.c, 3, false]);
+  const outs = chans.map(() => []);
+  const vert = (ci, i) => { const [arr, k] = chans[ci]; return Array.from(arr.subarray(i * k, i * k + k)); };
+  const mid = (ci, a, b) => { const m = a.map((x, k) => (x + b[k]) / 2); if (chans[ci][2]) { const l = Math.hypot(...m) || 1; return m.map((x) => x / l); } return m; };
+  const emit = (tri) => { for (let ci = 0; ci < chans.length; ci++) for (const v of tri[ci]) outs[ci].push(...v); };
+  const split = (tri, lvl) => {                          // tri[ci] = [v0, v1, v2]
+    const p = tri[0];
+    const e = Math.max(Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1], p[0][2] - p[1][2]), Math.hypot(p[1][0] - p[2][0], p[1][1] - p[2][1], p[1][2] - p[2][2]), Math.hypot(p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2]));
+    if (lvl >= MAX_LEVEL || e * toLocalScale(toLocal) <= MAX_EDGE) { emit(tri); return; }
+    const m = tri.map((v, ci) => [mid(ci, v[0], v[1]), mid(ci, v[1], v[2]), mid(ci, v[2], v[0])]);
+    const sub = (f) => tri.map((v, ci) => f(v, m[ci]));
+    split(sub((v, q) => [v[0], q[0], q[2]]), lvl + 1); split(sub((v, q) => [q[0], v[1], q[1]]), lvl + 1);
+    split(sub((v, q) => [q[2], q[1], v[2]]), lvl + 1); split(sub((v, q) => [q[0], q[1], q[2]]), lvl + 1);
+  };
+  for (let t = 0; t < near.length; t++) {
+    const tri = chans.map((_, ci) => [vert(ci, t * 3), vert(ci, t * 3 + 1), vert(ci, t * 3 + 2)]);
+    if (near[t]) split(tri, 0); else emit(tri);
+  }
+  const names = ["position", "normal", "uv"];
+  if (g.attributes.color) names.push("color");
+  names.forEach((nm, ci) => g.setAttribute(nm, new THREE.BufferAttribute(new Float32Array(outs[ci]), chans[ci][1])));
+  let ci = names.length;
+  und.p = new Float32Array(outs[ci++]); und.n = new Float32Array(outs[ci++]); if (und.c) und.c = new Float32Array(outs[ci++]);
+}
+const toLocalScale = (m) => Math.hypot(m.elements[0], m.elements[1], m.elements[2]);
+const BARE = new THREE.Color(0x6b625a);           // scraped paint: grey primer and bare steel
+
+// Push one mesh's vertices near dent dn inward. toLocal: mesh space → vehicle-local.
+function dentMesh(mesh, toLocal, dn, scrape) {
+  const g = mesh.geometry;
+  if (!g.boundingSphere) g.computeBoundingSphere();
+  _a.copy(g.boundingSphere.center).applyMatrix4(toLocal);
+  const P = dn.p, N = dn.n, r = dn.r, r2 = r * r;
+  if (Math.hypot(_a.x - P[0], _a.y - P[1], _a.z - P[2]) - g.boundingSphere.radius > r + 0.4) return;
+  const pos = g.attributes.position, nor = g.attributes.normal, col = g.attributes.color, A = pos.array;
+  if (!g.userData.undamaged) g.userData.undamaged = { p: A.slice(), n: nor.array.slice(), c: col ? col.array.slice() : null };
+  densify(g, toLocal, dn);
+  return dentPush(mesh, toLocal, dn, scrape);
+}
+function dentPush(mesh, toLocal, dn, scrape) {
+  const g = mesh.geometry, P = dn.p, N = dn.n, r = dn.r, r2 = r * r;
+  const pos = g.attributes.position, nor = g.attributes.normal, col = g.attributes.color, A = pos.array;
+  _mi.copy(toLocal).invert();
+  const tris = new Uint8Array(pos.count / 3);
+  let any = false;
+  for (let i = 0; i < pos.count; i++) {
+    _a.fromArray(A, i * 3).applyMatrix4(toLocal);
+    const dx = _a.x - P[0], dy = _a.y - P[1], dz = _a.z - P[2];
+    const along = dx * N[0] + dy * N[1] + dz * N[2];               // > 0: already inside the skin
+    if (along > 0.4 || along < -0.25) continue;
+    const lat2 = dx * dx + dy * dy + dz * dz - along * along;
+    if (lat2 >= r2) continue;
+    const w = (1 - lat2 / r2) ** 2, k = along < 0.12 ? 1 : 1 - (along - 0.12) / 0.28;
+    const h = crumple(_a.x, _a.y, _a.z), amt = dn.depth * w * k * (0.55 + 0.9 * h);
+    _a.x += N[0] * amt; _a.y += N[1] * amt - (h - 0.5) * amt * 0.4; _a.z += N[2] * amt;
+    _a.applyMatrix4(_mi);
+    A[i * 3] = _a.x; A[i * 3 + 1] = _a.y; A[i * 3 + 2] = _a.z;
+    tris[(i / 3) | 0] = 1; any = true;
+    if (scrape && col) {
+      const t = Math.min(0.75, w * k * dn.depth * 7), C = col.array;
+      C[i * 3] += (BARE.r - C[i * 3]) * t; C[i * 3 + 1] += (BARE.g - C[i * 3 + 1]) * t; C[i * 3 + 2] += (BARE.b - C[i * 3 + 2]) * t;
+    }
+  }
+  if (!any) return;
+  // Crumpled metal: the moved triangles shade flat
+  const Nn = nor.array;
+  for (let t = 0; t < tris.length; t++) {
+    if (!tris[t]) continue;
+    const o = t * 9;
+    _a.fromArray(A, o); _b.fromArray(A, o + 3); _c.fromArray(A, o + 6);
+    _e1.subVectors(_b, _a); _e2.subVectors(_c, _a); _e1.cross(_e2);
+    const l = _e1.length();
+    if (l < 1e-12) continue;
+    _e1.multiplyScalar(1 / l);
+    if (_e1.dot(_b.fromArray(Nn, o)) < 0) _e1.negate();             // keep the side the panel faced
+    for (let j = 0; j < 3; j++) { Nn[o + j * 3] = _e1.x; Nn[o + j * 3 + 1] = _e1.y; Nn[o + j * 3 + 2] = _e1.z; }
+  }
+  pos.needsUpdate = true; nor.needsUpdate = true; if (col) col.needsUpdate = true;
+  g.computeBoundingSphere();
+}
+
+// Sparks and a few paint / glass chips flying off the struck point, in world space (the vehicle's parent)
+const SPARK_MAT = typeof document !== "undefined" ? new THREE.PointsMaterial({ color: 0xffb455, size: 0.07, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }) : null;
+const CHIP_MAT = typeof document !== "undefined" ? new THREE.PointsMaterial({ color: 0x3a3632, size: 0.045, transparent: true, depthWrite: false }) : null;
+function sparkBurst(vehicle, dn) {
+  const n = Math.round(10 + 40 * dn.sparks), chips = dn.depth > 0 ? Math.round(6 + 20 * Math.min(1, dn.depth * 6)) : 0;
+  const at = vehicle.localToWorld(dn.p[0], dn.p[1], dn.p[2]);
+  const out = new THREE.Vector3(-dn.n[0], -dn.n[1], -dn.n[2]).applyQuaternion(vehicle.quat);   // away from the body
+  const make = (count, mat, speed) => {
+    const p = new Float32Array(count * 3), v = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      p[i * 3] = at.x; p[i * 3 + 1] = at.y; p[i * 3 + 2] = at.z;
+      const s = speed * (0.4 + Math.random());
+      v[i * 3] = vehicle.vel.x * 0.6 + (out.x + (Math.random() - 0.5) * 1.6) * s;
+      v[i * 3 + 1] = (Math.abs(out.y) + 0.4 + Math.random()) * s * 0.7;
+      v[i * 3 + 2] = vehicle.vel.z * 0.6 + (out.z + (Math.random() - 0.5) * 1.6) * s;
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.BufferAttribute(p, 3));
+    const pts = new THREE.Points(g, mat.clone()); pts.frustumCulled = false;
+    vehicle.mesh.parent.add(pts);
+    return { pts, v };
+  };
+  const sets = [make(n, SPARK_MAT, 5)];
+  if (chips) sets.push(make(chips, CHIP_MAT, 2.5));
+  let t = 0;
+  const LIFE = 0.7;
+  return {
+    step(dt) {
+      t += dt;
+      for (const s of sets) {
+        const p = s.pts.geometry.attributes.position, a = p.array, v = s.v;
+        for (let i = 0; i < a.length; i += 3) {
+          v[i + 1] -= 9.8 * dt;
+          a[i] += v[i] * dt; a[i + 1] += v[i + 1] * dt; a[i + 2] += v[i + 2] * dt;
+        }
+        p.needsUpdate = true;
+        s.pts.material.opacity = Math.max(0, 1 - t / LIFE);
+      }
+      if (t < LIFE) return true;
+      this.dispose();
+      return false;
+    },
+    dispose() { for (const s of sets) { s.pts.parent?.remove(s.pts); s.pts.geometry.dispose(); s.pts.material.dispose(); } sets.length = 0; },
+  };
 }
 
 function disposeTree(o) { o.traverse((c) => { if (c.geometry) c.geometry.dispose(); }); }

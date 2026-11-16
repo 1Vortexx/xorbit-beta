@@ -1,8 +1,8 @@
 {
   "menu": [
-    { "file": "mojang, please hire me(menu).mp3", "title": "mojang, please hire me", "artist": "Jaobi" },
-    { "file": "you used to remember(menu2).mp3", "title": "you used to remember", "artist": "Jaobi" },
-    { "file": "if i made music for the nether(menu3).mp3", "title": "if i made music for the nether", "artist": "Jaobi" }
+    { "cover": "covers/mojang-please-hire-me.png", "file": "mojang, please hire me(menu).mp3", "title": "mojang, please hire me", "artist": "Jaobi" },
+    { "cover": "covers/you-used-to-remember.png", "file": "you used to remember(menu2).mp3", "title": "you used to remember", "artist": "Jaobi" },
+    { "cover": "covers/if-i-made-music-for-the-nether.png", "file": "if i made music for the nether(menu3).mp3", "title": "if i made music for the nether", "artist": "Jaobi" }
   ],
   "radio": [],
   "options": { "menuOrder": "sequence", "radioOrder": "shuffle", "loop": true }

@@ -304,6 +304,25 @@ test("collides with static colliders and other vehicles", () => {
   assert(a.pos.z + a.def.zFront < b.pos.z + b.def.zRear + 0.6, "no pass-through");
 });
 
+test("crashes leave dents that save, deepen and repair", () => {
+  const wall = { kind: "box", x: 0, z: 40, hx: 10, hz: 0.5, yaw: 0 };
+  const v = started(mk(undefined, { getColliders: () => [wall] }));
+  v.vel.set(0, 0, 20); run(v, 3, inp(0));
+  assert(v.dents.length >= 1, "a dent at the front");
+  const dn = v.dents[0];
+  assert(dn.p[2] > v.def.zFront - 0.6 && dn.n[2] < -0.9, "front dent pushed backwards: " + JSON.stringify(dn));
+  assert(v.dentQ.length >= 1, "queued for the rig");
+  const depth = dn.depth;
+  v.addDent(dn.p[0] + 0.1, dn.p[1], dn.p[2], 0, 0, -1, 20);
+  assert.equal(v.dents.length, 1, "a nearby blow deepens the same dent"); assert(v.dents[0].depth > depth);
+  const back = new Vehicle({ id: "copy", type: "pickup", seed: 1 }).restore(JSON.parse(JSON.stringify(v.serialize())));
+  assert.deepEqual(back.dents, v.dents, "dents saved");
+  v.bodyCond = 40; v.repair(60, "body");
+  assert.equal(v.dents.length, 0, "a full repair straightens the body"); assert(v.dentsReset);
+  const n = new Vehicle({ id: "fresh", type: "pickup", seed: 1 }); n.addDent(0, 0, 2.5, 0, 0, -1, 1);
+  assert.equal(n.dents.length, 0, "taps leave no mark");
+});
+
 test("manual gearbox and parking brake", () => {
   const v = started(mk()); v.setGearMode("manual");
   assert.equal(v.telemetry().gear, "1");

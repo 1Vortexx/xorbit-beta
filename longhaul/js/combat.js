@@ -7,8 +7,28 @@ import { ITEMS } from "./items.js";
 import { emit, notify, sfx } from "./core/bus.js";
 import { circleFree } from "./core/collide.js";
 
-const _eye = new THREE.Vector3(), _dir = new THREE.Vector3();
+const _eye = new THREE.Vector3(), _dir = new THREE.Vector3(), _mz = new THREE.Vector3(), _end = new THREE.Vector3();
 const NPC_R = 0.34;
+const TRACER_T = 0.09, FLASH_T = 0.05, PUFF_T = 0.45;           // seconds each effect stays visible
+const DUST = 0xb7a483, BLOOD = 0x6e1010;
+
+// Soft four-pointed muzzle flash with a hot core
+function flashTexture() {
+  const S = 64, c = document.createElement("canvas"); c.width = c.height = S;
+  const g = c.getContext("2d"), h = S / 2;
+  const core = g.createRadialGradient(h, h, 0, h, h, h);
+  core.addColorStop(0, "rgba(255,255,240,1)"); core.addColorStop(0.25, "rgba(255,210,120,0.9)"); core.addColorStop(1, "rgba(255,140,40,0)");
+  g.fillStyle = core; g.beginPath(); g.arc(h, h, h * 0.6, 0, Math.PI * 2); g.fill();
+  g.globalCompositeOperation = "lighter";
+  for (let i = 0; i < 4; i++) {
+    g.save(); g.translate(h, h); g.rotate(i * Math.PI / 2 + 0.3);
+    const ray = g.createLinearGradient(0, 0, h, 0);
+    ray.addColorStop(0, "rgba(255,230,160,0.9)"); ray.addColorStop(1, "rgba(255,150,50,0)");
+    g.fillStyle = ray; g.beginPath(); g.moveTo(0, -4); g.lineTo(h, 0); g.lineTo(0, 4); g.fill(); g.restore();
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
 
 export class Combat {
   // deps: { player, npcs, pockets, props, interaction, getColliders(x, z, r), root (render-space parent for the flash) }
@@ -20,6 +40,51 @@ export class Combat {
     // Always in the scene at zero intensity: adding or hiding a light mid-fight would recompile every shader
     this.flash = null;
     if (this.root) { this.flash = new THREE.PointLight(0xffc070, 0, 9, 2); this.flash.castShadow = false; this.root.add(this.flash); }
+    this.fx = this.root ? this._makeFx() : null;
+  }
+  // Visible shots: a muzzle-flash sprite, a few pooled tracer streaks and impact puffs (dust, or blood on a person).
+  // Everything stays in the scene at zero opacity so the first shot does not stall on shader compiles.
+  _makeFx() {
+    const add = (o) => { o.frustumCulled = false; o.renderOrder = 3; this.root.add(o); return o; };
+    const basic = (color) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false });
+    const flashMat = new THREE.SpriteMaterial({ map: flashTexture(), color: 0xffd08a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+    const flash = add(new THREE.Sprite(flashMat));
+    const tg = new THREE.CylinderGeometry(0.011, 0.011, 1, 5, 1, true).rotateX(Math.PI / 2).translate(0, 0, 0.5);
+    const tracers = [], puffs = [];
+    for (let i = 0; i < 4; i++) {
+      const m = basic(0xffe2a8); m.blending = THREE.AdditiveBlending;
+      tracers.push({ mesh: add(new THREE.Mesh(tg, m)), t: 0 });
+    }
+    const pg = new THREE.IcosahedronGeometry(0.1, 1);
+    for (let i = 0; i < 6; i++) puffs.push({ mesh: add(new THREE.Mesh(pg, basic(DUST))), t: 0 });
+    return { flash, flashT: 0, tracers, puffs, ti: 0, pi: 0, geos: [tg, pg] };
+  }
+  _shotFx(from, to, hitNpc, hitSomething) {
+    const fx = this.fx;
+    if (!fx) return;
+    fx.flash.position.copy(from).addScaledVector(_dir, 0.05); fx.flash.scale.setScalar(0.13 + Math.random() * 0.06);
+    fx.flash.material.rotation = Math.random() * Math.PI; fx.flash.material.opacity = 1; fx.flashT = FLASH_T;
+    const len = from.distanceTo(to);
+    if (len > 0.3) {
+      const tr = fx.tracers[fx.ti++ % fx.tracers.length];
+      tr.mesh.position.copy(from); tr.mesh.lookAt(to); tr.mesh.scale.set(1, 1, len);
+      tr.mesh.material.opacity = 0.85; tr.t = TRACER_T;
+    }
+    if (hitSomething) {
+      const pf = fx.puffs[fx.pi++ % fx.puffs.length];
+      pf.mesh.position.copy(to); pf.mesh.scale.setScalar(0.6); pf.mesh.material.color.setHex(hitNpc ? BLOOD : DUST);
+      pf.mesh.material.opacity = 0.8; pf.t = PUFF_T;
+    }
+  }
+  _fadeFx(dt) {
+    const fx = this.fx;
+    if (!fx) return;
+    if (fx.flashT > 0 && (fx.flashT -= dt) <= 0) fx.flash.material.opacity = 0;
+    for (const tr of fx.tracers) if (tr.t > 0) { tr.t -= dt; tr.mesh.material.opacity = tr.t > 0 ? 0.85 * tr.t / TRACER_T : 0; }
+    for (const pf of fx.puffs) if (pf.t > 0) {
+      pf.t -= dt; const k = Math.max(0, pf.t / PUFF_T);
+      pf.mesh.material.opacity = 0.8 * k; pf.mesh.scale.setScalar(0.6 + (1 - k) * 2.4); pf.mesh.position.y += dt * 0.25;
+    }
   }
   get weapon() { const h = this.interaction.held; return h && ITEMS[h.type]?.weapon ? h : null; }
 
@@ -27,6 +92,7 @@ export class Combat {
   update(dt, input) {
     this.cool = Math.max(0, this.cool - dt);
     if (this.flashT > 0 && (this.flashT -= dt) <= 0 && this.flash) this.flash.intensity = 0;
+    this._fadeFx(dt);
     const item = this.weapon;
     if (!item) { this.reloading = 0; return; }
     const w = ITEMS[item.type].weapon;
@@ -53,6 +119,7 @@ export class Combat {
   // ── melee ──
   _stab(w) {
     sfx("knife_swing");
+    this.interaction.kick?.("melee");
     const n = this._aimNpc(w.range, 0.5);
     if (!n) return;
     sfx("knife_hit", { pos: n.pos });
@@ -75,6 +142,15 @@ export class Combat {
     _dir.normalize();
     const hit = this._rayNpc(_eye, _dir, w.range);
     if (hit) this.damage(hit.npc, w.dmg, item.type);
+    // Where the round stops (person, wall / vehicle, ground or out of range), for the tracer and the impact puff
+    this._hitKind = null;
+    const stop = hit ? hit.t : this._wallAt(_eye, _dir, w.range, null);
+    _end.copy(_eye).addScaledVector(_dir, stop >= 0 ? stop : w.range);
+    if (hit) sfx("bullet_flesh", { pos: _end.clone() });
+    else if (stop >= 0) sfx(this._hitKind === "ground" ? "bullet_dirt" : "ricochet", { pos: _end.clone() });
+    this.interaction.muzzle ? this.interaction.muzzle(_mz) : _mz.copy(_eye);
+    this._shotFx(_mz, _end, !!hit, stop >= 0);
+    this.interaction.kick?.("gun");
   }
 
   reload(item) {
@@ -143,17 +219,21 @@ export class Combat {
       if (y < npc.pos.y || y > npc.pos.y + top) continue;
       if (!best || t < best.t) best = { npc, t };
     }
-    if (best && this._blocked(o, d, best.t, best.npc)) return null;
+    if (best && this._wallAt(o, d, best.t - 0.3, best.npc) >= 0) return null;
     return best;
   }
-  _blocked(o, d, len, npc) {
+  // Distance along the ray to the first wall / vehicle / building or the ground within len, or −1. npc: a target
+  // whose own vehicle does not count (someone shot through their open window).
+  _wallAt(o, d, len, npc) {
     const cols = this.getColliders((o.x + d.x * len / 2), (o.z + d.z * len / 2), len / 2 + 2)
-      .filter((c) => !c.npc && !(npc.seat && c.vehicle && c.vehicle.id === npc.seat.vehicle));
-    for (let t = 0.4; t < len - 0.3; t += 0.2) {
-      const y = o.y + d.y * t;
-      if (!circleFree(o.x + d.x * t, o.z + d.z * t, 0.02, cols, y - 0.02, y + 0.02)) return true;
+      .filter((c) => !c.npc && !(npc && npc.seat && c.vehicle && c.vehicle.id === npc.seat.vehicle));
+    const ground = this.props.heightAt ? (x, z) => this.props.heightAt(x, z) : null;
+    for (let t = 0.4; t < len; t += t < 20 ? 0.2 : 0.4) {
+      const x = o.x + d.x * t, y = o.y + d.y * t, z = o.z + d.z * t;
+      if (ground && y < ground(x, z)) { this._hitKind = "ground"; return t; }
+      if (!circleFree(x, z, 0.02, cols, y - 0.02, y + 0.02)) { this._hitKind = "solid"; return t; }
     }
-    return false;
+    return -1;
   }
 
   // Wound a person. Anyone can call this (hitchhikers fighting back, tests).
@@ -170,5 +250,14 @@ export class Combat {
     this.flash.position.copy(_eye).addScaledVector(_dir, 0.9);      // worldRoot children use absolute coordinates
     this.flash.intensity = 30; this.flashT = 0.05;
   }
-  dispose() { if (this.flash) { this.flash.parent?.remove(this.flash); this.flash.dispose(); this.flash = null; } }
+  dispose() {
+    if (this.flash) { this.flash.parent?.remove(this.flash); this.flash.dispose(); this.flash = null; }
+    if (this.fx) {
+      const fx = this.fx;
+      fx.flash.material.map.dispose();
+      for (const o of [fx.flash, ...fx.tracers.map((t) => t.mesh), ...fx.puffs.map((p) => p.mesh)]) { o.parent?.remove(o); o.material.dispose(); }
+      for (const g of fx.geos) g.dispose();
+      this.fx = null;
+    }
+  }
 }

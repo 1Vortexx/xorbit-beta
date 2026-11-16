@@ -4,9 +4,26 @@ Newest first. In game: main menu → What's New. Source of truth: `js/changelog.
 
 ## v2.3.1 (2026-11-15)
 
+### New
+
+- Crash damage you can see: panels dent and crumple where you hit, paint scrapes back to bare metal, a hard front hit or a roll cracks the windscreen, and sparks and debris fly off the impact. Dents deepen with repeated hits, stay with the vehicle when you save, and a repair kit straightens them out.
+- Crash sounds: sheet metal crunching as panels fold, a grinding screech when you scrape along something, the windscreen cracking and debris pattering down. Bullets now land with a thud in the dirt, a ricochet off walls and vehicles, or a hit on a person.
+- Crash physics: a blow now pitches and rolls the vehicle as well as spinning it, and scraping along a wall or another car drags speed off with a shower of sparks.
+
 ### Changed
 
+- The Brazos (and the Poopmobile) has a more true-to-life body: rounded front corners, a sculpted shoulder crease, a rolled-under rocker, proper fender cut-outs over the wheels with a rolled edge, a crowned hood and roof and a more raked windscreen.
+- Guns are held up and aimed where you look, kick back when they fire, and every shot shows a muzzle flash, a tracer and a puff of dust (or blood) where the round lands. The knife jabs forward when you stab.
+- Number keys 1–6 now take that pocket's item straight into your hands (they used to only select the pocket). Press the same key again to put it away, or another to swap; what you were holding goes back to its pocket.
 - The menu music is credited to its artist, Jaobi, on the Credits screen and in the now-playing line.
+- The Credits screen lists the people behind the game: 1Vortexx (creator and developer) and contributors Michael Lester, ZeeAnimate and $GlitzerX$.
+
+### Fixed
+
+- Guns gave no sign of firing: they were carried like any loose object and nothing came out of the barrel.
+- Bullets passed through the ground. Rounds now stop at hills and the road as well as at walls and vehicles.
+- The wheel arches were filled in, leaving the tyres tucked under flat slab sides. They are open now.
+- Loading the truck bed only worked when looking almost straight down into it. Aim anywhere over the bed, over a side rail or at the closed tailgate to secure what you're holding; things already in the bed can still be picked out.
 
 ## v2.3 – Self-Defence (2026-11-15)
 

@@ -27,6 +27,7 @@ import { initInput, drive, foot, took, isDown, endFrame, releaseAll, requestLock
 import { hud } from "./ui/hud.js";
 import { photo } from "./photo.js";
 import { Combat } from "./combat.js";
+import { devmap, DEV_AVAILABLE, DEV_SEED } from "./devmap.js";
 import { menus } from "./ui/menus.js";
 import { loadSave, writeSave, clearSave, previewOf, loadPrefs, savePrefs, loadBest, saveBest } from "./save.js";
 import { watchPerformance, settingsFor, embedded } from "./perf.js";
@@ -173,7 +174,7 @@ function showMain() {
   const best = loadBest();
   menus.show("main", {
     save: previewOf(save), saveError: error, hostAvailable: false, difficulties: DIFF_LIST, units: prefs.units,
-    best, music: musicInfo(),
+    best, music: musicInfo(), dev: DEV_AVAILABLE,
   });
   music.setContext("menu");
   music.resume();
@@ -183,6 +184,13 @@ const handlers = {
   onFirstGesture() { audio.start(); music.unlock(); applyPrefs(); },
   onContinue() { const { save } = loadSave(); if (save) startJourney(save); },
   onNewJourney(opts) { clearSave(); startJourney(null, opts); },
+  // A throwaway test range; your saved journey is left alone
+  onDevMap() {
+    devmap.active = true;                     // before startJourney: its closing persist() must not touch the save
+    startJourney(null, { seed: DEV_SEED, difficulty: "easy", hostile: false });
+    devmap.setup({ player, props, npcs, vehicles, world, pockets, interaction, needs, wallet, site: startSite(), playing: () => state === "playing" });
+    look.yaw = player.yaw;
+  },
   onDialogueChoice(id) {
     const spec = dialogueSpec;
     if (state !== "ui" || !spec?.choices.some(c => c.id === id && !c.disabled)) return;
@@ -205,6 +213,7 @@ const handlers = {
 };
 
 function toMenu() {
+  devmap.teardown();
   audio.update({ active: false, wind: 0, rain: 0 });
   releaseAll();
   if (document.pointerLockElement) document.exitPointerLock();
@@ -330,7 +339,7 @@ function snapshot() {
   };
 }
 function persist() {
-  if (state === "menu" || state === "dead" || state === "boot") return;
+  if (state === "menu" || state === "dead" || state === "boot" || devmap.active) return;     // the dev map is never saved
   const ok = writeSave(snapshot());
   if (!ok && !saveFailed) notify("Saving failed: this browser is blocking or out of storage. Progress will be lost when you leave.", { level: "crit", icon: "⚠", key: "save", ms: 9000 });
   saveFailed = !ok;
@@ -370,8 +379,10 @@ function resume() {
 function die(cause, summary = []) {
   state = "dead";
   const best = loadBest() || { km: 0, days: 0 };
-  if (game.stats.distance / 1000 > best.km) saveBest({ km: game.stats.distance / 1000, days: game.day });
-  clearSave();
+  if (!devmap.active) {                      // dying on the dev map leaves your real journey and record alone
+    if (game.stats.distance / 1000 > best.km) saveBest({ km: game.stats.distance / 1000, days: game.day });
+    clearSave();
+  }
   audio.suspend();
   music.setContext("none");
   hud.setNowPlaying?.(null); // the menu track is fading out; do not announce it over the game

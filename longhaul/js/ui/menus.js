@@ -113,8 +113,14 @@ const keys = (labels) => labels.map((l) => `<kbd>${esc(l)}</kbd>`).join("");
 const k = (action) => `<kbd>${esc(bindingLabel(action))}</kbd>`;
 const item = (act, label, opts = {}) =>
   `<button type="button" class="lh-item${opts.cls ? " " + opts.cls : ""}" data-act="${act}"${opts.arg != null ? ` data-arg="${esc(opts.arg)}"` : ""}${opts.focus ? " data-autofocus" : ""}><span>${esc(label)}</span>${opts.sub ? `<small>${esc(opts.sub)}</small>` : ""}</button>`;
-const npLine = () => `<div class="lh-np"${nowPlaying ? "" : " hidden"}>${icon("note")}<span>${nowPlaying ? esc(npText()) : ""}</span></div>`;
-const npText = () => (nowPlaying.artist ? `${nowPlaying.title} – ${nowPlaying.artist}` : nowPlaying.title);
+function npContents() {
+  if (!nowPlaying) return "";
+  const { cover, title, artist } = nowPlaying;
+  return `${cover ? `<img class="lh-cover" src="${esc(cover)}" alt="">` : icon("note")}
+    <div class="lh-np-copy"><strong class="lh-track-title">${esc(title)}</strong>
+      ${artist ? `<span>${esc(artist)}</span>` : ""}</div>`;
+}
+const npLine = (inline = false) => `<div class="lh-np${inline ? " lh-np-inline" : ""}"${nowPlaying ? "" : " hidden"}>${npContents()}</div>`;
 const navHint = (back) => `<div class="lh-keys" aria-hidden="true"><span><kbd>↑</kbd><kbd>↓</kbd> Select</span><span><kbd>Enter</kbd> Confirm</span>${back ? `<span><kbd>Esc</kbd> ${back}</span>` : ""}</div>`;
 const panel = (title, body, opts = {}) => `
   <section class="lh-panel${opts.cls ? " " + opts.cls : ""}" role="dialog" aria-label="${esc(title)}">
@@ -150,7 +156,7 @@ function bindingTable(groups) {
   const names = { always: "Always", drive: "Driving", foot: "On foot", photo: "Photo mode" };
   return groups.map((g) => {
     const rows = BINDINGS.filter((b) => b.group === g && !/^slot[2-6]$/.test(b.action)).map((b) =>
-      b.action === "slot1" ? `<div><span>Select pocket 1–6</span><span class="lh-kc"><kbd>1</kbd>–<kbd>6</kbd></span></div>`
+      b.action === "slot1" ? `<div><span>Pocket 1–6 to hands</span><span class="lh-kc"><kbd>1</kbd>–<kbd>6</kbd></span></div>`
         : `<div><span>${esc(b.desc)}</span><span class="lh-kc">${keys(bindingLabels(b))}</span></div>`).join("");
     return `<h3>${names[g]}</h3><div class="lh-binds">${rows}</div>`;
   }).join("");
@@ -180,6 +186,7 @@ const SCREENS = {
     }
     h += item("newjourney", "New Journey", { focus: !s });
     h += item("settings", "Settings") + item("controls", "Controls / How to Play") + item("whatsnew", "What's New", { sub: "v" + CHANGELOG[0].version }) + item("credits", "Credits");
+    if (data.dev) h += item("devmap", "Dev Map", { sub: "test range · not saved", cls: "lh-quiet" });
     if (data.hostAvailable) h += item("host", "Return to X-ORBIT", { cls: "lh-quiet" });
     h += `</nav>`;
     const b = data.best;
@@ -288,7 +295,7 @@ const SCREENS = {
         + rowWrap("Soundtrack", "", m && m.tracks === 0
           ? `<span class="lh-empty">No soundtrack files installed</span>`
           : `<button type="button" class="lh-btn lh-btn-s" data-act="radionext">${icon("skip")}<span>Next track</span></button>`, "", "trk")
-        + `<div class="lh-np lh-np-inline"${nowPlaying ? "" : " hidden"}>${icon("note")}<span>${nowPlaying ? esc(npText()) : ""}</span></div>`;
+        + npLine(true);
     } else {
       body = toggle("a11y.reduceMotion", "Reduce motion", "Turns off menu and HUD animation and blinking. Your system setting is respected as well.")
         + toggle("a11y.highContrast", "High-contrast HUD", "Solid black plates, white text and stronger borders.");
@@ -317,7 +324,7 @@ const SCREENS = {
         <ul class="lh-list"><li>${k("grab")} picks up what you are looking at and puts it down again. ${k("throw")} throws it.</li>
         <li>Hold ${k("rotate")} and move the mouse to turn the item in your hands.</li>
         <li>${k("stow")} moves the held item into a pocket if it fits, or takes the selected pocket item into your hands.</li>
-        <li>${k("slot1")}–${k("slot6")} or the mouse wheel select a pocket. ${k("consume")} eats, drinks or uses the selected item.</li>
+        <li>${k("slot1")}–${k("slot6")} take that pocket's item into your hands; press the same key again to put it away, or another to swap. The mouse wheel only selects a pocket. ${k("consume")} eats, drinks or uses the selected item.</li>
         <li><b>Securing cargo:</b> aim a held item at a truck bed or boot floor. An outline shows where it will sit; put it down to secure it. Secured cargo rides with the vehicle and does not fall out. Pick it up to free it.</li></ul>`;
     } else if (t === "maint") {
       body = `<p class="lh-lead">The truck is worn. Keep an eye on the gauges and carry spares.</p>
@@ -369,6 +376,11 @@ const SCREENS = {
         <h3>Long Haul</h3>
         <p>A desert road-trip survival sandbox, made for X-ORBIT.</p>
         <p>All models, textures and sound effects are generated procedurally by the game.</p>
+        <h3>People</h3>
+        <ul class="lh-tracks">
+          <li><b>1Vortexx</b><span>Creator and developer</span><em></em></li>
+          ${["Michael Lester", "ZeeAnimate", "$GlitzerX$"].map((n) => `<li><b>${esc(n)}</b><span>Contributor</span><em></em></li>`).join("")}
+        </ul>
         <h3>Technology</h3>
         <p><b>Three.js</b> r170 – 3D rendering library. MIT License, © 2010–2024 three.js authors.</p>
         <h3>Music</h3>${music}
@@ -559,6 +571,7 @@ function act(e, a) {
     case "continue": sfx("ui_click"); call("onContinue"); break;
     case "newjourney": case "settings": case "controls": case "credits": case "whatsnew": push(a); break;
     case "host": sfx("ui_click"); call("onReturnToHost"); break;
+    case "devmap": sfx("ui_click"); call("onDevMap"); break;
     case "back": back(); break;
     case "resume": sfx("ui_click"); call("onResume"); break;
     case "savemenu": sfx("ui_click"); call("onSaveAndMenu"); break;
@@ -731,11 +744,11 @@ export const menus = {
     if (m) m.textContent = message;
   },
   setNowPlaying(np) {
-    nowPlaying = np && np.title ? { title: String(np.title), artist: np.artist ? String(np.artist) : "" } : null;
+    nowPlaying = np && np.title ? { title: String(np.title), cover: np.cover, artist: np.artist ? String(np.artist) : "" } : null;
     if (!root) return;
     for (const n of root.querySelectorAll(".lh-np")) {
       n.hidden = !nowPlaying;
-      n.querySelector("span").textContent = nowPlaying ? npText() : "";
+      n.innerHTML = npContents();
     }
   },
   get current() { return rootName; },   // the name passed to show(), or null

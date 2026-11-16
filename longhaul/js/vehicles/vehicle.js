@@ -24,6 +24,8 @@ const fdir = new THREE.Vector3(), sdir = new THREE.Vector3(), up = new THREE.Vec
 const force = new THREE.Vector3(), torque = new THREE.Vector3(), tire = new THREE.Vector3(), rApply = new THREE.Vector3();
 const qInv = new THREE.Quaternion(), dq = new THREE.Quaternion(), qSteer = new THREE.Quaternion();
 const m4 = new THREE.Matrix4(), pt = { x: 0, z: 0 }, hit = {};
+const qc = new THREE.Quaternion(), tq = new THREE.Vector3();
+const MAX_DENTS = 24, SCRAPE_EVERY = 0.07;      // dents kept per vehicle; seconds between scrape-spark bursts
 
 export class Vehicle {
   // opts: { id, type, seed, getColliders(x, z, r) }
@@ -66,6 +68,10 @@ export class Vehicle {
     this._contacts = new Map();      // breakable-collider contact episodes: key → { response, time }
     this._rolledT = 0;               // seconds spent on its side / roof
     this.impactSum = 0;              // total crash severity ever taken (monotonic, never reset: for NPC drivers)
+    this.dents = [];                 // visible crash damage: [{ p: [x,y,z], n: [x,y,z] inward, r, depth }] vehicle-local, saved
+    this.dentQ = [];                 // new dents / spark bursts for the visual rig to apply (models.js)
+    this.dentsReset = false;         // set by repair(): the rig rebuilds the body from the undamaged shape
+    this._scrapeT = 0;
     this.lastEnv = DEFAULT_ENV;
 
     // Drivetrain
@@ -164,7 +170,15 @@ export class Vehicle {
   }
   // Repair kit: restores body and engine condition
   repair(amount = 40, what = "both") {
-    if (what !== "engine") this.bodyCond = Math.min(100, this.bodyCond + amount);
+    if (what !== "engine") {
+      // Dents shrink by the share of the missing body condition this repair restores
+      const f = clamp(amount / Math.max(1, 100 - this.bodyCond), 0, 1);
+      if (this.dents.length && f > 0) {
+        this.dents = this.dents.map((dn) => ({ ...dn, depth: dn.depth * (1 - f) })).filter((dn) => dn.depth > 0.008);
+        this.dentsReset = true;
+      }
+      this.bodyCond = Math.min(100, this.bodyCond + amount);
+    }
     const e = this.slots.engine;
     if (e && what !== "body") e.cond = Math.min(100, e.cond + amount);
     this.modified();
@@ -459,7 +473,14 @@ export class Vehicle {
       hullHits++;
       v1.copy(this.angVel).cross(r);
       vp.copy(this.vel).add(v1);
-      if (vp.y < -4) { const sev = (-vp.y - 4) * 3 * dt * 60; this.impact += sev; this.impactSum += sev; applyImpact(this, sev, false); }
+      if (vp.y < -4) {
+        const sev = (-vp.y - 4) * 3 * dt * 60; this.impact += sev; this.impactSum += sev; applyImpact(this, sev, false);
+        // Landing on the roof or a side crushes it: the ground pushes the skin in (world up, in the vehicle's frame)
+        if (h !== d.hull[0] && h !== d.hull[1] && h !== d.hull[2] && h !== d.hull[3]) {
+          v1.copy(Y).applyQuaternion(qc.copy(this.quat).invert());
+          this.addDent(h[0], h[1], h[2], v1.x, v1.y, v1.z, sev * 2.5);
+        }
+      }
       const fN = Math.max(0, d.mass * 55 * Math.min(pen, 0.5) - d.mass * 4.5 * Math.min(0, vp.y));
       const fr = Math.min(d.mass * 1.1, (0.7 * fN) / (Math.hypot(vp.x, vp.z) + 0.3));
       v2.set(-vp.x * fr, fN, -vp.z * fr);
@@ -592,6 +613,31 @@ export class Vehicle {
         ov.vel.x -= (nx * J) / ov.def.mass; ov.vel.z -= (nz * J) / ov.def.mass;
         ov.angVel.y -= (oxn * J) / ov.def.inertia[1];
       }
+      // Scraping: friction along the contact, capped by the normal impulse (sliding along a wall bleeds speed)
+      const tx = -nz, tz = nx;
+      let vt = vpx * tx + vpz * tz;
+      if (ov) vt -= (ov.vel.x + ov.angVel.y * oz) * tx + (ov.vel.z - ov.angVel.y * ox) * tz;
+      const rxt = rz * tx - rx * tz, oxt = oz * tx - ox * tz;
+      const invMt = 1 / d.mass + (rxt * rxt) / d.inertia[1] + (ov ? 1 / ov.def.mass + (oxt * oxt) / ov.def.inertia[1] : 0);
+      const Jt = clamp(-vt / invMt, -0.4 * J, 0.4 * J);
+      this.vel.x += (tx * Jt) / d.mass; this.vel.z += (tz * Jt) / d.mass; this.angVel.y += (rxt * Jt) / d.inertia[1];
+      if (ov) { ov.vel.x -= (tx * Jt) / ov.def.mass; ov.vel.z -= (tz * Jt) / ov.def.mass; ov.angVel.y -= (oxt * Jt) / ov.def.inertia[1]; }
+      // Where on the body the blow lands: the overlap of the two height ranges, kept on the panels
+      const clo = Math.max(y0, collider.y0 ?? -1e9), chi = Math.min(y1, collider.y1 ?? 1e9);
+      const cy = clamp(chi > clo ? (clo + chi) / 2 : (y0 + y1) / 2, base + d.body.rockerY + 0.1, base + d.body.creaseY + 0.06);
+      // Pitch and roll: the impulse acts at that height, not through the centre of mass (yaw is handled above)
+      const hy = cy - this.pos.y;
+      qc.copy(this.quat).invert();
+      tq.set(hy * nz * J, 0, -hy * nx * J).applyQuaternion(qc);
+      tq.set(tq.x / d.inertia[0], 0, tq.z / d.inertia[2]);
+      const tl = tq.length(); if (tl > 2.5) tq.multiplyScalar(2.5 / tl);
+      this.angVel.add(tq.applyQuaternion(this.quat));
+      // Contact point and inward normal in this vehicle's frame (+x left, +z forward)
+      const lx = rx * fwd.z - rz * fwd.x, lz = rx * fwd.x + rz * fwd.z, nlx = nx * fwd.z - nz * fwd.x, nlz = nx * fwd.x + nz * fwd.z;
+      if (Math.abs(vt) > 4 && -vn < 2.5 && this.time - this._scrapeT > SCRAPE_EVERY) {
+        this._scrapeT = this.time;
+        this._queue({ p: [lx, hy, lz], n: [nlx, 0, nlz], r: 0, depth: 0, sparks: Math.min(1, Math.abs(vt) / 15) });
+      }
       if (-vn > 2.5 && first) {
         const sev = (-vn - 2.5) * 2.2 * response;
         if (ov) {
@@ -602,12 +648,39 @@ export class Vehicle {
           const oy = ov.yaw, os = Math.sin(oy), oc = Math.cos(oy);
           ov.impact += theirs; ov.impactSum += theirs;
           impactAt(ov, theirs, ox * oc - oz * os, ox * os + oz * oc);
+          this.addDent(lx, hy, lz, nlx, 0, nlz, mine);
+          ov.addDent(ox * oc - oz * os, cy - ov.pos.y, ox * os + oz * oc, -(nx * oc - nz * os), 0, -(nx * os + nz * oc), theirs);
         } else {
           this.impact += sev; this.impactSum += sev; applyImpact(this, sev, ci === 0);
+          this.addDent(lx, hy, lz, nlx, 0, nlz, sev);
         }
       }
     }
   }
+
+  // A visible dent where the body was struck: (lx, ly, lz) vehicle-local point, (nx, ny, nz) inward direction, crash
+  // severity as in applyImpact. A blow close to an earlier dent deepens it. The rig applies dentQ to the meshes.
+  addDent(lx, ly, lz, nx, ny, nz, sev) {
+    if (!(sev >= 3)) return;
+    const nl = Math.hypot(nx, ny, nz) || 1;
+    const depth = Math.min(0.34, 0.04 + sev * 0.0085), r = Math.min(0.95, 0.34 + sev * 0.013);
+    let near = null, best = 0.4;
+    for (const dn of this.dents) { const g = Math.hypot(dn.p[0] - lx, dn.p[1] - ly, dn.p[2] - lz); if (g < best) { best = g; near = dn; } }
+    if (!near && this.dents.length >= MAX_DENTS) {
+      for (const dn of this.dents) { const g = Math.hypot(dn.p[0] - lx, dn.p[1] - ly, dn.p[2] - lz); if (!near || g < best) { best = g; near = dn; } }
+    }
+    if (near) {
+      const was = near.depth;
+      near.depth = Math.min(0.4, Math.hypot(was, depth)); near.r = Math.max(near.r, r);
+      this._queue({ p: near.p, n: near.n, r: near.r, depth: near.depth - was, sparks: Math.min(1, sev / 30) });
+    } else {
+      const dn = { p: [lx, ly, lz], n: [nx / nl, ny / nl, nz / nl], r, depth };
+      this.dents.push(dn);
+      this._queue({ ...dn, sparks: Math.min(1, sev / 30) });
+    }
+    this.modified();
+  }
+  _queue(e) { if (this.dentQ.length < 16) this.dentQ.push(e); }
 
   // ── Per frame ───────────────────────────────────────────────────────────────────────────
   update(dt, env = DEFAULT_ENV, focus = null) {
@@ -636,6 +709,7 @@ export class Vehicle {
       ign: this.ign === "running" ? "running" : "off", gear: this.gear, sel: this.sel, gearMode: this.gearMode,
       parkingBrake: this.parkingBrake, lights: this.lights, rpm: this.rpm, steer: this.steer, time: this.time,
       pinned: this.pinned || undefined, impactSum: this.impactSum, rolledT: this._rolledT,
+      dents: this.dents.length ? this.dents.map((dn) => ({ p: dn.p.slice(), n: dn.n.slice(), r: dn.r, depth: dn.depth })) : undefined,
     };
   }
   restore(rec) {
@@ -664,6 +738,10 @@ export class Vehicle {
     this.occupied = !!this.seats.driver;
     this.upright = v1.copy(Y).applyQuaternion(this.quat).y;
     this.pinned = !!rec.pinned; this.impactSum = num(rec.impactSum, 0, 0); this._rolledT = num(rec.rolledT, 0, 0);
+    const vec3 = (a) => Array.isArray(a) && a.length === 3 && a.every((x) => typeof x === "number" && isFinite(x));
+    this.dents = Array.isArray(rec.dents) ? rec.dents.filter((dn) => dn && vec3(dn.p) && vec3(dn.n)).slice(0, MAX_DENTS)
+      .map((dn) => ({ p: dn.p.slice(), n: dn.n.slice(), r: num(dn.r, 0.4, 0.1, 0.95), depth: num(dn.depth, 0, 0, 0.4) })) : [];
+    this.dentQ = []; this.dentsReset = true;
     this._contacts.clear();
     this.wake(); this.rig?.slotsChanged();
     return this;

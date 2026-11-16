@@ -16,10 +16,13 @@ export const ROWS = 16;
 
 export function makeGrid(def) {
   const b = def.body, sedan = b.style === "sedan";
-  const hw0 = b.hw, taperN = sedan ? 0.055 : 0.035, taperT = sedan ? 0.045 : 0.02;
+  // Optional shape knobs (body.*): noseTaper / noseLen round the front corners in plan, tailTaper the rear ones,
+  // side = x insets of the six lower-body rows, flare = arch lip (rolledArch: plain fender cut-outs instead), hoodCrown / roofCrown / roofCrownX = panel crown.
+  const hw0 = b.hw, taperN = b.noseTaper ?? (sedan ? 0.055 : 0.035), taperT = b.tailTaper ?? (sedan ? 0.045 : 0.02);
+  const nl = b.noseLen ?? 0.7, side = b.side || [0.07, 0.012, 0.004, 0, 0.008, 0.035], flare = b.flare ?? 0.02;
   const hwAt = (z) => {
-    const tn = clamp((z - (b.zNose - 0.7)) / 0.7, 0, 1), tt = clamp(((b.zTail + 0.6) - z) / 0.6, 0, 1);
-    return hw0 - taperN * tn * tn - taperT * tt * tt;
+    const tn = clamp((z - (b.zNose - nl)) / nl, 0, 1), tt = clamp(((b.zTail + 0.6) - z) / 0.6, 0, 1);
+    return hw0 - taperN * Math.pow(tn, 2.4) - taperT * tt * tt;
   };
   const archTop = (z) => {
     let a = -1;
@@ -32,13 +35,23 @@ export function makeGrid(def) {
   const lower = (z, inset = 0) => {
     const hw = hwAt(z) - inset;
     const ys = [b.rockerY - 0.03, b.rockerY + 0.04, lerp(b.rockerY, b.creaseY, 0.52), b.creaseY, lerp(b.creaseY, b.beltY, 0.6), b.beltY];
-    const xs = [hw - 0.07, hw - 0.012, hw - 0.004, hw, hw - 0.008, hw - 0.035];
+    const xs = side.map((d) => hw - d);
     const a = Math.min(archTop(z), b.creaseY - 0.035);
-    if (a > ys[0]) {
+    if (a > ys[0] && b.rolledArch) {
+      // Fender cut-out: the side panel runs flat down to the opening and its edge rolls in under itself (row 0 is the
+      // hem, tucked inside the opening), no flare
+      const y0 = ys.slice(), x0 = xs.slice();
+      const prof = (y) => { let k = 0; while (k < 4 && y > y0[k + 1]) k++; return lerp(x0[k], x0[k + 1], clamp((y - y0[k]) / (y0[k + 1] - y0[k]), 0, 1)); };
+      const y2 = lerp(a, y0[3], 0.5);
+      ys[0] = a + 0.025; xs[0] = prof(a) - 0.05;
+      ys[1] = a; xs[1] = prof(a);
+      ys[2] = y2; xs[2] = prof(y2);
+    } else if (a > ys[0]) {
+      const y0 = ys[0];
       for (let j = 0; j < 3; j++) {
-        const t = (ys[j] - ys[0]) / (ys[3] - ys[0]);
+        const t = (ys[j] - y0) / (ys[3] - y0);
         ys[j] = a + t * (ys[3] - a);
-        xs[j] = hw - 0.004 + 0.02 * (1 - t) - (j === 0 ? 0.012 : 0);       // flared lip around the opening
+        xs[j] = hw - 0.004 + flare * (1 - t) - (j === 0 ? 0.012 : 0);      // flared lip around the opening
       }
     }
     return xs.map((x, j) => [x, ys[j], z]);
@@ -49,7 +62,7 @@ export function makeGrid(def) {
     for (const k of K8) out.push([k * (hw - seam), y + 0.024 + crown * (1 - k * k) - inset * 0.6, z]);
     return out;
   };
-  const hood = (z, inset) => lid(z, hoodY(z), 0.035, 0.18, inset);
+  const hood = (z, inset) => lid(z, hoodY(z), b.hoodCrown ?? 0.035, 0.18, inset);
   const deck = (z, inset) => lid(z, b.deckY, 0.022, 0.16, inset);
   // Glass base line across the body (front cowl: dir +1 bulges forward, rear cowl: −1)
   const cowl = (z, y, dir) => {
@@ -57,7 +70,7 @@ export function makeGrid(def) {
     for (const k of KG) out.push([k * (hw - 0.135), y + 0.036, z + dir * 0.055 * (1 - k * k)]);
     return out;
   };
-  const roofY = (z) => b.roofY - 0.03 * Math.pow((z - (b.zRoofFront + b.zRoofRear) / 2) / ((b.zRoofFront - b.zRoofRear) / 2 + 0.2), 2);
+  const roofY = (z) => b.roofY - (b.roofCrown ?? 0.03) * Math.pow((z - (b.zRoofFront + b.zRoofRear) / 2) / ((b.zRoofFront - b.zRoofRear) / 2 + 0.2), 2);
   // Top edge of the glass + pillar (rows 8..15), dir as above
   const header = (cw, z, dir) => {
     const ry = roofY(z), out = [cw[0], cw[1], [b.roofHw + 0.02, ry - 0.075, z + dir * 0.02]];
@@ -67,7 +80,7 @@ export function makeGrid(def) {
   const cab = (zSill, zTop) => {
     const ry = roofY(zTop);
     const out = [[hwAt(zSill) - 0.05, b.beltY + 0.03, zSill], [b.roofHw + 0.035, ry - 0.11, zTop], [b.roofHw + 0.02, ry - 0.075, zTop], [b.roofHw - 0.05, ry - 0.02, zTop]];
-    for (const k of KR) out.push([k * (b.roofHw - 0.05), ry - 0.02 + 0.024 * (1 - k * k), zTop]);
+    for (const k of KR) out.push([k * (b.roofHw - 0.05), ry - 0.02 + (b.roofCrownX ?? 0.024) * (1 - k * k), zTop]);
     return out;
   };
   const bed = (z, inset = 0) => {
@@ -188,7 +201,7 @@ export function buildShell(def) {
   const span = (i, i0, i1) => (i - i0) / Math.max(1, i1 - i0);
   const panels = loft(grid.P, {
     part: partFn(def, grid),
-    hardRows: new Set([0, 6, 7, 8]),
+    hardRows: new Set(b.creaseHard ? [0, 1, 3, 6, 7, 8] : [0, 6, 7, 8]),
     hardStations: new Set([at.N1, at.C, at.A, at.Sa2, at.Sb, at.Sc ?? -1, at.B0 ?? -1, at.B1 ?? -1, at.Sd2 ?? -1, at.Se ?? -1, at.A2 ?? -1, at.C2 ?? -1, at.D0 ?? -1, at.D1 ?? -1]),
     zRange: [def.zFront, def.zRear], vScale: 3.2,
     inner: (name) => {

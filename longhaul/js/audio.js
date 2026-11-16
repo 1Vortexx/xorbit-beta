@@ -155,6 +155,44 @@ const SFX = {
     tone(190, 0.32, { type: "triangle", vol: 0.13 * v, to: 70 });
     if (v > 0.55) burst(0.2, { f: 3800, vol: 0.16 * v, delay: 0.04 });
   },
+  // Crash damage (vehicles/models.js): a panel folding, a body sliding along something, the windscreen going, bits falling
+  metal_crunch: (o) => {
+    const v = vol01(o.vol, 0.7);
+    burst(0.3, { type: "lowpass", f: 520, vol: 0.34 * v, to: 160 });
+    tone(140, 0.26, { type: "triangle", vol: 0.12 * v, to: 55 });
+    for (let i = 0; i < 4 + v * 6; i++) {                   // the crumple: stuttering creaks and tears of sheet steel
+      burst(0.04 + Math.random() * 0.05, { f: 700 + Math.random() * 1800, q: 4 + Math.random() * 6, vol: (0.07 + Math.random() * 0.08) * v, delay: Math.random() * 0.22 });
+    }
+    burst(0.18, { f: 2900, q: 1.2, vol: 0.08 * v, delay: 0.03, to: 1500 });
+  },
+  metal_scrape: (o) => {
+    const v = vol01(o.vol, 0.6);
+    burst(0.11, { f: 1900 + Math.random() * 900, q: 7, vol: 0.12 * v, attack: 0.01 });
+    burst(0.11, { f: 4200 + Math.random() * 1500, q: 3, vol: 0.05 * v, attack: 0.01 });
+    burst(0.1, { type: "lowpass", f: 300, vol: 0.12 * v });
+  },
+  glass_crack: (o) => {
+    const v = vol01(o.vol, 0.9);
+    burst(0.05, { f: 5200, q: 1.5, vol: 0.32 * v });
+    burst(0.16, { f: 3200, q: 2.5, vol: 0.12 * v, delay: 0.02, to: 6000 });
+    for (let i = 0; i < 7; i++) tone(3000 + Math.random() * 4200, 0.05 + Math.random() * 0.08, { vol: 0.025 * v, delay: 0.03 + Math.random() * 0.3 });
+  },
+  debris: (o) => {         // chips and trim pattering down
+    const v = vol01(o.vol, 0.6);
+    for (let i = 0; i < 5 + v * 7; i++) {
+      const at = 0.18 + Math.random() * 0.55;
+      burst(0.03, { f: 1600 + Math.random() * 2600, q: 5, vol: 0.06 * v, delay: at });
+      if (Math.random() < 0.4) tone(1800 + Math.random() * 2400, 0.06, { vol: 0.012 * v, delay: at });
+    }
+  },
+  // Where a bullet stops
+  bullet_dirt: (o) => { const v = vol01(o.vol, 1); burst(0.09, { type: "lowpass", f: 600, vol: 0.2 * v }); burst(0.05, { f: 1500, q: 0.8, vol: 0.06 * v }); },
+  bullet_flesh: (o) => { const v = vol01(o.vol, 1); burst(0.07, { type: "lowpass", f: 380, vol: 0.32 * v }); tone(90, 0.08, { vol: 0.12 * v, to: 50 }); },
+  ricochet: (o) => {
+    const v = vol01(o.vol, 1);
+    burst(0.03, { f: 3400, q: 2, vol: 0.18 * v });
+    tone(2600 + Math.random() * 1600, 0.32, { type: "sine", vol: 0.045 * v, to: 900 + Math.random() * 400, delay: 0.01 });
+  },
   ui_click: () => tone(660, 0.07, { vol: 0.04 }),
   ui_back: () => tone(440, 0.08, { vol: 0.04, to: 330 }),
   error: () => { tone(180, 0.12, { type: "square", vol: 0.04 }); tone(140, 0.14, { type: "square", vol: 0.04, delay: 0.1 }); },

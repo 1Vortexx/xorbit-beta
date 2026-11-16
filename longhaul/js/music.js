@@ -38,6 +38,7 @@ function readList(raw, name) {
     const why = playable(t.file);
     if (why) { problems.push(`${t.file}: ${why}`); continue; }
     out.push({
+      cover: t.cover ? "audio/music/" + t.cover : null,
       file: t.file, url: "audio/music/" + t.file.replace(/^\.?\//, ""),
       title: t.title || t.file.replace(/\.[^.]+$/, ""), artist: t.artist || "", license: t.license || "", bad: false,
     });
@@ -106,7 +107,7 @@ function startTrack(name, dir = 1) {
   ensureTimer();
   const p = el.play();
   if (p && p.catch) p.catch(() => { /* blocked until a user gesture; resume() retries */ });
-  emit("music:track", { title: track.title, artist: track.artist, list: name });
+  emit("music:track", { title: track.title, artist: track.artist, cover: track.cover, list: name });
 }
 
 function sync() {
@@ -158,7 +159,7 @@ export const music = {
     const all = [...lists.menu, ...lists.radio];
     return {
       loaded, menu: lists.menu.length, radio: lists.radio.length, tracks: all.length,
-      current: current ? { title: current.track.title, artist: current.track.artist, list: current.list } : null,
+      current: current ? { title: current.track.title, artist: current.track.artist, cover: current.track.cover, list: current.list } : null,
       credits: all.filter((t, i) => all.findIndex((u) => u.file === t.file) === i).map((t) => ({ title: t.title, artist: t.artist, license: t.license })),
       problems: [...problems],
     };

@@ -141,7 +141,8 @@ export function registerTargets(v, rig) {
     },
   });
   const rear = d.rearDoor;
-  addTarget(P.doors[rear], { id: id(rear), name: rear === "trunk" ? "Trunk lid" : "Tailgate", reach: 2.8, actions: doorActs(rear, rear === "trunk" ? "trunk" : "tailgate", false) });
+  const rearT = addTarget(P.doors[rear], { id: id(rear), name: rear === "trunk" ? "Trunk lid" : "Tailgate", reach: 2.8, actions: doorActs(rear, rear === "trunk" ? "trunk" : "tailgate", false) });
+  if (rear === "tailgate") { rearT.cargoOf = v; rearT.cargoName = "Truck bed"; }   // load over a closed tailgate
 
   addTarget(P.fuelCap, {
     id: id("fuel"), name: "Fuel filler", reach: 2.6,
@@ -187,7 +188,7 @@ export function registerTargets(v, rig) {
   }
   const cargoName = d.body.style === "pickup" ? "Truck bed" : "Trunk";
   const cargo = addTarget(P.cargo, {
-    id: id("cargo"), name: cargoName, reach: 3.2,
+    id: id("cargo"), name: cargoName, reach: 3.2, soft: d.body.style === "pickup",
     info: () => ({ note: v.cargo.items.length ? `${v.cargo.items.length} item${v.cargo.items.length > 1 ? "s" : ""} secured` : "empty" }),
     actions: () => [],
   });

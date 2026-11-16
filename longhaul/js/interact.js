@@ -14,7 +14,7 @@ const KEYS = ["use", "alt", "grab"];
 const EMPTY = new Set();
 const UP = new THREE.Vector3(0, 1, 0);
 const _eye = new THREE.Vector3(), _dir = new THREE.Vector3(), _v = new THREE.Vector3(), _w = new THREE.Vector3();
-const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _p = { x: 0, z: 0 };
+const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _p = { x: 0, z: 0 }, _e = new THREE.Euler();
 const yawOf = (q) => Math.atan2(2 * (q.x * q.z + q.w * q.y), 1 - 2 * (q.x * q.x + q.y * q.y));
 const val = (v) => (typeof v === "function" ? v() : v);
 
@@ -24,6 +24,7 @@ export class Interaction {
     this.heldProp = null;
     this.rel = new THREE.Quaternion().setFromAxisAngle(UP, Math.PI);   // held orientation relative to the player's yaw
     this.rot = null;            // look angles frozen while rotating
+    this.recoil = 0;            // held weapon kick (1 = just fired) and knife thrust, decaying; see kick()
     this.rotating = false;
     this.active = null;         // { key, target, kind: "hold"|"tick", t, label, progress }
     this.lock = {};             // key → wait for release
@@ -78,7 +79,7 @@ export class Interaction {
     this._letGo();
     return this.props.remove(p);
   }
-  _letGo() { this.heldProp = null; this.player.encumbered = false; this.cargo = null; this.placeSpot = null; this._hideGhost(); }
+  _letGo() { this.fromSlot = null; this.heldProp = null; this.player.encumbered = false; this.cargo = null; this.placeSpot = null; this._hideGhost(); }
   // Let the held item fall where it is
   dropHeld(vel) {
     const p = this.heldProp;
@@ -170,6 +171,7 @@ export class Interaction {
     this.rotating = rotating;
     pl.lookLocked = rotating;
     if (!p) return;
+    if (p.def.weapon) { this._aimPose(p, dt); return; }
     // orientation
     _q.setFromAxisAngle(UP, pl.yaw).multiply(this.rel);
     p.quat.slerp(_q, 1 - Math.exp(-18 * dt));
@@ -185,6 +187,27 @@ export class Interaction {
     if (p.pos.y - p.hy < floor) p.pos.y = floor + p.hy;
     p.mesh.position.copy(p.pos);
     p.vel.set(0, 0, 0);
+  }
+
+  // A held weapon sits low and to the right, pointing where the player looks (meshes model the barrel / blade along
+  // −z), with a short kick back and up after each shot or a jab forward after a stab.
+  _aimPose(p, dt) {
+    const pl = this.player, len = p.def.size[2], k = this.recoil;
+    this.recoil = Math.sign(k) * Math.max(0, Math.abs(k) - dt * 7);
+    pl.eye(_eye);
+    p.quat.setFromEuler(_e.set(-pl.pitch + Math.max(0, k) * 0.14, pl.yaw + Math.PI, 0, "YXZ"));
+    const fwd = 0.34 + len / 2 - Math.max(0, k) * 0.05 + Math.max(0, -k) * 0.22;
+    p.pos.copy(_eye).add(_v.set(0.17, -0.17 - len * 0.04, -fwd).applyQuaternion(p.quat));
+    p.mesh.position.copy(p.pos);
+    p.vel.set(0, 0, 0);
+  }
+  // Recoil after a shot ("gun") or a forward jab ("melee")
+  kick(kind) { this.recoil = kind === "melee" ? -1 : 1; }
+  // Absolute muzzle (or blade tip) of the held weapon
+  muzzle(out) {
+    const p = this.heldProp;
+    if (!p) return this.player.eye(out);
+    return out.set(0, 0.012, -p.def.size[2] / 2 - 0.02).applyQuaternion(p.quat).add(p.pos);
   }
 
   // ── cargo ghost / placement ───────────────────────────────────────────────────────────────────────────────
@@ -287,7 +310,7 @@ export class Interaction {
   update(dt, input = {}) {
     const pressed = input.pressed || EMPTY, down = input.held || EMPTY;
     const ctx = this.ctx, pl = this.player;
-    for (let i = 0; i < 6; i++) if (pressed.has("slot" + (i + 1))) this.pockets.select(i);
+    for (let i = 0; i < 6; i++) if (pressed.has("slot" + (i + 1))) this._quickSlot(i);
     if (pressed.has("flashlight")) {
       if (ctx.hasTool("flashlight")) { this.flashlight = !this.flashlight; sfx("ui_click"); }
       else notify("You don't have a flashlight", { level: "warn", key: "flashlight" });
@@ -318,7 +341,7 @@ export class Interaction {
       const place = this.cargo = this.cargoPlacement(cargoV, hit.point, p, !!target.cargoOf);
       if (place) {
         this._showGhost(place);
-        let where = (target.cargoOf && val(target.name)) || (cargoV.def && cargoV.def.name) || "cargo area";
+        let where = (target.cargoOf && (target.cargoName || val(target.name))) || (cargoV.def && cargoV.def.name) || "cargo area";
         where = /^the /i.test(where) ? where : "the " + where.toLowerCase();
         cargoHint = place.ok ? `LMB – secure it in ${where}. Secured cargo rides along.` : `Won't fit in ${where}: ${place.reason}`;
         list = list.filter((a) => a.key !== "grab");
@@ -419,6 +442,34 @@ export class Interaction {
       if (r.ok && r.consumed) this.consumeHeld();
     }
   }
+  // 1–6: that pocket's item into the hands. The same key again puts it back; another key swaps, returning what you
+  // hold to the pocket it came from (or any free one). Something too big for a pocket stays in the hands.
+  _quickSlot(i) {
+    const pk = this.pockets, p = this.heldProp;
+    if (p) {
+      const from = this.fromSlot ?? -1;
+      if (!p.def.pocket) {
+        pk.select(i);
+        notify(`Hands full: drop the ${p.def.name.toLowerCase()} first`, { level: "warn", key: "pockets" }); sfx("error");
+        return;
+      }
+      const fits = (k) => k >= 0 && (pk.slots[k] === null || (pk.slots[k].type === p.item.type && pk.slots[k].stack));
+      let home = fits(from) ? from : pk.slots.findIndex((s, k) => k !== i && s === null);
+      if (home < 0 && pk.slots[i] === null) home = i;          // only the pressed pocket is free: put it there, hands empty
+      if (home < 0) { notify("Your pockets are full", { level: "warn", key: "pockets" }); sfx("error"); return; }
+      pk.select(home);
+      if (!pk.add(p.item)) { notify("Your pockets are full", { level: "warn", key: "pockets" }); sfx("error"); return; }
+      this.consumeHeld();
+      sfx("pickup", { vol: 0.6 });
+      if (from === i || home === i) { pk.select(i); return; }    // same key: just put it away
+    }
+    pk.select(i);
+    const item = pk.take(i);
+    if (!item) return;
+    if (!this.giveHeld(item)) { pk.add(item); return; }
+    this.fromSlot = i;
+    sfx("pickup", { vol: 0.6 });
+  }
   // Q: held → pocket, or selected pocket item → hands
   _stow() {
     const p = this.heldProp;
@@ -428,9 +479,9 @@ export class Interaction {
       this.consumeHeld();
       sfx("pickup", { vol: 0.6 });
     } else {
-      const item = this.pockets.take();
+      const slot = this.pockets.selected, item = this.pockets.take();
       if (!item) return;
-      if (!this.giveHeld(item)) this.pockets.add(item); else sfx("pickup", { vol: 0.6 });
+      if (!this.giveHeld(item)) this.pockets.add(item); else { this.fromSlot = slot; sfx("pickup", { vol: 0.6 }); }
     }
   }
   _toolNearby(type) {

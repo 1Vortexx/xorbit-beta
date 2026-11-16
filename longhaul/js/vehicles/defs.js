@@ -72,10 +72,13 @@ const pickupBase = () => ({
   doorHinge: { driver: { open: 1.15 }, passenger: { open: 1.15 }, hood: { open: 0.95 }, tailgate: { open: 1.5 } },
   body: {
     style: "pickup",
-    hw: 0.97, rockerY: 0.42, creaseY: 0.99, beltY: 1.27, hoodYFront: 1.2, hoodYRear: 1.275, roofY: 1.8, roofHw: 0.8,
-    zNose: 2.38, zHoodRear: 1.03, zCowl: 0.95, zRoofFront: 0.5, zDoorFront: 0.82, zDoorRear: -0.52,
+    hw: 0.97, rockerY: 0.42, creaseY: 1.0, beltY: 1.27, hoodYFront: 1.17, hoodYRear: 1.27, roofY: 1.8, roofHw: 0.79,
+    // Rounded nose corners, rolled-under rocker, a crisp shoulder crease, plain fender cut-outs and crowned hood / roof
+    noseTaper: 0.085, noseLen: 0.8, tailTaper: 0.03, side: [0.1, 0.03, 0.01, 0, 0.012, 0.04], rolledArch: true, creaseHard: true,
+    hoodCrown: 0.055, roofCrown: 0.05, roofCrownX: 0.04,
+    zNose: 2.38, zHoodRear: 1.03, zCowl: 0.95, zRoofFront: 0.45, zDoorFront: 0.82, zDoorRear: -0.52,
     zRoofRear: -0.6, zCabBack: -0.62, zBedFront: -0.67, zTail: -2.42,
-    floorY: 0.56, bedFloorY: 0.78, archR: 0.53, bumperY: 0.6,
+    floorY: 0.56, bedFloorY: 0.78, archR: 0.56, bumperY: 0.6,
     seatX: 0.42, eyeY: 1.5, eyeZ: -0.02, seatY: 0.8, seatZ: -0.2, dashZ: 0.72, wheelDia: 0.42,
     cargo: { x0: -0.8, x1: 0.8, y0: 0.79, y1: 1.7, z0: -2.36, z1: -0.74 },
     fuelCap: [0.975, 1.08, -0.95], engineZ: 1.5, engineY: 0.84, batteryPos: [0.62, 1.0, 1.95], radiatorZ: 2.17, radiatorY: 0.9,

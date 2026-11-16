@@ -154,6 +154,39 @@ const glassMat = (map) => new THREE.MeshStandardMaterial({
   side: THREE.DoubleSide, depthWrite: false,
 });
 
+// The windscreen after a hard front hit: the same glass with spider-web cracks (shared by every cracked vehicle)
+let cracked = null;
+export function crackedGlass() {
+  if (cracked) return cracked;
+  const src = M.glassFront.map.image, S = src.width, c = canvas(S, S), g = c.getContext("2d"), R = mulberry(91);
+  g.drawImage(src, 0, 0);
+  g.lineCap = "round";
+  const star = (cx, cy, rad, spokes) => {
+    const ends = [];
+    for (let i = 0; i < spokes; i++) {
+      let a = (i / spokes) * Math.PI * 2 + R() * 0.4, x = cx, y = cy;
+      const len = rad * (0.5 + R() * 0.6);
+      g.strokeStyle = `rgba(236,242,240,${0.55 + R() * 0.3})`; g.lineWidth = 1 + R() * 1.4;
+      g.beginPath(); g.moveTo(x, y);
+      for (let t = 0; t < len; t += 14) { a += (R() - 0.5) * 0.35; x += Math.cos(a) * 14; y += Math.sin(a) * 14; g.lineTo(x, y); }
+      g.stroke();
+      ends.push(a);
+    }
+    for (let k = 1; k <= 3; k++) {                       // concentric rings between the spokes
+      const rr = rad * k * 0.18;
+      g.strokeStyle = "rgba(230,236,234,0.45)"; g.lineWidth = 1;
+      g.beginPath();
+      for (let i = 0; i <= spokes; i++) { const a = (i / spokes) * Math.PI * 2 + (R() - 0.5) * 0.2, q = rr * (0.8 + R() * 0.4); i ? g.lineTo(cx + Math.cos(a) * q, cy + Math.sin(a) * q) : g.moveTo(cx + Math.cos(a) * q, cy + Math.sin(a) * q); }
+      g.stroke();
+    }
+    g.fillStyle = "rgba(240,244,242,0.55)"; g.beginPath(); g.arc(cx, cy, 6, 0, Math.PI * 2); g.fill();
+  };
+  star(S * 0.72, S * 0.55, S * 0.55, 14);
+  star(S * 0.3, S * 0.3, S * 0.3, 9);
+  cracked = glassMat(tex(c));
+  return cracked;
+}
+
 // ── Small textures ────────────────────────────────────────────────────────────────────────────
 function tyreTextures() {
   const W = 256, H = 256, c = canvas(W, H), g = c.getContext("2d"), b = canvas(W, H), bg = b.getContext("2d");
@@ -438,4 +471,5 @@ export function disposeMaterials() {
   paintCache.clear();
   for (const m of skinCache.values()) for (const k of Object.values(m)) { k.map?.dispose(); k.roughnessMap?.dispose(); k.dispose(); }
   skinCache.clear();
+  if (cracked) { cracked.map.dispose(); cracked.dispose(); cracked = null; }
 }

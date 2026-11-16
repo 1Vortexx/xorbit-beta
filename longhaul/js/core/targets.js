@@ -22,6 +22,8 @@ export function removeAllUnder(ancestor) {
 const list = [];
 // First thing along the ray within maxDist. Returns { target, object, point (render space), distance } or null
 // when nothing is hit or an occluder is in front. `ignore` = Object3D whose subtree is skipped (the held prop).
+// A `soft` target (a volume such as a truck bed) only wins when nothing else is hit inside it; an occluder behind
+// it still counts as hitting the volume.
 export function raycastTargets(raycaster, maxDist, ignore = null) {
   list.length = 0;
   for (const o of roots) if (o.visible && o.parent) list.push(o);
@@ -30,6 +32,7 @@ export function raycastTargets(raycaster, maxDist, ignore = null) {
   raycaster.far = maxDist;
   const hits = raycaster.intersectObjects(list, true);
   raycaster.far = far;
+  let soft = null, blockedAt = -1;
   for (const h of hits) {
     let target = null, skip = false, hidden = false;
     for (let p = h.object; p; p = p.parent) {
@@ -38,8 +41,12 @@ export function raycastTargets(raycaster, maxDist, ignore = null) {
       if (!target && p.userData.target) target = p.userData.target;
     }
     if (skip || hidden) continue;
-    if (!target) return null; // occluder first
+    if (blockedAt >= 0) {     // an occluder was hit: only a soft volume just behind it (a ray grazing a bed rail) counts
+      return target && target.soft && h.distance - blockedAt < 0.15 ? { target, object: h.object, point: h.point, distance: h.distance } : null;
+    }
+    if (!target) { if (soft) return soft; blockedAt = h.distance; continue; }  // occluder first
+    if (target.soft) { soft = soft || { target, object: h.object, point: h.point, distance: h.distance }; continue; }
     return { target, object: h.object, point: h.point, distance: h.distance };
   }
-  return null;
+  return blockedAt >= 0 ? null : soft;
 }
