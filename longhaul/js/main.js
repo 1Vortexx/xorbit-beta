@@ -1320,17 +1320,19 @@ async function boot() {
   await window.longHaulStart;
   window.removeEventListener("longhaul-start-audio", beginMusic);
   beginMusic();
-  const loadingDuration = 5000 + Math.random() * 25000;
+  const loadingDuration = 20000 + Math.random() * 10000;
   const loadingStarted = performance.now();
   let prepared = 0, loadingLabel = "Warming up";
-  let shownProgress = 0, lastLoadingFrame = loadingStarted;
+  let shownProgress = 0, visibleLoadingTime = 0, lastLoadingFrame = loadingStarted;
   menus.show("loading", { pct: 0, label: loadingLabel });
   const paintLoading = () => {
     const now = performance.now();
     // Pace the presentation while retaining real readiness as the upper bound.
-    const elapsed = Math.max(0, now - loadingStarted - 400);
+    const frameTime = Math.min(100, Math.max(0, now - lastLoadingFrame));
+    if (!document.hidden) visibleLoadingTime += frameTime;
+    const elapsed = Math.max(0, visibleLoadingTime - 400);
     const target = Math.min(prepared, elapsed / Math.max(1, loadingDuration - 700), 1);
-    shownProgress = Math.min(target, shownProgress + (now - lastLoadingFrame) / (loadingDuration - 700));
+    shownProgress = Math.min(target, shownProgress + (document.hidden ? 0 : frameTime) / (loadingDuration - 700));
     lastLoadingFrame = now;
     menus.show("loading", { pct: shownProgress, label: prepared === 1 ? "Getting ready for the road" : loadingLabel });
   };
