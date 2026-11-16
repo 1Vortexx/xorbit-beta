@@ -199,6 +199,7 @@ const SCREENS = {
     <div class="lh-load" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Loading">
       <div class="lh-loadbar"><i></i></div>
       <div class="lh-loadrow"><span class="lh-loadlabel"></span><b class="lh-loadpct"></b></div>
+      <p class="lh-help lh-loading-tip" role="status"></p>
     </div></div>`,
 
   // Four doors: Play (journeys, convoys, controls), Career (your career + the global leaderboard), Settings, What's New.
@@ -664,6 +665,10 @@ function updateLoading() {
   bar.style.setProperty("--v", String(p));
   root.querySelector(".lh-load").setAttribute("aria-valuenow", String(Math.round(p * 100)));
   root.querySelector(".lh-loadlabel").textContent = data.label || "Loading";
+  const tips = ["Keep fuel, oil and coolant topped up before a long drive.", "Stop beside a hitchhiker and press E to talk.", "A paid roadblock gives you safe passage.", "Bring food and water before leaving a station.", "A spare wheel and a wrench can save a long walk."];
+  const tip = root.querySelector(".lh-loading-tip");
+  if (tip) tip.textContent = data.error ? "" : "Tip · " + tips[Math.min(tips.length - 1, Math.floor((data.pct || 0) * tips.length))];
+
   root.querySelector(".lh-loadpct").textContent = data.error ? "" : `${Math.round(p * 100)}%`;
   root.querySelector(".lh-load").classList.toggle("lh-loaderr", !!data.error);
 }
@@ -834,28 +839,35 @@ function onKey(ev) {
   }
 }
 
-let gateFading = false;
+let gateFading = false, studioVisible = false, studioReady = false;
 function firstGesture() {
   if (gateFading || screen() !== "gate") return;
-  if (!gestureDone) { gestureDone = true; call("onFirstGesture"); }
-  gateFading = true;
   const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const stage = root.querySelector(".lh-stage");
-  stage.innerHTML = `<div class="lh-col lh-gate lh-studio-splash">
-    <img src="${new URL("../../download/xorbit-studios-logo.png", import.meta.url).href}" width="2172" height="724" alt="X-ORBIT Studios">
-  </div>`;
-  root.classList.add("lh-studio-intro");
-  setTimeout(() => {
-    root.classList.add("lh-splash-exit");
+  if (!studioVisible) {
+    if (!gestureDone) { gestureDone = true; call("onFirstGesture"); }
+    studioVisible = true;
+    root.querySelector(".lh-stage").innerHTML = `<div class="lh-col lh-gate lh-studio-splash">
+      <img src="${new URL("../../download/xorbit-studios-logo.png", import.meta.url).href}" width="2172" height="724" alt="X-ORBIT Studios">
+      <button type="button" class="lh-gatebtn" data-act="gate" hidden><span>Click or press any key to start</span></button>
+    </div>`;
+    root.classList.add("lh-studio-intro");
     setTimeout(() => {
-      root.classList.remove("lh-splash-exit", "lh-studio-intro");
-      gateFading = false;
-      if (screen() !== "gate" || !stack.length) return;
-      stack.pop();
-      sfx("ui_click");
-      render();
-    }, reduced ? 0 : 450);
-  }, reduced ? 800 : 1600);
+      if (screen() !== "gate") return;
+      studioReady = true;
+      root.querySelector(".lh-studio-splash button").hidden = false;
+    }, reduced ? 400 : 1600);
+    return;
+  }
+  if (!studioReady) return;
+  gateFading = true;
+  // Start audio inside the second gesture so browser playback permission is retained.
+  call("onStudioStart");
+  root.classList.add("lh-splash-exit");
+  setTimeout(() => {
+    root.classList.remove("lh-splash-exit", "lh-studio-intro");
+    gateFading = false;
+    call("onStudioContinue");
+  }, reduced ? 0 : 450);
 }
 
 function onAnyGesture(ev) {

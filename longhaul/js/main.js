@@ -1330,10 +1330,18 @@ async function boot() {
   on("music:track", (t) => { menus.setNowPlaying?.(t); hud.setNowPlaying?.(t); });
   canvas.addEventListener("click", () => { if (state === "playing" && !locked()) requestLock(); });
 
+  // Wait for the studio splash before starting the actual preparation work.
+  const musicReady = music.init();
+  await new Promise(resolve => {
+    handlers.onStudioStart = () => { music.unlock(); music.setContext("menu"); music.resume(); };
+    handlers.onStudioContinue = resolve;
+    menus.show("gate");
+  });
+  delete handlers.onStudioContinue;
+  delete handlers.onStudioStart;
   const report = (base, span) => (pct, label) => menus.show("loading", { pct: base + span * Math.max(0, Math.min(1, pct)), label });
   menus.show("loading", { pct: 0, label: "Warming up" });
   try {
-    const musicReady = music.init();
     await prepareWorld(report(0.02, 0.5));
     await prepareVehicles(report(0.52, 0.38));
     await prepareNpcs(report(0.90, 0.04));
