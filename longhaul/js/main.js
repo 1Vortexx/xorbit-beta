@@ -38,6 +38,22 @@ import { MapMemory, Minimap, MapView, KIND_STYLE } from "./map.js";
 import { EngineSmoke } from "./smoke.js";
 import { identity, signIn, signOut, newTripId, reportTrip, pushAchievements, fetchAchievements, fetchBoard, fetchMine, putSave, getSave, dropSave } from "./online.js";
 
+// The opening (index.html, css/base.css) plays by itself. A click or key during the studio logo jumps to the Long Haul
+// logo; another (or one during the Long Haul logo) goes into the game. Removed once it has faded away.
+{
+  const splash = document.getElementById("splash");     // its animations run from page load, as performance.now() does
+  if (splash) {
+    const skip = () => {
+      if (!splash.isConnected) return removeEventListener("pointerdown", skip, true), removeEventListener("keydown", skip, true);
+      if (!splash.classList.contains("to-game") && performance.now() < 2600) splash.classList.add("to-game");
+      else splash.classList.add("skip");
+    };
+    addEventListener("pointerdown", skip, true);
+    addEventListener("keydown", skip, true);
+    splash.addEventListener("animationend", (e) => { if (e.target === splash) { splash.remove(); skip(); } });
+  }
+}
+
 const STEP = 1 / 120;
 const HOUR = DAY_SECONDS / 24;          // real seconds per in-game hour
 const DIFF = {
