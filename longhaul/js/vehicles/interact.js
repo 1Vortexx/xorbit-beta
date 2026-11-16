@@ -6,7 +6,7 @@ import { COMPONENT_ITEMS, FLUID_ITEMS, fitProblem, partNote } from "./components
 import { WHEEL_SLOTS, SLOT_LABEL } from "./defs.js";
 import { batteryCharge } from "./powertrain.js";
 
-export const POUR_RATE = { fuel: 1.5, oil: 0.25, coolant: 0.8 };   // litres per second
+export const POUR_RATE = { fuel: 1.5, oil: 0.6, coolant: 0.8 };    // litres per second
 const ACCEPTS = { fuel: ["fuel"], oil: ["oil"], coolant: ["coolant", "water"] };
 const TIMES = { engine: [6, 6], battery: [2.5, 2.5], radiator: [4, 4], wheel: [4, 3] };   // [remove, install] seconds
 
@@ -42,13 +42,24 @@ const say = (ctx, text, level) => (ctx.notify || notify)(text, { level: level ||
 const play = (ctx, name, v) => (ctx.sfx || sfx)(name, { pos: v.pos });
 const pct = (x) => Math.round(x) + "%";
 
-function pourAction(v, ctx, port, label) {
-  const why = pourProblem(v, ctx.held, port);
-  if (why) return { key: "use", label, blocked: why };
+// A container in the pockets that can go into `port` (oil bottles, water bottles), for pouring with empty hands
+function pocketFluid(ctx, v, port) {
+  for (const slot of ctx.pockets?.slots || []) {
+    if (!slot) continue;
+    for (let i = slot.items.length - 1; i >= 0; i--) if (!pourProblem(v, slot.items[i], port)) return slot.items[i];
+  }
+  return null;
+}
+
+// Hold the key to pour from what's in the hands – or, with nothing usable in them, from a container in the pockets
+function pourAction(v, ctx, port, label, key = "use") {
+  const fromPockets = !!pourProblem(v, ctx.held, port) && !ctx.held && !!pocketFluid(ctx, v, port);
+  const why = fromPockets ? null : pourProblem(v, ctx.held, port);
+  if (why) return { key, label, blocked: why === "Needs engine oil" ? "Needs engine oil in your hands or pockets" : why };
   return {
-    key: "use", label,
+    key, label: `Hold to ${label.toLowerCase()}${fromPockets ? " (from your pockets)" : ""}`,
     tick(c, dt) {
-      const item = c.held;
+      const item = fromPockets ? pocketFluid(c, v, port) : c.held;
       if (!item) return false;
       const p = pourInto(v, item, port, dt);
       if (p === false) { if (v._pourT > 0) { v._pourT = 0; play(c, "pour_stop", v); } return false; }
@@ -158,7 +169,10 @@ export function registerTargets(v, rig) {
   addTarget(P.dipstick, {
     id: id("dipstick"), name: "Dipstick", reach: 2.6,
     info: () => ({ qty: `${v.oil.toFixed(1)} / ${d.oilCap} L`, note: "oil " + oilNote() }),
-    actions: () => [{ key: "use", label: "Check oil", run: (c) => say(c, `Oil ${oilNote()}: ${v.oil.toFixed(1)} of ${d.oilCap} L.`, v.oil / d.oilCap < 0.4 ? "warn" : "info") }],
+    actions: (ctx) => [
+      { key: "use", label: "Check oil", run: (c) => say(c, `Oil ${oilNote()}: ${v.oil.toFixed(1)} of ${d.oilCap} L.`, v.oil / d.oilCap < 0.4 ? "warn" : "info") },
+      pourAction(v, ctx, "oil", "Add oil", "alt"),
+    ],
   });
   addTarget(P.radCap, {
     id: id("coolant"), name: "Radiator cap", reach: 2.6,

@@ -145,6 +145,15 @@ const SFX = {
   starter_click: () => { for (let i = 0; i < 3; i++) burst(0.025, { f: 1800, q: 3, vol: 0.16, delay: i * 0.1 }); },
   engine_catch: () => { burst(0.22, { type: "lowpass", f: 420, vol: 0.25 }); tone(55, 0.35, { type: "sawtooth", vol: 0.06, to: 95 }); },
   engine_stop: () => { tone(85, 0.32, { type: "sawtooth", vol: 0.06, to: 18 }); burst(0.15, { f: 250, vol: 0.12, delay: 0.12 }); },
+  engine_blow: (o) => {   // the engine letting go: a crack, a deep low blow, metal clattering and a long hiss
+    const v = vol01(o.vol, 1);
+    burst(0.05, { f: 1600, q: 0.5, vol: 0.3 * v });
+    tone(46, 1.1, { vol: 0.45 * v, to: 24 });
+    tone(68, 0.6, { type: "triangle", vol: 0.18 * v, to: 30 });
+    burst(0.9, { type: "lowpass", f: 280, vol: 0.5 * v, to: 60 });
+    for (let i = 0; i < 6; i++) burst(0.05, { f: 800 + Math.random() * 1600, q: 5, vol: (0.1 - i * 0.012) * v, delay: 0.1 + i * 0.07 + Math.random() * 0.04 });
+    burst(2.2, { f: 2600, q: 0.4, vol: 0.06 * v, delay: 0.3, attack: 0.2, to: 1400 });
+  },
   engine_fail: () => { burst(0.15, { type: "lowpass", f: 330, vol: 0.18 }); tone(75, 0.2, { type: "triangle", vol: 0.07, to: 25 }); },
   parking_brake: () => { for (let i = 0; i < 4; i++) burst(0.025, { f: 1700 + i * 150, q: 3, vol: 0.11, delay: i * 0.035 }); },
   gear_shift: () => { burst(0.06, { f: 700, q: 2, vol: 0.12 }); tone(110, 0.08, { type: "triangle", vol: 0.06, to: 75 }); },

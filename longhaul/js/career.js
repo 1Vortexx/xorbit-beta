@@ -65,6 +65,7 @@ export function totals(c) {
 
 // test(trip, totals) → true once earned. Trip values are this journey; totals include it.
 export const ACHIEVEMENTS = [
+  { id: "get_me_out", name: "Found the Demo", desc: "Discover Michael Lester’s Get Me Out Of Here on the title screen." },
   { id: "first_km",     name: "Rolling",            desc: "Drive your first kilometre.",                 test: (t) => t.distance >= 1000 },
   { id: "trip_50",      name: "Out of Town",        desc: "Drive 50 km in one journey.",                 test: (t) => t.distance >= 50e3 },
   { id: "trip_200",     name: "Long Haul",          desc: "Drive 200 km in one journey.",                test: (t) => t.distance >= 200e3 },
@@ -91,7 +92,7 @@ export const achievement = (id) => ACHIEVEMENTS.find((a) => a.id === id) || null
 export function unlock(c, now = Date.now()) {
   const trip = c.live || tripOf({}), all = totals(c), got = [];
   for (const a of ACHIEVEMENTS) {
-    if (c.ach[a.id] || !a.test(trip, all)) continue;
+    if (c.ach[a.id] || !a.test?.(trip, all)) continue;
     c.ach[a.id] = now;
     got.push(a);
   }

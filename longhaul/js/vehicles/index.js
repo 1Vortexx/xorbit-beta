@@ -201,8 +201,9 @@ export class Vehicles {
 
   // Fixed step: full physics for the driven and moving vehicles; parked ones sleep. A vehicle that is not the
   // player's gets its own `ai` input (an NPC at the wheel) through exactly the same Vehicle.step path.
-  step(dt, driven, input, env) {
-    const many = this.list.length > 1 ? this.list : null;
+  // extra: vehicles that are collided with but not simulated here (convoy members' trucks, js/convoy.js)
+  step(dt, driven, input, env, extra = null) {
+    const many = extra && extra.length ? [...this.list, ...extra] : this.list.length > 1 ? this.list : null;
     for (const v of this.list) v.step(dt, v === driven ? (input || { throttle: 0, steer: 0 }) : v.ai, env, many);
   }
 

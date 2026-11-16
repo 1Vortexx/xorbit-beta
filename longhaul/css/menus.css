@@ -362,3 +362,24 @@
   .lh-panebody { overflow: visible; }
 }
 .lh-menus[data-screen="leaderboard"] .lh-scrim { background: linear-gradient(90deg, rgba(13, 10, 7, 0.95) 0%, rgba(13, 10, 7, 0.86) 70%, rgba(13, 10, 7, 0.55) 100%); }
+
+/* full map (M) */
+.lh-panel.lh-mapscreen { width: min(76em, 100%); height: 100%; }
+.lh-mapscreen .lh-scroll { overflow: hidden; display: flex; min-height: 0; flex: 1; }
+.lh-mapwrap { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 15em; gap: 1.2em; }
+.lh-mapcv { width: 100%; height: 100%; min-height: 12em; border-radius: 0.3em; border: 1px solid var(--lh-line); cursor: grab; touch-action: none; display: block; }
+.lh-mapcv:active { cursor: grabbing; }
+.lh-mapside { overflow-y: auto; min-height: 0; }
+.lh-mapside h3:first-child { margin-top: 0; }
+.lh-mapkey { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35em; font-size: 0.9em; color: var(--lh-sand); }
+.lh-mapkey li { display: flex; align-items: center; gap: 0.55em; }
+.lh-mapkey small { display: block; font-size: 0.85em; color: var(--lh-dim); }
+.lh-mapdot { display: inline-grid; place-items: center; width: 1.3em; height: 1.3em; border-radius: 50%; font: 700 0.75em/1 system-ui, sans-serif; font-style: normal; color: #16120d; flex: none; border: 1px solid rgba(0, 0, 0, 0.6); }
+.lh-mapmember { background: #5fc4d6; }
+.lh-mapruin { background: #4a443c; color: #a9a18f; position: relative; }
+.lh-mapruin::after { content: ""; position: absolute; left: 15%; right: 15%; top: 50%; height: 1.5px; background: #c9bfae; transform: rotate(-45deg); }
+.lh-mapintel { background: #16120d; border: 1.5px dashed currentColor; }
+.lh-mapme { width: 0; height: 0; border-left: 0.45em solid transparent; border-right: 0.45em solid transparent; border-bottom: 0.9em solid #f2aa2e; margin: 0 0.2em; flex: none; }
+@media (max-width: 760px) { .lh-mapwrap { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(12em, 1fr) auto; } }
+
+.lh-discovery-toast { position: fixed; z-index: 100; top: 1rem; left: 50%; transform: translateX(-50%); padding: .65rem 1rem; background: var(--lh-ink); color: var(--lh-bone); border: 1px solid var(--lh-amber); pointer-events: none; }

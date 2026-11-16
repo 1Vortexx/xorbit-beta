@@ -122,7 +122,7 @@ function build() {
   for (const n of root.querySelectorAll("[data-need]")) el.need[n.dataset.need] = { row: n, bar: n.querySelector("i"), mark: n.querySelector(".mark") };
 
   vig = document.getElementById("hud-vignette") || mk("hud-vignette");
-  vig.innerHTML = `<i class="v-hurt"></i><i class="v-tired"></i>`;
+  vig.innerHTML = `<i class="v-hurt"></i><i class="v-tired"></i><i class="v-hit"></i>`;
   fadeEl = document.getElementById("hud-fade") || mk("hud-fade");
   fadeEl.innerHTML = `<span></span>`;
   fadeEl.hidden = true;
@@ -489,6 +489,17 @@ export const hud = {
     updShared(s);
   },
   // hurt / tired 0..1 – red-brown and dark edge vignettes
+  // Taking a hit: the screen edges flash red, harder for a bigger hit (0..1), then fade over about half a second
+  damageFlash(strength = 0.6) {
+    const hit = vig && vig.querySelector(".v-hit");
+    if (!hit) return;
+    const s = Math.max(0.25, Math.min(1, strength));
+    hit.style.transition = "none";
+    hit.style.opacity = String(s);
+    void hit.offsetWidth;                    // restart the fade even if a flash is already running
+    hit.style.transition = `opacity ${0.35 + 0.4 * s}s ease-out`;
+    hit.style.opacity = "0";
+  },
   setVignette({ hurt = 0, tired = 0 } = {}) {
     if (!vig) return;
     css(vig, "--hurt", String(q2(hurt)));

@@ -1,8 +1,9 @@
 // Long Haul – keyboard and mouse input.
 // Action names are the contract (ARCHITECTURE §6). Modes: "drive" | "foot" | "photo" | "overlay" | "none".
 //   drive / foot : the bound keys of that mode (+ the "always" group) reach the game and are preventDefault-ed
-//   photo        : only the "photo" group (the free camera owns every key, M frees the mouse instead of muting)
-//   overlay      : nothing reaches the game – menus.js owns the keyboard (Esc = back/resume, Tab/I closes the inventory)
+//   photo        : only the "photo" group (the free camera owns every key, M frees the mouse instead of opening the map)
+//   overlay      : nothing reaches the game – menus.js owns the keyboard (Esc = back/resume, Tab/I closes the inventory,
+//                  M closes the map)
 //   none         : nothing is read and nothing is prevented (the page / host keeps its keys)
 // Everything is released on blur, tab hide, pointer-lock loss and whenever the mode changes.
 import { emit } from "./core/bus.js";
@@ -12,8 +13,9 @@ export const BINDINGS = [
   { action: "pause", group: "always", keys: ["Escape"], desc: "Pause menu" },
   { action: "photo", group: "always", keys: ["KeyP"], desc: "Photo mode" },
   { action: "inventory", group: "always", keys: ["Tab", "KeyI"], desc: "Inventory, vehicle and journey" },
-  { action: "mute", group: "always", keys: ["KeyM"], desc: "Mute all sound" },
+  { action: "map", group: "always", keys: ["KeyM"], desc: "Map" },
   { action: "radioNext", group: "always", keys: ["KeyN"], desc: "Radio: next track" },
+  { action: "talk", group: "always", keys: ["KeyV"], desc: "Push to talk (convoy voice)" },
 
   { action: "throttle", group: "drive", keys: ["KeyW", "ArrowUp"], desc: "Accelerate" },
   { action: "brake", group: "drive", keys: ["KeyS", "ArrowDown"], desc: "Brake / reverse" },
@@ -28,6 +30,8 @@ export const BINDINGS = [
   { action: "lights", group: "drive", keys: ["KeyL"], desc: "Headlights" },
   { action: "horn", group: "drive", keys: ["KeyH"], desc: "Horn" },
   { action: "camera", group: "drive", keys: ["KeyC"], desc: "Camera: cab / chase" },
+  { action: "camZoomIn", group: "drive", keys: ["Equal", "NumpadAdd"], desc: "Chase camera closer (or mouse wheel)" },
+  { action: "camZoomOut", group: "drive", keys: ["Minus", "NumpadSubtract"], desc: "Chase camera further (or mouse wheel)" },
   { action: "exit", group: "drive", keys: ["KeyF"], desc: "Get out" },
   { action: "talk", group: "drive", keys: ["KeyE"], desc: "Talk / respond" },
   { action: "sleep", group: "drive", keys: ["KeyZ"], desc: "Sleep in the cab" },
@@ -106,9 +110,9 @@ const pressed = new Set();   // action names pressed since the last endFrame()
 const downCodes = new Map(); // physical code → actions it put down (so key-up releases exactly those)
 
 // Shared look state. yaw/pitch in radians (+pitch looks down). dx/dy: raw mouse movement of the current frame (px),
-// wheel: wheel movement of the current frame (px, photo mode).
+// wheel: wheel movement of the current frame (px, photo mode). zoom: the same while driving (chase camera distance).
 // clamp: limit head turn (cab view). sens / invertY come from prefs (main copies them here).
-export const look = { yaw: 0, pitch: 0, dx: 0, dy: 0, wheel: 0, clamp: false, sens: 1, invertY: false };
+export const look = { yaw: 0, pitch: 0, dx: 0, dy: 0, wheel: 0, zoom: 0, clamp: false, sens: 1, invertY: false };
 
 let canvas = null;
 let getMode = () => "none";
@@ -205,6 +209,7 @@ function onWheel(e) {
   if (!playing(m)) return;
   e.preventDefault();
   if (m === "photo") { look.wheel += e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY; return; }
+  if (m === "drive") { look.zoom += e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY; return; }
   if (m !== "foot") return;
   const now = performance.now();
   if (now - wheelAt > 250) wheelAcc = 0;

@@ -24,34 +24,9 @@ const STAT_LABELS = {
   itemsUsed: "Items used", sites: "Places discovered", discovered: "Places discovered", playtime: "Time played", topSpeed: "Top speed",
 };
 
-const LOGO = (() => {
-  const L = "M0 0V8H4.300", O = "M1.300 0H3.700Q5 0 5 1.300V6.700Q5 8 3.700 8H1.300Q0 8 0 6.700V1.300Q0 0 1.300 0Z";
-  const N = "M0 8V0L5 8V0", G = "M5 1.800V1.300Q5 0 3.700 0H1.300Q0 0 0 1.300V6.700Q0 8 1.300 8H3.700Q5 8 5 6.700V4.300H2.700";
-  const H = "M0 0V8M5 0V8M0 4H5", A = "M0 8V1.300Q0 0 1.300 0H3.700Q5 0 5 1.300V8M0 4.700H5", U = "M0 0V6.700Q0 8 1.300 8H3.700Q5 8 5 6.700V0";
-  const word = [L, O, N, G, null, H, A, U, L];
-  let x = 0, paths = "", cuts = "";
-  for (const d of word) {
-    if (!d) { x += 2.600; continue; }
-    paths += `<path transform="translate(${x.toFixed(1)} 0)" d="${d}"/>`;
-    if (d === O || d === G || d === A || d === U) cuts += `<rect x="${(x + 2.180).toFixed(2)}" y="-1" width="0.640" height="10"/>`;
-    x += 6.700;
-  }
-  const w = x - 1.700;
-  return `<svg class="lh-logo" viewBox="-1 -1 ${(w + 2).toFixed(1)} 10" role="img" aria-label="Long Haul">
-    <defs>
-      <filter id="lh-worn" x="-5%" y="-10%" width="110%" height="120%">
-        <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="3" seed="4" result="n"/>
-        <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -20 6.4" result="m"/>
-        <feComposite in="SourceGraphic" in2="m" operator="out"/>
-      </filter>
-      <mask id="lh-stencil" maskUnits="userSpaceOnUse" x="-1" y="-1" width="${(w + 2).toFixed(1)}" height="10">
-        <rect x="-1" y="-1" width="${(w + 2).toFixed(1)}" height="10" fill="#fff"/><g fill="#000">${cuts}</g>
-      </mask>
-    </defs>
-    <g filter="url(#lh-worn)"><g mask="url(#lh-stencil)" fill="none" stroke="currentColor" stroke-width="1.550" stroke-linejoin="miter" stroke-linecap="butt">${paths}</g></g>
-  </svg>`;
-})();
-const brand = (sub) => `<div class="lh-brand"><div class="lh-kicker">Desert road-trip survival</div>${LOGO}<div class="lh-lines" aria-hidden="true"><i></i><i></i></div>${sub ? `<p class="lh-tag">${esc(sub)}</p>` : ""}</div>`;
+const logoUrl = new URL("../../assets/branding/long-haul-logo.png", import.meta.url).href;
+const LOGO = `<img class="lh-logo" src="${logoUrl}" alt="Long Haul" width="2172" height="724">`;
+const brand = (sub) => `<div class="lh-brand"><div class="lh-kicker">Desert road-trip survival</div>${LOGO}${sub ? `<p class="lh-tag">${esc(sub)}</p>` : ""}</div>`;
 
 let root = null, prefs = null, handlers = {};
 let rootName = null, data = {}, stack = [];
@@ -339,7 +314,8 @@ const SCREENS = {
     } else if (t === "camera") {
       body = slider("fov", "Field of view", 55, 100, 1, "deg")
         + slider("camMotion", "Camera motion", 0, 1.5, 0.05, "pct", "Head bob, suspension sway and engine vibration. 0% keeps the camera still.")
-        + seg("camera", "Default driving camera", [["cab", "Cab"], ["chase", "Chase"]], `Switch any time while driving with ${k("camera")}.`);
+        + seg("camera", "Default driving camera", [["cab", "Cab"], ["chase", "Chase"]], `Switch any time while driving with ${k("camera")}.`)
+        + slider("chaseZoom", "Chase camera distance", 0.5, 2.5, 0.05, "x", `Also the mouse wheel, or ${k("camZoomIn")} / ${k("camZoomOut")}, while driving in chase view.`);
     } else if (t === "controls") {
       body = slider("sens", "Mouse sensitivity", 0.3, 2.5, 0.05, "x")
         + toggle("invertY", "Invert mouse Y")
@@ -358,7 +334,9 @@ const SCREENS = {
         + slider("vol.music", "Music", 0, 1, 0.05, "pct")
         + slider("vol.sfx", "Engine & effects", 0, 1, 0.05, "pct")
         + slider("vol.ambience", "Ambience", 0, 1, 0.05, "pct")
-        + toggle("muted", "Mute all sound", `Also on ${k("mute")} while playing.`)
+        + slider("vol.voice", "Convoy voice chat", 0, 1, 0.05, "pct")
+        + seg("voiceMode", "Your microphone", [["open", "Open mic"], ["ptt", "Push to talk"]], `Push to talk: hold ${k("talk")} while you speak.`)
+        + toggle("muted", "Mute all sound", "Silences music, engine, effects and ambience.")
         + toggle("radio", "Radio", "Plays the soundtrack while you travel.")
         + rowWrap("Soundtrack", "", m && m.tracks === 0
           ? `<span class="lh-empty">No soundtrack files installed</span>`
@@ -440,11 +418,19 @@ const SCREENS = {
     const c = data.convoy || {};
     let body;
     if (c.code) {
-      const rows = (c.members || []).map((m) => `<li><b>@${esc(m.name)}</b><span>${esc(m.where)}</span><em></em></li>`).join("");
+      const rows = (c.members || []).map((m) => `<li><b>@${esc(m.name)}${m.paused ? ` <i class="lh-paused" role="img" aria-label="paused"></i>` : ""}${m.voice ? ` <i class="lh-vc${m.speaking ? " lh-vc-talk" : ""}" role="img" aria-label="on voice"></i>` : ""}</b><span>${esc(m.where)}</span><em>${m.paused ? "paused" : m.voice ? (m.connected ? "on voice" : c.voice && c.voice.on ? "connecting voice…" : "on voice") : ""}</em></li>`).join("");
       body = `<p class="lh-lead">Your convoy code</p><div class="lh-code" tabindex="0" data-autofocus aria-label="Convoy code ${esc(c.code.split("").join(" "))}">${esc(c.code)}</div>
         <p class="lh-help">Friends join from the main menu → Join a Convoy, or from their pause menu if they're already on this road. Up to 6 drivers.</p>
         <h3>Drivers</h3><ul class="lh-tracks"><li><b>@${esc(c.me)}</b><span>you</span><em></em></li>${rows}</ul>
         ${c.status !== "joined" ? `<p class="lh-help">${icon("warn")} ${c.status === "reconnecting" ? "Connection lost. Reconnecting…" : "Connecting…"}</p>` : ""}
+        <h3>Voice chat</h3>
+        ${c.voice.on ? `<p class="lh-help">${c.voice.muted ? `${icon("warn")} Your microphone is muted.` : c.voice.mode === "ptt" ? `Push to talk: hold ${k("talk")} while you speak.` : "Open mic: everyone with voice on hears you."}</p>
+          <div class="lh-btns"><button type="button" class="lh-btn" data-act="voicemute">${c.voice.muted ? "Unmute mic" : "Mute mic"}</button>
+          <button type="button" class="lh-btn" data-act="voicemode">${c.voice.mode === "ptt" ? "Use open mic" : "Use push to talk"}</button>
+          <button type="button" class="lh-btn" data-act="voiceoff">Turn voice off</button></div>`
+        : `<p class="lh-help">Talk to the rest of the convoy. Your browser will ask to use the microphone.</p>
+          ${c.voice.error ? `<p class="lh-help lh-warnline">${icon("warn")}<span>${c.voice.error === "denied" ? "The microphone was blocked. Allow it for this site in your browser and try again." : "Voice chat doesn't work in this browser."}</span></p>` : ""}
+          <div class="lh-btns"><button type="button" class="lh-btn lh-primary" data-act="voiceon">Turn voice on</button></div>`}
         ${c.msg ? `<p class="lh-msg">${esc(c.msg)}</p>` : ""}
         <div class="lh-btns"><button type="button" class="lh-btn lh-danger" data-act="convoyleave">Leave convoy</button></div>`;
     } else {
@@ -489,6 +475,25 @@ const SCREENS = {
     return panel("Account", body, { cls: "lh-narrow", foot: `<div class="lh-keys" aria-hidden="true"><span><kbd>Enter</kbd> Confirm</span><span><kbd>Esc</kbd> Back</span></div>` });
   },
 
+  // The full map (M). The canvas is drawn by js/map.js through handlers.onMapCanvas.
+  map() {
+    const legend = (data.legend || []).filter((l) => l.kind !== "wreck").map((l) =>
+      `<li><i class="lh-mapdot" style="background:${esc(l.color)}">${esc(l.letter)}</i>${esc(l.label)}</li>`).join("");
+    let side = `<h3>Key</h3><ul class="lh-mapkey"><li><i class="lh-mapme"></i>You</li>${data.convoy ? `<li><i class="lh-mapdot lh-mapmember"></i>Convoy driver</li>` : ""}${legend}
+      <li><i class="lh-mapdot lh-mapruin">F</i>Closed down</li></ul>`;
+    if (data.digimap) {
+      side += `<h3>Digimap: next ahead</h3><ul class="lh-mapkey">${data.next.map((n) =>
+        `<li><i class="lh-mapdot lh-mapintel" style="color:${esc(n.color)}">${esc(n.letter)}</i><span>${esc(n.label)}<small>${n.name ? `${esc(n.name)} · ${esc(n.dist)}` : "none open in range"}</small></span></li>`).join("")}</ul>
+        <p class="lh-help">${icon("warn")} While you carry the Digimap, far fewer places ahead are still open.</p>`;
+    } else {
+      side += `<p class="lh-help">Only the road you've driven and places you've found are on the map. A Digimap shows what's ahead.</p>`;
+    }
+    return panel("Map", `<div class="lh-mapwrap"><canvas class="lh-mapcv" aria-label="Map of the road you've travelled"></canvas><aside class="lh-mapside">${side}</aside></div>`, {
+      cls: "lh-over lh-mapscreen", backLabel: "Close",
+      foot: `<div class="lh-keys" aria-hidden="true"><span>Drag Move</span><span>Wheel <kbd>+</kbd><kbd>−</kbd> Zoom</span><span><kbd>C</kbd> Centre</span><span><kbd>M</kbd> Close</span></div>`,
+    });
+  },
+
   whatsnew() {
     const body = CHANGELOG.map((r) => `
       <h3>v${esc(r.version)}${r.name ? ` · ${esc(r.name)}` : ""} <small>${esc(r.date)}</small></h3>
@@ -509,7 +514,8 @@ const SCREENS = {
         <h3>People</h3>
         <ul class="lh-tracks">
           <li><b>1Vortexx</b><span>Creator and developer</span><em></em></li>
-          ${["Michael Lester", "ZeeAnimate", "$GlitzerX$"].map((n) => `<li><b>${esc(n)}</b><span>Contributor</span><em></em></li>`).join("")}
+          <li><b>Michael Lester</b><span>Contributor and Music Composer</span><em></em></li>
+          ${["ZeeAnimate", "$GlitzerX$"].map((n) => `<li><b>${esc(n)}</b><span>Contributor</span><em></em></li>`).join("")}
         </ul>
         <h3>Technology</h3>
         <p><b>Three.js</b> r170 – 3D rendering library. MIT License, © 2010–2024 three.js authors.</p>
@@ -644,6 +650,7 @@ function render(keep) {
   root.dataset.root = rootName;
   root.innerHTML = `<div class="lh-scrim"></div><div class="lh-stage">${SCREENS[name]()}</div>${name === "main" || name === "pause" ? npLine() : ""}`;
   if (name === "loading") updateLoading();
+  if (name === "map") call("onMapCanvas", root.querySelector(".lh-mapcv"));
   const list = focusables();
   let target = prevKey ? list.find((e) => fkey(e) === prevKey) : null;
   if (!target) target = root.querySelector("[data-autofocus]") || list.find((e) => !e.classList.contains("lh-back") && e.getAttribute("role") !== "tab") || list[0];
@@ -670,7 +677,7 @@ function back() {
   }
   if (rootName === "dialogue") { if (dlgChoices().some((c) => c.id === "back" && !c.disabled)) choose("back"); return; }
   if (rootName === "pause") { sfx("ui_back"); call("onResume"); }
-  else if (rootName === "inventory" || rootName === "shop") { sfx("ui_back"); call("onCloseOverlay"); }
+  else if (rootName === "inventory" || rootName === "shop" || rootName === "map") { sfx("ui_back"); call("onCloseOverlay"); }
 }
 function move(dir) {
   const list = focusables();
@@ -716,6 +723,10 @@ function act(e, a) {
     case "convoyhost": sfx("ui_click"); call("onConvoyHost"); break;
     case "convoyjoin": sfx("ui_click"); call("onConvoyJoin", ui.code); break;
     case "convoyleave": sfx("ui_back"); call("onConvoyLeave"); break;
+    case "voiceon": sfx("ui_click"); call("onVoice", "on"); break;
+    case "voiceoff": sfx("ui_back"); call("onVoice", "off"); break;
+    case "voicemute": sfx("ui_click"); call("onVoice", "mute"); break;
+    case "voicemode": sfx("ui_click"); call("onVoice", "mode"); break;
     case "download": sfx("ui_click"); window.open("https://beta.xorbit.org/longhaul/download/", "_blank", "noopener,noreferrer"); break;
     case "host": sfx("ui_click"); call("onReturnToHost"); break;
     case "devmap": sfx("ui_click"); call("onDevMap"); break;
@@ -815,6 +826,10 @@ function onKey(ev) {
       if (isText && t.id === "lh-pass") { stop(); act(t, "signin"); return; }
       if (isText) { stop(); const b = root.querySelector('[data-act="start"]'); if (b) b.focus(); } else ev.stopPropagation(); return;
     case "i": case "I": if (rootName === "inventory" && !stack.length && !isText) { stop(); if (!ev.repeat) back(); } return;
+    case "m": case "M": if (rootName === "map" && !stack.length && !isText) { stop(); if (!ev.repeat) back(); } return;
+    case "c": case "C": if (rootName === "map" && !isText) { stop(); call("onMapCentre"); } return;
+    case "+": case "=": if (rootName === "map") { stop(); call("onMapZoom", 1.25); } return;
+    case "-": case "_": if (rootName === "map") { stop(); call("onMapZoom", 0.8); } return;
     default: ev.stopPropagation();
   }
 }

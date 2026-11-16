@@ -120,6 +120,13 @@ function trackMesh(route, parentPos) {
 
 // Builds one site into `chunk`. Returns the list of live hinges (for animation).
 export function buildSite(site, chunk, opts) {
+  // Closed down long ago: only the slab and the side track are left – no buildings, pumps, shop, loot or vehicles
+  if (opts.ruin) {
+    const gp = chunk.group.position, K = site.spec;
+    chunk.group.add(own(chunk, patchMesh(site, -K.hx - 3, -K.hz - 3, K.hx + 3, K.hz + (site.route ? 3 : 9), M.patch[K.surface] || M.patch.dirt, 4, gp)));
+    if (site.route) chunk.group.add(own(chunk, trackMesh(site.route, gp)));
+    return;
+  }
   const plan = planSite(site);
   chunk.colliders.push(...plan.colliders);
   chunk.spawns.push(...plan.spawns);

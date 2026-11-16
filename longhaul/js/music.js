@@ -41,6 +41,8 @@ function readList(raw, name) {
       cover: t.cover ? "audio/music/" + t.cover : null,
       file: t.file, url: "audio/music/" + t.file.replace(/^\.?\//, ""),
       title: t.title || t.file.replace(/\.[^.]+$/, ""), artist: t.artist || "", license: t.license || "", bad: false,
+      achievement: t.achievement,
+      chance: typeof t.chance === "number" && t.chance > 0 && t.chance < 1 ? t.chance : 0,
     });
   }
   return out;
@@ -71,8 +73,11 @@ function fadeOutCurrent() {
 }
 
 function pick(name, dir = 1) {
-  const list = lists[name].filter((t) => !t.bad);
-  if (!list.length) return null;
+  // Rare tracks ("chance") sit outside the rotation: each new track is one of them with that probability
+  const all = lists[name].filter((t) => !t.bad);
+  for (const t of all) if (t.chance > 0 && t !== (current && current.track) && Math.random() < t.chance) return t;
+  const list = all.filter((t) => !(t.chance > 0));
+  if (!list.length) return all[0] || null;
   const order = name === "menu" ? options.menuOrder : options.radioOrder;
   if (order === "shuffle" && list.length > 1) {
     let i; do { i = Math.floor(Math.random() * list.length); } while (list[i] === (current && current.track));
@@ -92,6 +97,11 @@ function startTrack(name, dir = 1) {
   el.src = track.url;
   el.volume = 0;
   const cur = { el, track, list: name, level: 0, target: 1 };
+  el.onplaying = () => {
+    if (current === cur && context === "menu" && track.achievement) {
+      emit("music:discovery", track.achievement);
+    }
+  };
   el.onended = () => {
     if (my !== serial || context !== name) return;
     if (!options.loop && lists[name].filter((t) => !t.bad).length <= 1) { fadeOutCurrent(); return; }

@@ -6,7 +6,7 @@ import { worldRoot, origin, rebase, resetOrigin } from "./core/origin.js";
 import { ws } from "./core/worldstate.js";
 import { setSeed, getSeed, heightAt, surfaceAt, hashStr, roadX, roadDir } from "./world/terrain.js";
 import { startSite, sitesBetween } from "./world/sites.js";
-import { World, prepare as prepareWorld, setVehicleLookup } from "./world/index.js";
+import { World, prepare as prepareWorld, setVehicleLookup, setSiteFilter } from "./world/index.js";
 import { Sky, DAY_SECONDS } from "./sky.js";
 import { Weather } from "./weather.js";
 import { Vehicles, prepare as prepareVehicles } from "./vehicles/index.js";
@@ -23,7 +23,7 @@ import { Needs } from "./survival.js";
 import { CameraRig } from "./camera.js";
 import { audio } from "./audio.js";
 import { music } from "./music.js";
-import { initInput, drive, foot, took, isDown, endFrame, releaseAll, requestLock, locked, look, bindingLabel } from "./input.js";
+import { BINDINGS, initInput, drive, foot, took, isDown, endFrame, releaseAll, requestLock, locked, look, bindingLabel } from "./input.js";
 import { hud } from "./ui/hud.js";
 import { photo } from "./photo.js";
 import { Combat } from "./combat.js";
@@ -33,6 +33,9 @@ import { loadSave, writeSave, clearSave, checkSave, previewOf, loadPrefs, savePr
 import { watchPerformance, settingsFor, embedded } from "./perf.js";
 import { loadCareer, saveCareer, tripOf, track, endTrip, totals, unlock, mergeAchievements, ACHIEVEMENTS } from "./career.js";
 import { Convoy } from "./convoy.js";
+import { Body } from "./body.js";
+import { MapMemory, Minimap, MapView, KIND_STYLE } from "./map.js";
+import { EngineSmoke } from "./smoke.js";
 import { identity, signIn, signOut, newTripId, reportTrip, pushAchievements, fetchAchievements, fetchBoard, fetchMine, putSave, getSave, dropSave } from "./online.js";
 
 const STEP = 1 / 120;
@@ -115,7 +118,7 @@ function applyQuality() {
 watchPerformance((lite) => { xorbitLite = lite; applyQuality(); });
 
 function syncLookLimit() {
-  look.clamp = !!game.vehicle && prefs.camera === "cab";
+  look.clamp = (!!game.vehicle || !!game.riding) && prefs.camera === "cab";
   if (look.clamp) look.yaw = Math.max(-2.2, Math.min(2.2, look.yaw));
 }
 
@@ -137,7 +140,7 @@ function onPrefs() {
 
 // ── Input mode ─────────────────────────────────────────
 function inputMode() {
-  if (state === "playing") return game.vehicle ? "drive" : "foot";
+  if (state === "playing") return game.vehicle || game.riding ? "drive" : "foot";
   if (state === "photo") return "photo";
   if (state === "ui" || state === "paused") return "overlay";
   return "none";
@@ -149,6 +152,7 @@ const collScratch = [];
 function terrainColliders(x, z, r, out = []) {
   world.collidersNear(x, z, r, out);
   encounters?.colliders(x, z, r, out);
+  if (convoy.active) convoy.colliders(x, z, r, out, false);     // convoy people; their trucks come through the vehicle step
   return out;
 }
 function getColliders(x, z, r = 12) {
@@ -159,6 +163,7 @@ function getColliders(x, z, r = 12) {
     if (Math.abs(v.pos.x - x) > r + 5 || Math.abs(v.pos.z - z) > r + 5) continue;
     for (const c of v.colliders()) collScratch.push(c);
   }
+  if (convoy.active) for (const car of convoy.ghostCars(x, z, r + 8)) collScratch.push(...car.colliders());
   return collScratch;
 }
 function focusPoints() {
@@ -229,6 +234,9 @@ const handlers = {
     const cloud = user ? await fetchMine(user) : null;
     if (menus.screen === "leaderboard") menus.refresh({ cloud });
   },
+  onMapCanvas(canvas) { mapView.attach(canvas, mapData); },
+  onMapZoom(f) { mapView.zoom(f); },
+  onMapCentre() { mapView.centre(); },
   onOpenAccount() { accountMsg = ""; refreshAccount(); },
   async onSignIn(id, password) {
     if (accountBusy || state !== "menu") return;
@@ -251,6 +259,15 @@ const handlers = {
     refreshConvoy();
   },
   onConvoyLeave() { convoy.leave(); convoyMsg = "You left the convoy."; refreshConvoy(); },
+  async onVoice(what) {
+    const v = convoy.voice;
+    if (what === "on") { convoyMsg = "Asking for the microphone…"; refreshConvoy(); convoyMsg = (await v.start()) ? "Voice is on." : ""; }
+    else if (what === "off") { v.stop(); convoyMsg = "Voice is off."; }
+    else if (what === "mute") { v.muted = !v.muted; v.applyMic(); convoyMsg = ""; }
+    else if (what === "mode") { prefs.voiceMode = prefs.voiceMode === "ptt" ? "open" : "ptt"; savePrefs(prefs); convoyMsg = ""; }
+    syncVoice();
+    refreshConvoy();
+  },
   async onConvoyJoin(code) {
     code = String(code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (convoyBusy || convoy.active) return;
@@ -304,6 +321,7 @@ function toMenu() {
 
 // The scene behind the main menu: the journey's start site with the pickup parked outside
 function buildBackdrop() {
+  sitesLive = false;
   const { save } = loadSave();
   resetJourney(save ? save.seed : 20261113);
   const site = startSite();
@@ -318,6 +336,7 @@ function buildBackdrop() {
 
 function resetJourney(seed) {
   dialogueSpec = subtitle = null;
+  smoke?.clear();
   encounters?.clear(); hitch?.clear(); npcs?.clear();
   game.vehicle = null;
   interaction.clear?.();
@@ -342,12 +361,14 @@ function seedFrom(text) {
 function startJourney(save, opts = {}) {
   const fresh = !save || !save.world; // new journey, or one carried over from an older version of the game
   resetJourney(save ? save.seed : seedFrom(opts.seed));
+  sitesLive = true;
+  mapMemory.restore(save && save.map);
   const site = startSite();
   Object.assign(game, {
     playTime: save?.playTime || 0, hostile: (save || opts).hostile !== false,
     diff: save ? save.diff : opts.difficulty || "normal", day: save ? save.day : 1, lights: (save && save.lights) || "auto",
     stats: Object.assign({ distance: 0, litres: 0, sites: 0, escapes: 0, rides: 0 }, save && save.stats), hints: (save && save.hints) || {},
-    tripId: (save && save.tripId) || newTripId(),
+    tripId: (save && save.tripId) || newTripId(), riding: null,
   });
   lastUpload = -Infinity;
   sky.time = save ? save.time : 0.31;
@@ -418,7 +439,7 @@ function snapshot() {
     tripId: game.tripId, hostile: game.hostile, playTime: game.playTime, seed: getSeed(), time: sky.time, day: game.day, diff: game.diff, lights: game.lights, stats: game.stats, hints: game.hints,
     needs: needs.serialize(), wallet: { money: wallet.money }, weather: weather.serialize(),
     player: player.serialize(), interact: interaction.serialize(), drivenId: game.vehicle ? game.vehicle.id : null,
-    vehicleName: game.lastVehicleName, world: ws.serialize(),
+    vehicleName: game.lastVehicleName, world: ws.serialize(), map: mapMemory.serialize(),
   };
 }
 function persist() {
@@ -454,9 +475,121 @@ function careerTick() {
     reportTrip(user, career.live);
   }
 }
+// ── Maps and the Digimap ───────────────────────────────
+// The minimap and the full map (M) only show what this player has found (js/map.js). A Digimap carried in the pockets
+// or hands reveals the road ahead and the next open fuel and services – and its catch: a station, garage, diner or
+// motel whose chunk is first built while you carry one is, more often than not, a ruin (just its slab). The fate is
+// decided once per site and saved (ws flag "fate:<id>": 1 open, 2 ruin), so places never change once they exist.
+const mapMemory = new MapMemory(), minimap = new Minimap(), mapView = new MapView();
+const RUIN_KINDS = new Set(["station", "garage", "diner", "motel"]), RUIN_CHANCE = 0.65, REVEAL = 15000;
+let sitesLive = false, mapClock = 0;
+const carryingDigimap = () => pockets.has("digimap") || interaction.held?.type === "digimap";
+const wouldRuin = (s) => RUIN_KINDS.has(s.kind) && !s.start && !s.sedan && (hashStr(getSeed() + ":ruin:" + s.id) % 1000) / 1000 < RUIN_CHANCE;
+// world/index.js asks this when it builds a site's chunk
+function siteGone(s) {
+  const f = ws.flag("fate:" + s.id);
+  if (f) return f === 2;
+  if (!sitesLive || devmap.active || !RUIN_KINDS.has(s.kind)) return false;
+  const gone = carryingDigimap() && wouldRuin(s);
+  ws.setFlag("fate:" + s.id, gone ? 2 : 1);
+  return gone;
+}
+// Whether a site will be open when you get there, as things stand (for the Digimap's view ahead)
+function willBeOpen(s) {
+  const f = ws.flag("fate:" + s.id);
+  return f ? f === 1 : !(carryingDigimap() && wouldRuin(s));
+}
+function headingOf() {
+  const v = game.vehicle || (game.riding && convoy.vehicleOf(game.riding.id));
+  if (!v) return player.yaw;
+  const f = _fwd.set(0, 0, 1).applyQuaternion(v.quat);
+  return Math.atan2(f.x, f.z);
+}
+const _fwd = new THREE.Vector3();
+function mapData() {
+  const p = focusPos(), digi = carryingDigimap(), ext = mapMemory.extent;
+  const lo = Math.min(ext ? ext[0] : p.z, p.z) - 600, hi = Math.min(Math.max(ext ? ext[1] : p.z, p.z + (digi ? REVEAL : 0)) + 600, p.z + REVEAL + 2000);
+  const sites = [];
+  for (const s of sitesBetween(lo, hi)) {
+    if (s.start || ws.flag("site:" + s.id)) sites.push({ ...s, state: ws.flag("fate:" + s.id) === 2 ? "ruin" : "found" });
+    else if (digi && s.kind !== "wreck" && s.kind !== "home" && s.zRoad > p.z && s.zRoad < p.z + REVEAL && willBeOpen(s)) sites.push({ ...s, state: "intel" });
+  }
+  const seed = getSeed();
+  const members = convoy.active ? [...convoy.members.values()].filter((m) => m.st && m.seed === seed)
+    .map((m) => ({ name: m.name, x: m.st.p.x, z: m.st.p.z, paused: m.paused })) : [];
+  return { memory: mapMemory, sites, members, me: { x: p.x, z: p.z, yaw: headingOf() }, reveal: digi ? [p.z - 300, p.z + REVEAL] : null };
+}
+// The full map's side panel: legend, and with a Digimap the next open places ahead
+function mapScreenData() {
+  const p = focusPos(), digi = carryingDigimap(), next = [];
+  if (digi) {
+    for (const kind of ["station", "garage", "diner", "motel"]) {
+      const s = sitesBetween(p.z, p.z + REVEAL).find((q) => q.kind === kind && q.zRoad > p.z && !ws.flag("site:" + q.id) && willBeOpen(q));
+      next.push({ kind, label: KIND_STYLE[kind].label, letter: KIND_STYLE[kind].letter, color: KIND_STYLE[kind].color, name: s ? s.name : null, dist: s ? fmtDist(s.zRoad - p.z) : null });
+    }
+  }
+  return { digimap: digi, next, convoy: convoy.active, legend: Object.entries(KIND_STYLE).map(([k, v]) => ({ kind: k, ...v })) };
+}
+function updateMap(dt) {
+  if (state === "playing" && (mapClock -= dt) <= 0) { mapClock = 0.25; const p = focusPos(); mapMemory.record(p.x, p.z); }
+  minimap.update(dt, state === "playing" && prefs.hud.show !== "off", mapData);
+}
+
+// ── Chase camera zoom: mouse wheel or +/- while driving (or riding) in chase view; remembered in the settings ──
+let zoomSaveIn = 0;
+function chaseZoom(dt) {
+  const keys = (isDown("camZoomOut") ? 1 : 0) - (isDown("camZoomIn") ? 1 : 0);
+  const amount = look.zoom * 0.0012 + keys * dt * 0.6;
+  look.zoom = 0;
+  if (!amount || prefs.camera !== "chase") return;
+  const z = Math.max(0.5, Math.min(2.5, prefs.chaseZoom * Math.exp(amount)));
+  if (z === prefs.chaseZoom) return;
+  prefs.chaseZoom = z;
+  zoomSaveIn = 0.6;
+}
+setInterval(() => { if (zoomSaveIn > 0 && (zoomSaveIn -= 0.25) <= 0) savePrefs(prefs); }, 250);
+
+// ── Engine smoke (js/smoke.js) ─────────────────────────
+let smoke = null;
+const smokeLight = () => (sky.night ? 0.3 : 1);
+
+// ── The player's body ──────────────────────────────────
+// At the wheel it is seen from chase view and in photos (and from the cab without its head, where the camera sits);
+// on foot the camera is the eyes, so it only shows in photo mode. Convoy members see the same person (js/convoy.js).
+let body = null;
+function updateBody(dt) {
+  const journey = state !== "menu" && state !== "boot" && state !== "dead" && !!game.tripId;
+  if (!journey) { body?.show("hidden"); return; }
+  const name = myName();
+  if (!body || body.name !== name) { body?.dispose(); body = new Body(worldRoot, name); body.name = name; }
+  const v = game.vehicle, ride = game.riding && convoy.vehicleOf(game.riding.id);
+  if (v) body.update(dt, { vehicle: v, seat: "driver" });
+  else if (ride) body.update(dt, { vehicle: ride, seat: game.riding.seat });
+  else body.update(dt, { pos: player.pos, yaw: player.yaw, speed: Math.hypot(player.vel.x, player.vel.z) });
+  // The photo camera starts at the eyes: the head appears once it has moved away
+  const inHead = () => camera.getWorldPosition(_cam).distanceTo(body.rig.head.getWorldPosition(_head)) < 0.6;
+  if (state === "photo") body.show(inHead() ? "headless" : "full");
+  else if (v || ride) body.show(prefs.camera === "chase" ? "full" : "headless");
+  else body.show("hidden");
+}
+const _cam = new THREE.Vector3(), _head = new THREE.Vector3();
+
 // ── Convoy (multiplayer) ───────────────────────────────
 // Friends on the same seed see each other's vehicles and bodies (js/convoy.js). Each world is still private.
-const convoy = new Convoy({ root: worldRoot, onChange: () => refreshConvoy() });
+const convoy = new Convoy({
+  root: worldRoot, onChange: () => refreshConvoy(),
+  localVehicle: () => game.vehicle,
+  rideTarget: (id) => ({
+    id: "convoy:" + id, reach: 3.6,
+    name: () => `@${convoy.members.get(id)?.name || "driver"}'s ${convoy.vehicleOf(id)?.def.name || "truck"}`,
+    actions: () => {
+      if (game.vehicle || game.riding || !convoy.vehicleOf(id)) return [];
+      const seat = convoy.freeSeat(id), who = convoy.members.get(id)?.name || "driver";
+      return [{ key: "use", label: `Ride with @${who}`, blocked: seat ? undefined : "No free seat", run: () => startRide(id) }];
+    },
+  }),
+  onNotice: (text) => notify(text, { icon: "⛟", key: "convoy-seat" }),
+});
 let convoyMsg = "", convoyBusy = false;
 function myName() {
   const user = identity();
@@ -474,18 +607,39 @@ function convoyInfo() {
   return { seed: getSeed(), diff: game.diff, hostile: game.hostile, time: sky.time, weather: weather.serialize(), p: [p.x, p.z] };
 }
 function convoyLocal() {
-  const v = game.vehicle;
-  if (v) return { seed: getSeed(), m: "car", p: v.pos, q: v.quat, v: v.vel, sp: v.speed, vt: v.type, pa: v.paint, vs: v.seed, w: v.wearLook, st: v.steer, l: v.lights };
+  const v = game.vehicle, r = game.riding;
+  if (v) {
+    const fs = Object.keys(v.def.seats).filter((k) => k !== "driver" && v.seats[k] === null);
+    return { seed: getSeed(), m: "car", p: v.pos, q: v.quat, v: v.vel, sp: v.speed, vt: v.type, pa: v.paint, vs: v.seed, w: v.wearLook, st: v.steer, l: v.lights, fs };
+  }
+  if (r) { const car = convoy.vehicleOf(r.id); return { seed: getSeed(), m: "ride", host: r.id, seat: r.seat, p: player.pos, v: car ? car.vel : player.vel, sp: car ? Math.abs(car.speed) : 0 }; }
   return { seed: getSeed(), m: "foot", p: player.pos, v: player.vel, sp: Math.hypot(player.vel.x, player.vel.z), yaw: player.yaw };
 }
 function convoyView() {
   return {
     code: convoy.code, status: convoy.status, me: myName(), busy: convoyBusy, msg: convoyMsg,
+    voice: { on: convoy.voice.on, muted: convoy.voice.muted, mode: prefs.voiceMode, error: convoy.voice.error },
     members: convoy.active && state !== "menu" ? convoy.list(focusPos(), prefs.units) : [],
     inJourney: state !== "menu" && state !== "dead", dev: devmap.active, account: identity(),
   };
 }
 function refreshConvoy() { if (menus.screen === "convoy") menus.refresh({ convoy: convoyView() }); }
+// Push to talk also works with a menu open (pause, inventory, map), where the menus own the keyboard – but not while
+// typing in a text box
+const TALK_KEYS = new Set(BINDINGS.find((b) => b.action === "talk")?.keys || []);
+let talkInMenu = false;
+addEventListener("keydown", (e) => { if (TALK_KEYS.has(e.code) && state !== "playing" && !e.target.closest?.("input, textarea")) talkInMenu = true; }, true);
+addEventListener("keyup", (e) => { if (TALK_KEYS.has(e.code)) talkInMenu = false; }, true);
+addEventListener("blur", () => { talkInMenu = false; });
+// Voice settings and push to talk, every frame
+function syncVoice() {
+  const v = convoy.voice;
+  convoy.talkKey = bindingLabel("talk");
+  v.mode = prefs.voiceMode;
+  const talking = isDown("talk") || talkInMenu;
+  if (talking !== v.talking || v._mode !== v.mode) { v.talking = talking; v._mode = v.mode; v.applyMic(); }
+  v.setVolume(prefs.muted ? 0 : (prefs.vol.master ?? 1) * (prefs.vol.voice ?? 1));
+}
 // Put this player (and the vehicle they sit in, or the starter truck on a fresh journey) on the road just behind
 // the convoy member at info.p
 function regroup(info) {
@@ -521,6 +675,65 @@ function accountChanged() {
   checkCloud(loadSave().save);
   syncAccount();
 }
+
+// Riding in a convoy member's truck: you sit in one of its free seats and go where they drive; your own vehicle
+// stays where you left it. The driver's game holds the seat for you (js/convoy.js).
+function startRide(id) {
+  if (game.vehicle || game.riding || !convoy.active) return;
+  const car = convoy.vehicleOf(id), seat = convoy.freeSeat(id), name = convoy.members.get(id)?.name || "driver";
+  if (!car || !seat) { notify(`There's no free seat in @${name}'s truck.`, { icon: "⛟", key: "ride" }); return; }
+  interaction.dropHeld?.();
+  game.riding = { id, seat, name, last: car };
+  look.yaw = look.pitch = 0;
+  syncLookLimit();
+  rig.snap();
+  sfx("door_close");
+  notify(`Riding with @${name}. ${bindingLabel("exit")} to get out.`, { icon: "⛟", key: "ride", level: "good" });
+}
+function stopRide(message) {
+  const r = game.riding;
+  if (!r) return;
+  game.riding = null;
+  const car = r.last;
+  if (car) { const s = car.doorSpot(r.seat); player.teleport(s.x, s.z, car.yaw); }
+  else player.teleport(player.pos.x, player.pos.z, player.yaw);
+  look.yaw = player.yaw; look.pitch = 0;
+  syncLookLimit();
+  rig.snap();
+  sfx("door_open");
+  notify(message || `You got out of @${r.name}'s truck.`, { icon: "⛟", key: "ride" });
+}
+// Every frame while riding: follow the seat, or get out when the truck is gone (they left it, or the convoy)
+function rideUpdate(dt) {
+  const r = game.riding, car = convoy.active ? convoy.vehicleOf(r.id) : null;
+  if (!car) { stopRide(`@${r.name} isn't driving any more. You climb out.`); return; }
+  r.last = car;
+  car.seatPos(r.seat, player.pos);
+  player.vel.copy(car.vel);
+  if (took("exit")) {
+    if (Math.abs(car.speed) > 2) notify(`Ask @${r.name} to stop first.`, { key: "exit", icon: "✋" });
+    else stopRide();
+  }
+  if (took("camera")) {
+    prefs.camera = prefs.camera === "cab" ? "chase" : "cab";
+    savePrefs(prefs); syncLookLimit(); look.yaw = look.pitch = 0; rig.snap();
+  }
+}
+// The view from a passenger seat: the driver's eye height, moved across to that seat
+function rideCamera(dt) {
+  const r = game.riding, car = convoy.vehicleOf(r.id);
+  if (!car) return;
+  if (prefs.camera === "chase") { rig.chase(dt, car, look, prefs.chaseZoom); return; }
+  const d = car.def, seat = d.seats[r.seat].pos, eye = d.seatEye, drv = d.seats.driver.pos;
+  rideEye.vehicle = car;
+  rideEye.local = [seat[0], eye[1], seat[2] + (eye[2] - drv[2])];
+  rig.cab(dt, rideEye, look, 0);
+}
+const rideEye = {
+  vehicle: null, local: [0, 0, 0], camMotion: null,
+  get quat() { return this.vehicle.quat; },
+  seatEye(out) { return this.vehicle.localToWorld(this.local[0], this.local[1], this.local[2], out); },
+};
 
 // ── Cloud saves ────────────────────────────────────────
 // The journey is copied to the X-ORBIT account every minute while playing, and right away on pause, menu or tab
@@ -785,11 +998,12 @@ function updateDiscovery(dt, p) {
   for (const s of sitesBetween(p.z - 150, p.z + 400)) {
     if (ws.flag("site:" + s.id)) continue;
     const d = Math.hypot(s.x - p.x, s.z - p.z);
-    if (s.kind === "station" && d < 380 && s.z > p.z) hint("station");
+    const ruin = ws.flag("fate:" + s.id) === 2;
+    if (s.kind === "station" && !ruin && d < 380 && s.z > p.z) hint("station");
     if (d > 70) continue;
     ws.setFlag("site:" + s.id, 1);
     game.stats.sites++;
-    notify(`Discovered: ${s.name || s.kind}`, { level: "good", icon: "◎" });
+    notify(ruin ? `Found what's left of ${s.name || s.kind}: it closed down long ago.` : `Discovered: ${s.name || s.kind}`, { level: ruin ? "warn" : "good", icon: "◎" });
     sfx("discover");
     emit("discover", { site: s });
   }
@@ -824,6 +1038,10 @@ function frame(now) {
     rig.snap();
     last = performance.now();
   }
+  if (took("map")) {
+    if (state === "playing") openOverlay("map", mapScreenData());
+    else if (state === "ui" && menus.current === "map") resume();
+  }
   if (took("inventory")) {
     if (state === "playing") openOverlay("inventory", inventoryData());
     else if (state === "ui" && menus.current === "inventory") resume();
@@ -839,6 +1057,10 @@ function frame(now) {
     rig.finish(dt, 52, 0, 0);
     audio.update({ active: true, tel: null, wind: 0.25, rain: 0 }, dt);
   }
+  updateBody(dt);
+  updateMap(dt);
+  if (state === "playing" && smoke) smoke.update(dt, vehicles, { camera, height: renderer.domElement.height, light: smokeLight() });
+  if (convoy.voice.on) syncVoice();
   if (convoy.active && state !== "menu" && state !== "boot" && state !== "dead") {
     convoy.tick(dt, state === "playing" ? convoyLocal() : null, focusPos());
     convoy.showPanel(state === "playing" && prefs.hud.show !== "off", prefs.units);
@@ -872,7 +1094,6 @@ function tick(dt) {
   let v = game.vehicle;
 
   // One-shot actions
-  if (took("mute")) { prefs.muted = !prefs.muted; onPrefs(); notify(prefs.muted ? "Sound off" : "Sound on", { key: "mute", icon: "♪" }); }
   if (took("radioNext")) {
     if (music.info().radio) music.next();
     else notify("No radio tracks installed", { key: "radio", icon: "♪" });
@@ -923,8 +1144,9 @@ function tick(dt) {
   if (v) v.setLights(lightsOn);
   acc += dt;
   let steps = 0, first = true;
+  const fp = focusPos(), convoyCars = convoy.active ? convoy.ghostCars(fp.x, fp.z, 300) : null;
   while (acc >= STEP && steps < 12) {
-    vehicles.step(STEP, v, first ? input : { ...input, shiftUp: false, shiftDown: false }, env);
+    vehicles.step(STEP, v, first ? input : { ...input, shiftUp: false, shiftDown: false }, env, convoyCars);
     first = false; acc -= STEP; steps++;
   }
   if (steps === 12) acc = 0;
@@ -948,7 +1170,11 @@ function tick(dt) {
   // On foot
   let ui = NO_UI;
   const temp = env.ambient;
-  if (!v) {
+  if (v || game.riding) { interaction.hideLight(); chaseZoom(dt); }
+  if (!v && game.riding) {
+    rideUpdate(dt);
+    if (state !== "playing") return;
+  } else if (!v) {
     const fi = foot();
     player.yaw = look.yaw;
     player.pitch = look.pitch;
@@ -965,7 +1191,7 @@ function tick(dt) {
 
   // Needs
   const indoors = !v && !!world.indoorsAt?.(player.pos.x, player.pos.z);
-  needs.update(dt / HOUR, { temp, sprinting: !v && player.sprinting, sleeping: false, shade: !!v || indoors, rate: d.needs });
+  needs.update(dt / HOUR, { temp, sprinting: !v && !game.riding && player.sprinting, sleeping: false, shade: !!v || !!game.riding || indoors, rate: d.needs });
   if (needs.dead) { die(needs.cause); return; }
 
   // World
@@ -985,8 +1211,8 @@ function tick(dt) {
   const motion = prefs.a11y.reduceMotion ? 0 : prefs.camMotion;
   if (v) {
     if (prefs.camera === "cab") rig.cab(dt, v, look, motion);
-    else rig.chase(dt, v, look);
-  }
+    else rig.chase(dt, v, look, prefs.chaseZoom);
+  } else if (game.riding) rideCamera(dt);
   rig.finish(dt, prefs.fov, tel ? Math.abs(tel.speed) : 0, motion);
 
   // Sound
@@ -1021,7 +1247,8 @@ function tick(dt) {
   h.locked = locked();
   h.encounter = encounters.hud() || hitch.hud();
   h.subtitle = subtitle && subtitle.until > game.playTime ? subtitle : null;
-  h.prompt = v ? drivePrompt(v, tel, d) : null;
+  h.prompt = v ? drivePrompt(v, tel, d)
+    : game.riding ? `Riding with @${game.riding.name} · ${bindingLabel("exit")} get out · ${bindingLabel("camera")} camera` : null;
   hud.update(h);
   const tired = needs.energy < 15 ? (15 - needs.energy) / 15 : 0;
   const hurt = needs.health < 35 ? (35 - needs.health) / 35 : 0;
@@ -1066,6 +1293,24 @@ async function boot() {
   on("fuel:bought", (e) => { game.stats.litres += (e && e.litres) || 0; });
   on("encounter:end", (e) => { if (e && e.state === "escaped") game.stats.escapes++; });
   on("hitch:arrived", () => { game.stats.rides++; });
+  on("music:discovery", id => {
+    if (career.ach[id]) return;
+    mergeAchievements(career, [id]);
+    if (!career.ach[id]) return;
+    keepCareer();
+    if (careerOwner) pushAchievements(careerOwner, Object.keys(career.ach));
+    if (state === "menu") menus.refresh({ career: careerView() });
+    const name = ACHIEVEMENTS.find(a => a.id === id).name;
+    if (state !== "menu") notify("Achievement unlocked: " + name, { level: "good", icon: "★" });
+    if (state === "menu") {
+      const toast = document.createElement("div");
+      toast.className = "lh-discovery-toast";
+      toast.setAttribute("role", "status");
+      toast.textContent = "★ Achievement unlocked: " + name;
+      document.body.append(toast);
+      setTimeout(() => toast.remove(), 6000);
+    }
+  });
   on("music:track", (t) => { menus.setNowPlaying?.(t); hud.setNowPlaying?.(t); });
   canvas.addEventListener("click", () => { if (state === "playing" && !locked()) requestLock(); });
 
@@ -1082,6 +1327,10 @@ async function boot() {
     weather.onThunder = () => sfx("thunder");
     world = new World({ root: worldRoot });
     vehicles = new Vehicles({ root: worldRoot, getColliders: terrainColliders });
+    setSiteFilter(siteGone);
+    // Red flash at the screen edges for every hit taken (a scratch barely flickers, a beating glares)
+    needs.onHurt = (amount) => { if (amount >= 0.5 && state === "playing") hud.damageFlash(0.3 + amount / 30); };
+    smoke = new EngineSmoke(worldRoot);
     setVehicleLookup?.((x, z, r) => { let best = null, bd = r; for (const c of vehicles.list) { const dd = Math.hypot(c.pos.x - x, c.pos.z - z); if (dd < bd && Math.abs(c.speed) < 1) { bd = dd; best = c; } } return best; });
     props = new Props({ root: worldRoot, getColliders, getVehicle: (id) => vehicles.get(id) });
     interaction = new Interaction({
@@ -1124,7 +1373,7 @@ window.__lh = {
   get state() { return state; }, game, prefs, needs, wallet, player, pockets, ws, perfStats, renderer, camera,
   get world() { return world; }, get vehicles() { return vehicles; }, get props() { return props; }, get interaction() { return interaction; },
   get sky() { return sky; }, get weather() { return weather; }, get tel() { return lastTel; }, origin,
-  get npcs() { return npcs; }, get combat() { return combat; }, convoy,
+  get npcs() { return npcs; }, get combat() { return combat; }, convoy, get body() { return body; }, mapMemory, roadX, sitesBetween, get smoke() { return smoke; }, startRide, stopRide, look, get hudState() { return hudState; },
   get encounters() { return new URLSearchParams(location.search).get("dev") === "1" ? encounters : undefined; },
   startJourney, persist, pause, resume, snapshot, seat, exitVehicle, getColliders, handlers, music, audio,
   tick, makeItem,

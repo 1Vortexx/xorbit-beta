@@ -288,13 +288,24 @@ function meshRepairKit() {
   for (const x of [-0.12, 0.12]) box(g, 0.035, 0.04, 0.008, TIN(), x, 0.028, 0.097);
   return g;
 }
+// Modelled pointing down −z like the weapons: the hands turn held items half a turn, so the lens faces where you look
 function meshFlashlight() {
   const g = new THREE.Group(), body = M(0x1d1f23, { r: 0.45, m: 0.5 });
-  const b = cyl(g, 0.016, 0.016, 0.13, body, 0, 0, -0.025, 12); b.rotation.x = Math.PI / 2;
-  const h = cyl(g, 0.025, 0.017, 0.045, body, 0, 0, 0.0625, 14); h.rotation.x = Math.PI / 2;
-  const l = cyl(g, 0.021, 0.021, 0.004, M(0xfff3c0, { r: 0.2, e: 0xffe9a0 }), 0, 0, 0.0865, 14); l.rotation.x = Math.PI / 2;
+  const b = cyl(g, 0.016, 0.016, 0.13, body, 0, 0, 0.025, 12); b.rotation.x = Math.PI / 2;
+  const h = cyl(g, 0.017, 0.025, 0.045, body, 0, 0, -0.0625, 14); h.rotation.x = Math.PI / 2;
+  const l = cyl(g, 0.021, 0.021, 0.004, M(0xfff3c0, { r: 0.2, e: 0xffe9a0 }), 0, 0, -0.0865, 14); l.rotation.x = Math.PI / 2;
   l.castShadow = false;
   box(g, 0.008, 0.005, 0.018, M(0xd9a13a), 0, 0.017, 0.0);
+  return g;
+}
+// A handheld GPS tablet: dark case, lit map screen with a road and a fuel dot
+function meshDigimap() {
+  const g = new THREE.Group();
+  box(g, 0.13, 0.016, 0.19, M(0x23262b, { r: 0.5, m: 0.2 }), 0, 0, 0);
+  const scr = box(g, 0.112, 0.002, 0.15, M(0x1d3b33, { r: 0.3, e: 0x14453a }), 0, 0.009, 0.006); scr.castShadow = false;
+  box(g, 0.006, 0.0025, 0.13, M(0xe7dcc6, { r: 0.4, e: 0x6a6455 }), 0.01, 0.0105, 0.006).castShadow = false;
+  box(g, 0.014, 0.0025, 0.014, M(0xf2aa2e, { r: 0.4, e: 0xb06f10 }), -0.025, 0.0105, 0.04).castShadow = false;
+  box(g, 0.03, 0.006, 0.012, M(0x3a3e45), 0, 0.009, -0.085);
   return g;
 }
 // Weapons are modelled pointing down −z: the hands hold items turned half a turn, so −z faces where you look.
@@ -467,6 +478,9 @@ export const ITEMS = {
     desc: "Used up restoring body or engine condition.", makeMesh: meshRepairKit },
   flashlight: { name: "Flashlight", icon: "🔦", kind: "tool", mass: 0.25, size: [0.05, 0.05, 0.18], price: 12, pocket: true, stack: 1,
     desc: "T switches it on while you carry it.", makeMesh: meshFlashlight },
+  digimap: { name: "Digimap", icon: "🗺", kind: "tool", mass: 0.4, size: [0.13, 0.02, 0.19], price: 65, pocket: true, stack: 1,
+    desc: "Shows the road ahead and the next fuel, garages, diners and motels on your map (M). The catch: while you carry it, far fewer of the places ahead are still open. Drop it and they come back.",
+    makeMesh: meshDigimap },
 
   // Weapons. weapon: { kind: "melee"|"gun", dmg per hit, range m, rate s between attacks, auto, ammo item, spread rad }
   knife: { name: "Hunting knife", icon: "🔪", kind: "weapon", mass: 0.2, size: [0.03, 0.03, 0.28], price: 15, pocket: true, stack: 1,
@@ -528,7 +542,7 @@ export const itemsReady = import("./vehicles/components.js")
 
 // What station shops sell
 const STOCK = ["water", "waterjug", "soda", "coffee", "beans", "jerky", "chips", "bandage", "medkit",
-  "fuelcan", "jerrycan", "oil", "oiljug", "coolant", "wrench", "jack", "repairkit", "flashlight", "battery", "wheel_16", "wheel_14"];
+  "fuelcan", "jerrycan", "oil", "oiljug", "coolant", "wrench", "jack", "repairkit", "flashlight", "digimap", "battery", "wheel_16", "wheel_14"];
 export const SHOP_STOCK = STOCK.map((type) => ({ type, get price() { return ITEMS[type].price; } }));
 
 const LIQUID_KG = { fuel: 0.75, oil: 0.88, coolant: 1.07, water: 1 };

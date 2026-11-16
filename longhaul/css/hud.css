@@ -202,6 +202,7 @@
 #hud-vignette { position: fixed; inset: 0; z-index: 10; pointer-events: none; --hurt: 0; --tired: 0; }
 #hud-vignette i { position: absolute; inset: 0; }
 #hud-vignette .v-hurt { background: radial-gradient(ellipse at center, transparent 42%, rgba(140, 22, 8, 0.8) 100%); opacity: var(--hurt); }
+#hud-vignette .v-hit { background: radial-gradient(ellipse at center, transparent 48%, rgba(200, 16, 8, 0.55) 78%, rgba(220, 20, 10, 0.95) 100%); opacity: 0; }
 #hud-vignette .v-tired { background: radial-gradient(ellipse at center, transparent 30%, rgba(0, 0, 0, 0.94) 100%); opacity: var(--tired); }
 #hud-fade { position: fixed; inset: 0; z-index: 30; pointer-events: none; display: grid; place-items: center; background: rgba(5, 4, 3, var(--o, 0)); }
 #hud-fade span { opacity: var(--o, 0); color: var(--lh-bone); font: 600 clamp(14px, 2.4vh + 6px, 30px) var(--lh-display); letter-spacing: 0.16em; text-transform: uppercase; text-align: center; padding: 0 1em; }
@@ -258,7 +259,29 @@
   background: rgba(var(--lh-plate), 0.6); border: 1px solid var(--lh-line); border-radius: 0.35em; padding: 0.45em 0.75em; max-width: 19em;
 }
 .lh-convoy[hidden] { display: none; }
+#hud .lh-convoy { position: static; font-size: 0.9em; }
 .lh-convoy-head { font-size: 0.82em; letter-spacing: 0.08em; text-transform: uppercase; color: var(--lh-sand); }
 .lh-convoy-head b { color: var(--lh-amber); letter-spacing: 0.14em; }
 .lh-convoy div:not(.lh-convoy-head) { display: flex; justify-content: space-between; gap: 1em; }
 .lh-convoy em { font-style: normal; color: var(--lh-sand); font-size: 0.92em; }
+/* pause sign after a paused convoy member's name: two bars */
+.lh-paused { display: inline-block; width: 0.62em; height: 0.72em; margin-left: 0.35em; vertical-align: -0.05em;
+  background: linear-gradient(90deg, currentColor 0 35%, transparent 35% 65%, currentColor 65%); color: var(--lh-bone); opacity: 0.9; }
+
+/* minimap (js/map.js), under the status plate */
+.lh-minimap { position: relative; width: 11em; height: 11em; padding: 0; overflow: hidden; }
+.lh-minimap[hidden] { display: none; }
+.lh-minimap canvas { display: block; width: 100%; height: 100%; }
+.lh-minimap-key { position: absolute; right: 0.4em; bottom: 0.3em; font-size: 0.7em; color: var(--lh-sand); }
+.lh-minimap-key kbd { font: 600 0.95em/1 var(--lh-mono); padding: 0.1em 0.3em; border: 1px solid var(--lh-line); border-radius: 0.2em; }
+/* convoy voice: a small speaker mark, lit while someone is talking */
+.lh-vc { display: inline-block; width: 0.75em; height: 0.75em; margin-left: 0.3em; vertical-align: -0.05em; border-radius: 50%;
+  background: radial-gradient(circle, var(--lh-sand) 0 30%, transparent 32% 52%, rgba(201, 191, 174, 0.55) 54% 66%, transparent 68%); }
+.lh-vc-talk { background: radial-gradient(circle, #7fdc8f 0 30%, transparent 32% 52%, #7fdc8f 54% 66%, transparent 68%); filter: drop-shadow(0 0 3px #7fdc8f); }
+.lh-vc-wait { opacity: 0.4; }
+.lh-vc-off { background: radial-gradient(circle, #b85a4a 0 34%, transparent 36%); }
+.lh-vc-ptt { opacity: 0.55; }
+.lh-convoy .lh-talking span { color: #b9f5c3; }
+.lh-convoy > div.lh-talking { background: rgba(60, 160, 80, 0.18); border-radius: 0.25em; margin: 0 -0.35em; padding: 0 0.35em; }
+.lh-convoy-me { display: flex !important; align-items: center; gap: 0.35em; font-size: 0.85em; color: var(--lh-sand); justify-content: flex-start !important; }
+.lh-convoy-me .lh-vc { margin-left: 0; }

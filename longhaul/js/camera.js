@@ -39,13 +39,14 @@ export class CameraRig {
     cam.rotateY(Math.PI); // the camera looks down −z, vehicles face +z
   }
 
-  chase(dt, vehicle, look) {
+  // zoom: distance multiplier (prefs.chaseZoom, 0.5 close … 2.5 far)
+  chase(dt, vehicle, look, zoom = 1) {
     const cam = this.camera;
     fwd.set(0, 0, 1).applyQuaternion(vehicle.quat);
     fwd.y = 0;
     if (fwd.lengthSq() < 0.01) fwd.set(0, 0, 1);
     fwd.normalize().applyAxisAngle(Y, look.yaw);
-    const dist = 7.6, height = 2.9 + Math.max(-1, Math.min(2.5, look.pitch * 3));
+    const dist = 7.6 * zoom, height = 2.9 * (0.55 + 0.45 * zoom) + Math.max(-1, Math.min(2.5, look.pitch * 3));
     tmp.copy(vehicle.pos).addScaledVector(fwd, -dist);
     tmp.y = Math.max(vehicle.pos.y + height, heightAt(tmp.x, tmp.z) + 0.9);
     if (!this.chaseReady) { this.chasePos.copy(tmp); this.chaseReady = true; }

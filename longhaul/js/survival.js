@@ -42,9 +42,11 @@ export class Needs {
     else if (this.hunger > 35 && this.thirst > 35 && this.energy > 15) this.health = clamp(this.health + 2.5 * hours);
   }
 
+  // Sudden damage (crashes, blows, knives). onHurt(amount, cause), if set, hears about each one (the HUD flashes).
   hurt(amount, cause) {
     this.health = clamp(this.health - amount);
     if (this.health <= 0) this.cause = cause;
+    if (amount > 0 && this.onHurt) this.onHurt(amount, cause);
   }
 
   serialize() {

@@ -520,14 +520,19 @@ export class Interaction {
     const want = this.flashlight && this.ctx.hasTool("flashlight");
     if (!want) { if (this.light) this.light.visible = false; if (this.flashlight && !this.ctx.hasTool("flashlight")) this.flashlight = false; return; }
     if (!this.light) {
-      this.light = new THREE.SpotLight(0xfff0d0, 60, 45, 0.42, 0.5, 1.6);
+      this.light = new THREE.SpotLight(0xfff0d0, 240, 60, 0.45, 0.55, 1.4);
       this.light.castShadow = false;
       this.props.root.add(this.light, this.light.target);
     }
     this.player.eye(_eye); this.player.dir(_dir);
     this.light.visible = true;
-    this.light.position.set(_eye.x, _eye.y - 0.15, _eye.z);
+    // Held: the beam leaves from just past the lens, so it doesn't light the flashlight itself; pocketed: from the chest
+    const hp = this.heldProp;
+    if (hp && hp.item.type === "flashlight") this.light.position.set(0, 0, -hp.def.size[2] / 2 - 0.05).applyQuaternion(hp.quat).add(hp.pos);
+    else this.light.position.set(_eye.x, _eye.y - 0.15, _eye.z);
     this.light.target.position.copy(_eye).addScaledVector(_dir, 6);
   }
+  // The beam only follows the player on foot: in a vehicle (or riding) it is put away until they get out
+  hideLight() { if (this.light) this.light.visible = false; }
   dispose() { this.clear(); this._disposeGhost(); if (this.light) { this.light.parent && this.light.parent.remove(this.light, this.light.target); this.light.dispose(); this.light = null; } }
 }

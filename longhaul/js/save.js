@@ -104,9 +104,9 @@ export function previewOf(save) {
 // ── Settings ───────────────────────────────────────────
 const PREFS = "longhaul-prefs";
 export const PREF_DEFAULTS = {
-  quality: "auto", fov: 70, camMotion: 1, camera: "cab", sens: 1, invertY: false,
+  quality: "auto", fov: 70, camMotion: 1, camera: "cab", chaseZoom: 1, sens: 1, invertY: false,
   units: "km", gearbox: "auto",
-  vol: { master: 0.8, music: 0.6, sfx: 0.8, ambience: 0.7 }, muted: false, radio: true,
+  vol: { master: 0.8, music: 0.6, sfx: 0.8, ambience: 0.7, voice: 1 }, muted: false, radio: true, voiceMode: "open",
   hud: { scale: 1, opacity: 1, show: "full", critical: true, help: true },
   a11y: { reduceMotion: false, highContrast: false },
 };
@@ -130,10 +130,12 @@ export function loadPrefs() {
   const p = merge(PREF_DEFAULTS, raw);
   if (!["auto", "high", "lite"].includes(p.quality)) p.quality = "auto";
   if (!["cab", "chase"].includes(p.camera)) p.camera = "cab";
+  if (!["open", "ptt"].includes(p.voiceMode)) p.voiceMode = "open";
   if (!["km", "mi"].includes(p.units)) p.units = "km";
   if (!["auto", "manual"].includes(p.gearbox)) p.gearbox = "auto";
   if (!["full", "minimal", "off"].includes(p.hud.show)) p.hud.show = "full";
   p.fov = Math.max(50, Math.min(110, p.fov));
+  p.chaseZoom = Math.max(0.5, Math.min(2.5, p.chaseZoom));
   return p;
 }
 export function savePrefs(p) { return set(PREFS, JSON.stringify(p)); }

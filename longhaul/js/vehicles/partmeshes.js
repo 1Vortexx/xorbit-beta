@@ -145,12 +145,12 @@ function engineMesh(type, item) {
   b.build(g);
   // Separate small meshes so the vehicle can make them interaction targets
   const cb = new Batch();
-  cb.add(cyl(0.034, 0.03, 0.028, 12), M.vc, { c: 0x16161a });
-  cb.add(cyl(0.012, 0.012, 0.012, 6), M.vcMetal, { p: [0, 0.018, 0], c: 0xb9b9b4 });
+  cb.add(cyl(0.038, 0.034, 0.03, 12), M.vc, { c: 0xe0a21e });                 // yellow, like the dipstick ring: easy to spot
+  cb.add(cyl(0.014, 0.014, 0.014, 6), M.vcMetal, { p: [0, 0.02, 0], c: 0xb9b9b4 });
   // generous invisible grab volume
   const cap = new THREE.Group(); cap.name = "oilCap"; cap.position.set(...oilCap);
   cb.build(cap);
-  cap.add(new THREE.Mesh(cyl(0.06, 0.06, 0.07, 8), M.proxy));
+  cap.add(new THREE.Mesh(cyl(0.09, 0.09, 0.1, 8), M.proxy));
   g.add(cap);
   const dg = new THREE.Group(); dg.name = "dipstick";
   const db = new Batch();

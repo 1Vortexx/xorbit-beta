@@ -734,7 +734,8 @@ export class Vehicle {
     this._velPrev.copy(this.vel); this._acc.set(0, 0, 0);
     this.speed = this.vel.dot(v1.set(0, 0, 1).applyQuaternion(this.quat));
     this.throttle = 0; this.brake = 0; this.shiftT = 0; this.crankT = 0; this.impact = 0;
-    for (const k of Object.keys(this.seats)) this.seats[k] = typeof rec.seats?.[k] === "string" ? rec.seats[k] : null;
+    // A seat held for a convoy rider (js/convoy.js) only lasts while they ride: never brought back from a save
+    for (const k of Object.keys(this.seats)) this.seats[k] = typeof rec.seats?.[k] === "string" && !rec.seats[k].startsWith("convoy:") ? rec.seats[k] : null;
     this.occupied = !!this.seats.driver;
     this.upright = v1.copy(Y).applyQuaternion(this.quat).y;
     this.pinned = !!rec.pinned; this.impactSum = num(rec.impactSum, 0, 0); this._rolledT = num(rec.rolledT, 0, 0);

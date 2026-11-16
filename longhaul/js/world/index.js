@@ -12,6 +12,10 @@ import { emit } from "../core/bus.js";
 import { removeAllUnder } from "../core/targets.js";
 
 export { setVehicleLookup };
+// siteFilter(site) → true when the site is built as a ruin (its slab and track only). Decided by the game (main.js:
+// the Digimap's catch) when the site's chunk is first built; null = every site as normal.
+let siteFilter = null;
+export function setSiteFilter(fn) { siteFilter = fn; }
 
 export async function prepare(report) {
   await prepareTextures((p, label) => report && report(p * 0.9, label));
@@ -39,6 +43,15 @@ function groundColor(x, z, y, slope, out, o) {
   if (ft > 0) { r += (PACKED[0] - r) * ft; g += (PACKED[1] - g) * ft; b += (PACKED[2] - b) * ft; }
   const k = 1 + f;
   out[o] = r * k; out[o + 1] = g * k; out[o + 2] = b * k;
+}
+// The ground's colour at a point (linear RGB, as on the terrain mesh) – for the maps (js/map.js)
+const _gc = [0, 0, 0];
+export function groundColorAt(x, z, out = [0, 0, 0]) {
+  // slope as on the mesh: the horizontal part of the ground normal
+  const e = 2, gx = (heightAt(x + e, z) - heightAt(x - e, z)) / (2 * e), gz = (heightAt(x, z + e) - heightAt(x, z - e)) / (2 * e), g = Math.hypot(gx, gz);
+  groundColor(x, z, heightAt(x, z), g / Math.sqrt(1 + g * g), _gc, 0);
+  out[0] = _gc[0]; out[1] = _gc[1]; out[2] = _gc[2];
+  return out;
 }
 
 // ── Chunk terrain ──────────────────────────────────────
@@ -139,7 +152,7 @@ function buildChunk(k, opts) {
   const sc = scatter(k);
   for (const c of sc.colliders) chunk.colliders.push(c);
   buildScenery(sc, chunk, opts, regionWeights(roadX(z0 + 100), z0 + 100, _w).slice());
-  for (const s of sitesBetween(z0, z0 + CHUNK)) { buildSite(s, chunk, opts); chunk.sites.push(s); }
+  for (const s of sitesBetween(z0, z0 + CHUNK)) { buildSite(s, chunk, siteFilter && siteFilter(s) ? { ...opts, ruin: true } : opts); chunk.sites.push(s); }
   group.updateMatrixWorld(true);
   return chunk;
 }
