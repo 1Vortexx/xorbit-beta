@@ -10,8 +10,8 @@ import("./world/terrain.js")
   .then((m) => { terrain.heightAt = m.heightAt; if (m.surfaceAt) terrain.surfaceAt = m.surfaceAt; })
   .catch(() => {});
 
-export const RADIUS = 0.32, HEIGHT = 1.8, CROUCH_HEIGHT = 1.1, EYE = 1.66, CROUCH_EYE = 0.98, STEP = 0.3;
-const WALK = 3.7, SPRINT = 6.4, CROUCH = 1.8, HEAVY = 1.5;
+export const RADIUS = 0.32, HEIGHT = 1.8, CROUCH_HEIGHT = 1.1, CRAWL_HEIGHT = 0.6, EYE = 1.66, CROUCH_EYE = 0.98, CRAWL_EYE = 0.38, STEP = 0.3;
+const WALK = 3.7, SPRINT = 6.4, CROUCH = 1.8, HEAVY = 1.5, CRAWL = 0.75;
 const GRAVITY = 18, JUMP = 5.0, MAX_SLOPE = 1.25 /* rise/run ≈ 51° */;
 const euler = new THREE.Euler(0, 0, 0, "YXZ");
 const _p = { x: 0, z: 0 };
@@ -35,6 +35,7 @@ export class Player {
     this.exhausted = false;
     this.sprinting = false;
     this.crouched = false;
+    this.crawling = false;              // too badly hurt to stand (set by main from health): flat on the ground, slow
     this.grounded = true;
     this.encumbered = false;            // set by Interaction while carrying something heavy
     this.surface = "dirt";
@@ -48,7 +49,7 @@ export class Player {
     this._lift = 0;                     // smooths step-ups for the camera
     this._bob = 0; this._bobAmp = 0; this._stride = 0; this._rest = 0; this._dip = 0;
   }
-  get height() { return this.crouched ? CROUCH_HEIGHT : HEIGHT; }
+  get height() { return this.crawling ? CRAWL_HEIGHT : this.crouched ? CROUCH_HEIGHT : HEIGHT; }
   heightAt(x, z) { return (this._heightAt || terrain.heightAt)(x, z); }
   surfaceAt(x, z) { return (this._surfaceAt || terrain.surfaceAt)(x, z); }
 
@@ -85,7 +86,7 @@ export class Player {
     const wx = sin * f + cos * s, wz = cos * f - sin * s;
 
     // sprint + stamina
-    const canSprint = opts.canSprint !== false && energy > 8 && !this.exhausted && !this.crouched && !this.encumbered;
+    const canSprint = opts.canSprint !== false && energy > 8 && !this.exhausted && !this.crouched && !this.crawling && !this.encumbered;
     this.sprinting = !!(input.sprint && canSprint && moving && f > 0.3 && this.grounded);
     if (this.sprinting) {
       this.stamina = Math.max(0, this.stamina - dt / 16);
@@ -96,8 +97,8 @@ export class Player {
       if (this._rest > 0.8) this.stamina = Math.min(1, this.stamina + dt / (moving ? 14 : 8) * (energy < 25 ? 0.5 : 1));
       if (this.exhausted && this.stamina > 0.3) this.exhausted = false;
     }
-    let speed = this.sprinting ? SPRINT : this.crouched ? CROUCH : WALK;
-    if (this.encumbered) speed = Math.min(speed, HEAVY);
+    let speed = this.crawling ? CRAWL : this.sprinting ? SPRINT : this.crouched ? CROUCH : WALK;
+    if (this.encumbered) speed = Math.min(speed, this.crawling ? CRAWL * 0.6 : HEAVY);
     if (f < -0.1) speed *= 0.75;
     if (energy < 10) speed *= 0.8;
 
@@ -107,7 +108,7 @@ export class Player {
     this.vel.z += (wz * speed - this.vel.z) * k;
 
     // jump
-    if (input.jump && this.grounded && !this.encumbered && !this._jumpHeld && this.stamina > 0.08) {
+    if (input.jump && this.grounded && !this.encumbered && !this.crawling && !this._jumpHeld && this.stamina > 0.08) {
       this.vel.y = JUMP; this.grounded = false; this.crouched = false;
       sfx("jump");
       this.stamina = Math.max(0, this.stamina - 0.06);
@@ -123,18 +124,18 @@ export class Player {
     // head bob + footsteps
     const hs = Math.hypot(this.vel.x, this.vel.z);
     if (this.grounded && hs > 0.4 && travelled > 0) {
-      const stride = this.sprinting ? 1.15 : this.crouched ? 0.55 : 0.78;
+      const stride = this.crawling ? 0.45 : this.sprinting ? 1.15 : this.crouched ? 0.55 : 0.78;
       this._bob += (travelled / stride) * Math.PI;
       this._stride += travelled;
       if (this._stride >= stride) {
         this._stride = 0;
         this.surface = this.surfaceAt(this.pos.x, this.pos.z);
-        sfx("footstep", { surface: this.surface, vol: this.sprinting ? 1 : this.crouched ? 0.35 : 0.65 });
+        sfx("footstep", { surface: this.surface, vol: this.sprinting ? 1 : this.crawling ? 0.2 : this.crouched ? 0.35 : 0.65 });
       }
     }
-    const amp = this.grounded && hs > 0.4 ? (this.sprinting ? 0.05 : 0.028) : 0;
+    const amp = this.grounded && hs > 0.3 ? (this.crawling ? 0.04 : this.sprinting ? 0.05 : 0.028) : 0;
     this._bobAmp += (amp - this._bobAmp) * Math.min(1, dt * 8);
-    this._eye += ((this.crouched ? CROUCH_EYE : EYE) - this._eye) * Math.min(1, dt * 10);
+    this._eye += ((this.crawling ? CRAWL_EYE : this.crouched ? CROUCH_EYE : EYE) - this._eye) * Math.min(1, dt * (this.crawling ? 4 : 10));
     this._lift *= Math.exp(-dt * 12);
     this._dip *= Math.exp(-dt * 9);
     return this;

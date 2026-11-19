@@ -2,7 +2,7 @@
 // working instruments, wheels, and the per-frame animation rig. MODEL coordinates (y from the ground at rest);
 // the model root sits at −comH under vehicle.mesh.
 import * as THREE from "three";
-import { M, paintMaterial, skinMaterials, lampMaterials, GAUGE, prepareMaterials, materialsReady, crackedGlass } from "./materials.js";
+import { M, paintMaterial, glossPaint, skinMaterials, lampMaterials, GAUGE, prepareMaterials, materialsReady, crackedGlass } from "./materials.js";
 import { Batch, box, rbox, cyl, sphere, torus, tube, extrudeX, capXY, roundedRect, seamStrip } from "./loft.js";
 import { buildShell, stationOutline, ringOutline } from "./body.js";
 import { makePartMesh, drumMesh } from "./partmeshes.js";
@@ -35,9 +35,9 @@ function halfDisc(R, faceX) {
 
 export function buildVisual(vehicle) {
   if (!materialsReady()) prepareMaterials();
-  const def = vehicle.def, b = def.body, sedan = b.style === "sedan";
+  const def = vehicle.def, b = def.body, sedan = b.style === "sedan", classic = !!b.classic;
   const skin = def.skin ? skinMaterials(def) : null;
-  const paint = skin ? skin.body : paintMaterial(vehicle.paint, vehicle.wearLook);
+  const paint = skin ? skin.body : b.gloss ? glossPaint(vehicle.paint) : paintMaterial(vehicle.paint, vehicle.wearLook);
   // Skinned trucks have separate sheets for the red cab end and the white bed / grille surround
   const paintF = skin ? skin.front : paint, paintR = skin ? skin.rear : paint;
   const TRIM = skin ? 0xe4e0d4 : CHROME, trimMat = skin ? M.vc : M.vcMetal;    // painted grille instead of chrome
@@ -84,7 +84,7 @@ export function buildVisual(vehicle) {
   for (const side of [1, -1]) {
     const D = side > 0 ? DB.L : DB.R;
     seams(D, side, [colOf(at.Sa, 1, 6), colOf(at.Sb2, 1, 7), rowOf(1, at.Sa, at.Sb2)]);
-    if (sedan) seams(S, side, [colOf(at.Sd, 1, 7), colOf(at.Se2, 1, 7), rowOf(1, at.Sd, at.Se2)]);
+    if (sedan && !b.twoDoor) seams(S, side, [colOf(at.Sd, 1, 7), colOf(at.Se2, 1, 7), rowOf(1, at.Sd, at.Se2)]);
     const zh = b.zDoorRear + 0.15, hy = belt - 0.11, x = hw * side;
     D.add(rbox(0.012, 0.03, 0.13, 0.005, 1), M.vc, { p: [x - side * 0.004, hy, zh], c: 0x0b0b0b });
     D.add(rbox(0.022, 0.022, 0.12, 0.008, 1), M.vcMetal, { p: [x + side * 0.008, hy + 0.004, zh], c: CHROME });
@@ -93,8 +93,8 @@ export function buildVisual(vehicle) {
     const mz = b.zDoorFront - 0.14, my = belt + (sedan ? 0.1 : 0.2), mx = (hw + (sedan ? 0.12 : 0.2)) * side;
     D.add(tube([[x - side * 0.03, belt + 0.01, mz + 0.05], [x + side * 0.08, belt + 0.03, mz + 0.03], [mx, my - 0.02, mz]], 0.008, 8, 5), M.vcMetal, { c: CHROME });
     if (!sedan) D.add(tube([[x - side * 0.05, belt + 0.26, mz + 0.16], [x + side * 0.08, belt + 0.27, mz + 0.06], [mx, my + 0.06, mz]], 0.007, 8, 5), M.vcMetal, { c: CHROME });
-    const mw = sedan ? 0.17 : 0.15, mh = sedan ? 0.1 : 0.23;
-    D.add(rbox(mw, mh, 0.04, 0.012), sedan ? M.vc : M.vcMetal, { p: [mx, my, mz], c: sedan ? BLACK : CHROME });
+    const mw = sedan ? 0.17 : 0.15, mh = sedan ? 0.1 : 0.23, chromeMirror = !sedan || classic;
+    D.add(rbox(mw, mh, 0.04, 0.012), chromeMirror ? M.vcMetal : M.vc, { p: [mx, my, mz], c: chromeMirror ? CHROME : BLACK });
     D.add(new THREE.PlaneGeometry(mw - 0.022, mh - 0.022), M.mirror, { p: [mx, my, mz - 0.0206], r: [0, Math.PI, 0] });
     // Inner door furniture
     const ix = x - side * 0.075, zm = (b.zDoorFront + b.zDoorRear) / 2;
@@ -111,36 +111,70 @@ export function buildVisual(vehicle) {
   const zN = P[at.N0][0][2];
   S.add(capXY(stationOutline(grid, at.N0), zN, 1), paintR);
   const nhw = P[at.N0][3][0];                             // half width of the (rounded) nose at the crease
-  const gy = lerp(b.creaseY, b.hoodYFront, 0.42), gh = (b.hoodYFront - b.creaseY) * (sedan ? 0.95 : 1.0) + 0.12, gw = sedan ? hw * 2 - 0.16 : nhw * 2 - 0.1;
-  S.add(box(gw - 0.03, gh - 0.03, 0.02), M.vc, { p: [0, gy, zN + 0.006], c: 0x080808 });
-  const fr = (w, h, x, y) => S.add(rbox(w, h, 0.04, 0.008, 1), trimMat, { p: [x, y, zN + 0.025], c: TRIM });
-  fr(gw, 0.028, 0, gy + gh / 2); fr(gw, 0.028, 0, gy - gh / 2); fr(0.028, gh, gw / 2, gy); fr(0.028, gh, -gw / 2, gy);
-  const lampW = sedan ? 0.34 : 0.3, gx = gw / 2 - lampW;
-  fr(0.024, gh, gx, gy); fr(0.024, gh, -gx, gy);
-  const nb = sedan ? 7 : 4;
-  for (let i = 1; i <= nb; i++) S.add(box(gx * 2 - 0.03, sedan ? 0.01 : 0.014, 0.02), trimMat, { p: [0, gy - gh / 2 + (i / (nb + 1)) * gh, zN + 0.02], c: sedan ? 0x9c9c98 : TRIM });
-  for (let i = 1; i < 12; i++) S.add(box(0.007, gh - 0.04, 0.014), trimMat, { p: [-gx + (i / 12) * gx * 2, gy, zN + 0.016], c: skin ? TRIM : 0x8c8c88 });
-  S.add(rbox(0.16, 0.05, 0.02, 0.008, 1), M.vcMetal, { p: [0, gy, zN + 0.034], c: 0xb9b9b4 });
   const lampPos = [];
-  for (const s of [1, -1]) {
-    const lx = s * (gx + lampW / 2 - 0.005);
-    if (sedan) {
-      for (const dx of [-0.075, 0.075]) {        // quad rectangular sealed beams
-        S.add(rbox(0.135, 0.095, 0.03, 0.012), lamps.head, { p: [lx + dx, gy + 0.03, zN + 0.022] });
-        S.add(rbox(0.15, 0.11, 0.02, 0.012), M.vcMetal, { p: [lx + dx, gy + 0.03, zN + 0.012], c: 0x6f6f6c });
+  if (classic) {
+    // 1950: a wide grille mouth with a chrome surround, one bar across it carrying the bullet nose and the round
+    // parking lamps at its ends; round headlamps up in the fender fronts under chrome visors
+    const gw = nhw * 2 - 0.46, gy = lerp(b.bumperY, b.hoodYFront, 0.52), gh = 0.2;
+    S.add(rbox(gw, gh, 0.03, 0.08), M.vc, { p: [0, gy, zN + 0.004], c: 0x060606 });
+    for (const dy of [gh / 2, -gh / 2]) S.add(rbox(gw + 0.03, 0.03, 0.045, 0.014, 1), M.vcMetal, { p: [0, gy + dy, zN + 0.022], c: CHROME });
+    for (const s of [1, -1]) S.add(cyl(gh / 2 + 0.015, gh / 2 + 0.015, 0.045, 16, "z"), M.vcMetal, { p: [s * (gw / 2 - 0.02), gy, zN + 0.018], s: [0.5, 1, 1], c: CHROME });
+    for (let i = 1; i < 4; i++) S.add(box(gw - 0.1, 0.008, 0.012), M.vcMetal, { p: [0, gy - gh / 2 + (i / 4) * gh, zN + 0.014], c: 0x9a9a96 });
+    S.add(cyl(0.026, 0.026, gw - 0.06, 14, "x"), M.vcMetal, { p: [0, gy, zN + 0.055], c: CHROME });
+    S.add(sphere(0.09, 20, 14), M.vcMetal, { p: [0, gy, zN + 0.08], s: [1, 1, 1.45], c: CHROME });
+    S.add(cyl(0.035, 0.035, 0.012, 16, "z"), M.vc, { p: [0, gy, zN + 0.21], c: 0x8a1a12 });
+    for (const s of [1, -1]) {
+      const px = s * (gw / 2 - 0.13);
+      S.add(cyl(0.05, 0.05, 0.03, 18, "z"), lamps.amber, { p: [px, gy, zN + 0.075] });
+      S.add(torus(0.052, 0.01, 18, 6, "z"), M.vcMetal, { p: [px, gy, zN + 0.09], c: CHROME });
+      const lx = s * (nhw - 0.17), ly = b.hoodYFront - 0.07;
+      S.add(cyl(0.115, 0.115, 0.08, 22, "z"), M.vcMetal, { p: [lx, ly, zN + 0.03], c: CHROME });
+      S.add(sphere(0.1, 20, 10), lamps.head, { p: [lx, ly, zN + 0.07], s: [1, 1, 0.35] });
+      S.add(torus(0.108, 0.014, 22, 8, "z"), M.vcMetal, { p: [lx, ly, zN + 0.075], c: CHROME });
+      lampPos.push([lx, ly, zN + 0.12]);
+    }
+  } else {
+    const gy = lerp(b.creaseY, b.hoodYFront, 0.42), gh = (b.hoodYFront - b.creaseY) * (sedan ? 0.95 : 1.0) + 0.12, gw = sedan ? hw * 2 - 0.16 : nhw * 2 - 0.1;
+    S.add(box(gw - 0.03, gh - 0.03, 0.02), M.vc, { p: [0, gy, zN + 0.006], c: 0x080808 });
+    const fr = (w, h, x, y) => S.add(rbox(w, h, 0.04, 0.008, 1), trimMat, { p: [x, y, zN + 0.025], c: TRIM });
+    fr(gw, 0.028, 0, gy + gh / 2); fr(gw, 0.028, 0, gy - gh / 2); fr(0.028, gh, gw / 2, gy); fr(0.028, gh, -gw / 2, gy);
+    const lampW = sedan ? 0.34 : 0.3, gx = gw / 2 - lampW;
+    fr(0.024, gh, gx, gy); fr(0.024, gh, -gx, gy);
+    const nb = sedan ? 7 : 4;
+    for (let i = 1; i <= nb; i++) S.add(box(gx * 2 - 0.03, sedan ? 0.01 : 0.014, 0.02), trimMat, { p: [0, gy - gh / 2 + (i / (nb + 1)) * gh, zN + 0.02], c: sedan ? 0x9c9c98 : TRIM });
+    for (let i = 1; i < 12; i++) S.add(box(0.007, gh - 0.04, 0.014), trimMat, { p: [-gx + (i / 12) * gx * 2, gy, zN + 0.016], c: skin ? TRIM : 0x8c8c88 });
+    S.add(rbox(0.16, 0.05, 0.02, 0.008, 1), M.vcMetal, { p: [0, gy, zN + 0.034], c: 0xb9b9b4 });
+    for (const s of [1, -1]) {
+      const lx = s * (gx + lampW / 2 - 0.005);
+      if (sedan) {
+        for (const dx of [-0.075, 0.075]) {        // quad rectangular sealed beams
+          S.add(rbox(0.135, 0.095, 0.03, 0.012), lamps.head, { p: [lx + dx, gy + 0.03, zN + 0.022] });
+          S.add(rbox(0.15, 0.11, 0.02, 0.012), M.vcMetal, { p: [lx + dx, gy + 0.03, zN + 0.012], c: 0x6f6f6c });
+        }
+        S.add(rbox(0.28, 0.045, 0.03, 0.01), lamps.amber, { p: [lx, gy - gh / 2 + 0.05, zN + 0.02] });
+        lampPos.push([lx, gy + 0.03, zN + 0.06]);
+      } else {
+        const ly = gy + 0.035;
+        S.add(cyl(0.1, 0.1, 0.03, 20, "z"), lamps.head, { p: [lx, ly, zN + 0.026] });
+        S.add(torus(0.103, 0.012, 20, 6, "z"), M.vcMetal, { p: [lx, ly, zN + 0.036], c: CHROME });
+        S.add(rbox(0.2, 0.05, 0.03, 0.01), lamps.amber, { p: [lx, gy - gh / 2 + 0.055, zN + 0.02] });
+        lampPos.push([lx, ly, zN + 0.07]);
       }
-      S.add(rbox(0.28, 0.045, 0.03, 0.01), lamps.amber, { p: [lx, gy - gh / 2 + 0.05, zN + 0.02] });
-      lampPos.push([lx, gy + 0.03, zN + 0.06]);
-    } else {
-      const ly = gy + 0.035;
-      S.add(cyl(0.1, 0.1, 0.03, 20, "z"), lamps.head, { p: [lx, ly, zN + 0.026] });
-      S.add(torus(0.103, 0.012, 20, 6, "z"), M.vcMetal, { p: [lx, ly, zN + 0.036], c: CHROME });
-      S.add(rbox(0.2, 0.05, 0.03, 0.01), lamps.amber, { p: [lx, gy - gh / 2 + 0.055, zN + 0.02] });
-      lampPos.push([lx, ly, zN + 0.07]);
     }
   }
   // Bumpers
   const bumper = (z, dir, w) => {
+    if (classic) {
+      // Heavy rolled chrome blade wrapping round the corners, with two tall guards
+      const cp = [[0, -0.075], [0.06 * dir, -0.072], [0.105 * dir, -0.035], [0.115 * dir, 0.01], [0.1 * dir, 0.05], [0.05 * dir, 0.072], [0, 0.068]];
+      S.add(extrudeX(dir > 0 ? cp : cp.slice().reverse(), w, 0.03), M.vcMetal, { p: [0, b.bumperY, z], c: CHROME });
+      for (const s of [1, -1]) {
+        S.add(rbox(0.1, 0.145, 0.32, 0.05), M.vcMetal, { p: [s * (w / 2 - 0.04), b.bumperY, z - dir * 0.12], r: [0, s * dir * 0.35, 0], c: CHROME });
+        S.add(rbox(0.075, 0.27, 0.11, 0.035), M.vcMetal, { p: [s * 0.36, b.bumperY + 0.05, z + dir * 0.1], c: CHROME });
+        S.add(box(0.05, 0.07, 0.3), M.vcRough, { p: [s * 0.46, b.bumperY - 0.02, z - dir * 0.14], c: DARK });
+      }
+      return;
+    }
     const prof = [[0, -0.085], [0.05 * dir, -0.095], [0.085 * dir, -0.055], [0.09 * dir, 0], [0.085 * dir, 0.055], [0.05 * dir, 0.095], [0, 0.085]];
     const bm = skin ? skin.bumper : M.vcMetal, bc = skin ? 0xffffff : CHROME;
     S.add(extrudeX(dir > 0 ? prof : prof.slice().reverse(), w, 0.012), bm, { p: [0, b.bumperY, z], c: bc });
@@ -151,13 +185,30 @@ export function buildVisual(vehicle) {
     }
     if (sedan) S.add(box(w - 0.06, 0.035, 0.012), M.vc, { p: [0, b.bumperY, z + dir * 0.092], c: BLACK });
   };
-  bumper(zN + 0.035, 1, sedan ? hw * 2 + 0.06 : nhw * 2 + 0.1);
+  bumper(zN + 0.035, 1, classic ? nhw * 2 + 0.2 : sedan ? hw * 2 + 0.06 : nhw * 2 + 0.1);
   S.add(decal(0.3, 0.15, 0, 0, 192, 96), M.decal, { p: [0, b.bumperY - (sedan ? 0 : 0.005), zN + 0.132] });
-  S.add(box(hw * 2 - 0.4, 0.14, 0.02), M.vcRough, { p: [0, b.bumperY - 0.2, zN - 0.08], c: DARK });       // valance
+  if (!classic) S.add(box(hw * 2 - 0.4, 0.14, 0.02), M.vcRough, { p: [0, b.bumperY - 0.2, zN - 0.08], c: DARK });       // valance
+
+  // Chrome side spear (front fender, then on the door so it swings with it) and sill trim under the side glass
+  if (classic) {
+    const strip = (batch, z0, z1, y, dx, r, side) => {
+      const pts = [];
+      for (let k = 0; k <= 8; k++) { const z = lerp(z0, z1, k / 8); pts.push([side * (grid.hwAt(z) + dx), y, z]); }
+      batch.add(tube(pts, r, 16, 6), M.vcMetal, { c: CHROME });
+    };
+    const sy = b.creaseY + 0.05, zs0 = b.zNose - 0.45, zd = b.zDoorFront - 0.012, zr = b.zDoorRear + 0.02;
+    for (const side of [1, -1]) {
+      const D = side > 0 ? DB.L : DB.R;
+      strip(S, zs0, zd, sy, 0.006, 0.011, side);
+      strip(D, zd - 0.012, zr + 0.15, sy, 0.006, 0.011, side);
+      strip(D, b.zDoorFront - 0.03, b.zDoorRear + 0.03, belt + 0.012, -0.045, 0.008, side);
+      strip(S, b.zDoorRear - 0.05, b.zDoor2Rear + 0.05, belt + 0.012, -0.045, 0.008, side);
+    }
+  }
 
   // ── Rear end ──
   const zT = b.zTail, rearB = RB;
-  bumper(zT - 0.045, -1, hw * 2 + 0.04);
+  bumper(zT - 0.045, -1, classic ? grid.hwAt(zT) * 2 + 0.2 : hw * 2 + 0.04);
   S.add(decal(0.3, 0.15, 0, 0, 192, 96), M.decal, { p: [0, b.bumperY, zT - 0.142], r: [0, Math.PI, 0] });
   let rearOrigin, cargoBox;
   if (!sedan) {
@@ -199,21 +250,29 @@ export function buildVisual(vehicle) {
     const cx = hw - 0.05, cz0 = zT + 0.04, cz1 = b.zBedFront - 0.01, cy1 = top + 0.3;
     cargoBox = [cx * 2, cy1 - fl, cz1 - cz0, 0, (cy1 + fl) / 2, (cz0 + cz1) / 2];
   } else {
-    const zR = P[at.D2][0][2];
+    const zR = P[at.D2][0][2], tailY = b.deckY - (b.deckDrop || 0);
     S.add(capXY(stationOutline(grid, at.D2), zR, -1), paint);
-    for (const s of [1, -1]) {
+    if (classic) {
+      // Round tail lamps in chrome bezels low on the rear fenders
+      const tx = grid.hwAt(zR) - 0.2, ty = tailY - 0.17;
+      for (const s of [1, -1]) {
+        S.add(cyl(0.085, 0.085, 0.07, 20, "z"), M.vcMetal, { p: [s * tx, ty, zR + 0.01], c: CHROME });
+        S.add(sphere(0.072, 18, 10), lamps.tail, { p: [s * tx, ty, zR - 0.025], s: [1, 1, 0.4] });
+        S.add(torus(0.078, 0.011, 20, 6, "z"), M.vcMetal, { p: [s * tx, ty, zR - 0.03], c: CHROME });
+      }
+    } else for (const s of [1, -1]) {
       S.add(rbox(0.36, 0.12, 0.03, 0.012), lamps.tail, { p: [s * (hw - 0.26), b.deckY - 0.14, zR - 0.01] });
       S.add(rbox(0.1, 0.12, 0.03, 0.012), M.vc, { p: [s * (hw - 0.5), b.deckY - 0.14, zR - 0.01], c: 0xd9d6cc });
       S.add(rbox(0.5, 0.14, 0.012, 0.006, 1), M.vcMetal, { p: [s * (hw - 0.3), b.deckY - 0.14, zR - 0.002], c: 0x8a8a86 });
     }
-    S.add(decal(0.34, 0.085, 200, 0, 192, 48), M.decal, { p: [-0.4, b.deckY - 0.03, zR - 0.004], r: [0, Math.PI, 0] });
+    if (!classic) S.add(decal(0.34, 0.085, 200, 0, 192, 48), M.decal, { p: [-0.4, b.deckY - 0.03, zR - 0.004], r: [0, Math.PI, 0] });
     // Trunk tub: floor, walls and the bulkhead behind the rear seat
     const tf = b.cargo.y0 - 0.02, tz0 = zR + 0.03, tz1 = b.zDeckFront + 0.1, tx = hw - 0.14;
     S.add(box(tx * 2, 0.02, tz1 - tz0), M.vcRough, { p: [0, tf, (tz0 + tz1) / 2], c: 0x2c2a27 });
     S.add(box(tx * 2, b.deckY - tf, 0.02), M.vcRough, { p: [0, (b.deckY + tf) / 2, tz1], c: 0x2c2a27 });
-    for (const s of [1, -1]) S.add(box(0.02, b.deckY - tf - 0.03, tz1 - tz0), M.vcRough, { p: [s * tx, (b.deckY + tf) / 2 - 0.015, (tz0 + tz1) / 2], c: 0x2c2a27 });
+    for (const s of [1, -1]) S.add(box(0.02, tailY - tf - 0.03, tz1 - tz0), M.vcRough, { p: [s * tx, (tailY + tf) / 2 - 0.015, (tz0 + tz1) / 2], c: 0x2c2a27 });
     rearOrigin = [0, b.deckY + 0.02, b.zDeckFront - 0.075];
-    rearB.add(rbox(0.1, 0.02, 0.02, 0.006, 1), M.vcMetal, { p: [0, b.deckY - 0.005, zR + 0.0], c: CHROME });
+    rearB.add(rbox(0.1, 0.02, 0.02, 0.006, 1), M.vcMetal, { p: [0, tailY - 0.005, zR + 0.0], c: CHROME });
     cargoBox = [b.cargo.x1 - b.cargo.x0, b.deckY - tf - 0.06, b.cargo.z1 - b.cargo.z0, (b.cargo.x0 + b.cargo.x1) / 2, (b.deckY + tf) / 2 - 0.02, (b.cargo.z0 + b.cargo.z1) / 2];
   }
 
@@ -270,7 +329,12 @@ export function buildVisual(vehicle) {
   // ── Hood furniture ──
   const hoodOrigin = [0, b.hoodYRear + 0.02, b.zHoodRear];
   for (const s of [1, -1]) HB.add(box(0.03, 0.02, b.zNose - b.zHoodRear - 0.2), M.vcRough, { p: [s * 0.3, lerp(b.hoodYFront, b.hoodYRear, 0.55) - 0.02, (b.zNose + b.zHoodRear) / 2], r: [(b.hoodYFront - b.hoodYRear) / (b.zNose - b.zHoodRear) * -1, s * 0.25, 0], c: 0x1f1c1a });
-  if (!sedan) HB.add(rbox(0.5, 0.012, 0.03, 0.004, 1), M.vcMetal, { p: [0, b.hoodYFront + 0.023 + (b.hoodCrown ?? 0.035), b.zNose - 0.05], c: CHROME });
+  if (classic) {
+    // Chrome bullet ornament at the front of the hood and a spear down its centre
+    const hy = b.hoodYFront + 0.024 + (b.hoodCrown ?? 0.035);
+    HB.add(sphere(0.03, 14, 10), M.vcMetal, { p: [0, hy + 0.02, b.zNose - 0.12], s: [0.7, 0.8, 3], c: CHROME });
+    HB.add(rbox(0.016, 0.012, 0.6, 0.005, 1), M.vcMetal, { p: [0, hy + 0.008, b.zNose - 0.48], r: [-(b.hoodYFront - b.hoodYRear) / (b.zNose - b.zHoodRear), 0, 0], c: CHROME });
+  } else if (!sedan) HB.add(rbox(0.5, 0.012, 0.03, 0.004, 1), M.vcMetal, { p: [0, b.hoodYFront + 0.023 + (b.hoodCrown ?? 0.035), b.zNose - 0.05], c: CHROME });
   else HB.add(rbox(0.03, 0.05, 0.03, 0.008, 1), M.vcMetal, { p: [0, b.hoodYFront + 0.07, b.zNose - 0.06], c: CHROME });
 
   // ── Interior ──

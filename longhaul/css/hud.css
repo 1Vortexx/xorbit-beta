@@ -205,7 +205,7 @@
 #hud-vignette .v-hit { background: radial-gradient(ellipse at center, transparent 48%, rgba(200, 16, 8, 0.55) 78%, rgba(220, 20, 10, 0.95) 100%); opacity: 0; }
 #hud-vignette .v-tired { background: radial-gradient(ellipse at center, transparent 30%, rgba(0, 0, 0, 0.94) 100%); opacity: var(--tired); }
 #hud-fade { position: fixed; inset: 0; z-index: 30; pointer-events: none; display: grid; place-items: center; background: rgba(5, 4, 3, var(--o, 0)); }
-#hud-fade span { opacity: var(--o, 0); color: var(--lh-bone); font: 600 clamp(14px, 2.4vh + 6px, 30px) var(--lh-display); letter-spacing: 0.16em; text-transform: uppercase; text-align: center; padding: 0 1em; }
+#hud-fade span { opacity: var(--o, 0); color: var(--lh-bone); font: 600 clamp(14px, 2.4vh + 6px, 30px) var(--lh-display); letter-spacing: 0.16em; text-transform: uppercase; text-align: center; padding: 0 1em; white-space: pre-line; }
 
 @keyframes hud-in { from { opacity: 0; transform: translateX(0.8em); } }
 @keyframes hud-blink { 0% { opacity: 1; } 100% { opacity: 0.35; } }

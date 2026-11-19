@@ -116,6 +116,35 @@ export const VEHICLES = {
   }),
 };
 
+// The Meridian: a 1950 two-door in showroom condition with a V12 – one parked car in 500 (see vehicles/index.js).
+// classic: bullet-nose grille, round lamps, chrome bumpers with guards and side spears instead of the 1980s trim
+VEHICLES.meridian = finish({
+  type: "meridian", name: "Meridian Deluxe", year: 1950, pristine: true,
+  mass: 1420, comH: 0.55,
+  axleF: 1.5, axleR: -1.4, track: 1.5, wheelR: 0.36, wheelW: 0.21,
+  susp: { freqF: 1.5, freqR: 1.65, damp: 0.42, travel: 0.2, arb: 16000, lever: 0.6 },
+  steerLock: 0.72, brakeG: 1.25, brakeBias: 0.64,
+  cdA: 0.6, drive: "rear",
+  gears: [2.9, 1.95, 1.42, 1.1, 0.86], reverse: 2.6, final: 3.3, stall: 2100, convMult: 1.9, driveEff: 0.9,
+  tank: 75, oilCap: 8, coolantCap: 16,
+  engines: ["engine_v12", "engine_bigblock"], wheel: "wheel_15ww", defaultEngine: "engine_v12",
+  rearDoor: "trunk",
+  doorHinge: { driver: { open: 1.12 }, passenger: { open: 1.12 }, hood: { open: 0.95 }, trunk: { open: 1.15 } },
+  body: {
+    style: "sedan", classic: true, twoDoor: true, gloss: true,
+    hw: 0.92, rockerY: 0.33, creaseY: 0.74, beltY: 1.0, hoodYFront: 0.92, hoodYRear: 1.0, roofY: 1.6, roofHw: 0.66,
+    noseTaper: 0.16, noseLen: 0.85, tailTaper: 0.11, side: [0.09, 0.025, 0.006, 0, 0.012, 0.05],
+    hoodCrown: 0.07, roofCrown: 0.11, roofCrownX: 0.06, deckDrop: 0.16,
+    zNose: 2.45, zHoodRear: 0.95, zCowl: 0.86, zRoofFront: 0.3, zDoorFront: 0.74, zDoorRear: -0.5,
+    zDoor2Rear: -1.0, zRoofRear: -1.08, zDeckFront: -1.45, zCabBack: -1.45, zTail: -2.5, deckY: 1.01,
+    floorY: 0.4, archR: 0.47, bumperY: 0.46,
+    seatX: 0.4, eyeY: 1.2, eyeZ: -0.1, seatY: 0.56, seatZ: -0.28, dashZ: 0.6, wheelDia: 0.44,
+    cargo: { x0: -0.66, x1: 0.66, y0: 0.55, y1: 0.95, z0: -2.38, z1: -1.58 },
+    fuelCap: [0.905, 0.82, -2.0], engineZ: 1.5, engineY: 0.6, batteryPos: [0.58, 0.78, 1.95], radiatorZ: 2.15, radiatorY: 0.62,
+    interior: 0x6e2a24, dash: 0x2a1614, headliner: 0xcdc3ad,
+  },
+});
+
 export const VEHICLE_TYPES = Object.keys(VEHICLES);
 
 // Paint palette for seeded vehicles: sun-bleached period colours [name, hex]

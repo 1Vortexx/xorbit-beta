@@ -47,6 +47,19 @@ export async function signIn(id, password) {
 }
 export function signOut() { write(CHOICE, null); }
 
+// One row per game load for the admin logs (supabase/longhaul-launches.sql). Guests are logged too, with no username.
+export function logLaunch(user, { hasSave = false } = {}) {
+  let device = null, framed = true;
+  try { device = localStorage.getItem("xorbit_device_uuid"); } catch (e) {}
+  try { framed = window.parent !== window; } catch (e) {}
+  const platform = /\bElectron\//.test(navigator.userAgent) ? "desktop" : framed ? "xorbit" : "web";
+  fetch(`${SUPABASE_URL}/rest/v1/longhaul_launches`, { method: "POST", headers: { ...HEADERS, Prefer: "return=minimal" }, body: JSON.stringify({
+    username: user || null, signed_in: !!user, platform, device_uuid: device, user_agent: navigator.userAgent,
+    page_url: location.href.slice(0, 500), referrer: document.referrer ? document.referrer.slice(0, 500) : null,
+    has_save: !!hasSave, screen: `${screen.width}x${screen.height}`,
+  }) }).catch(() => {});
+}
+
 export function newTripId() {
   try { if (crypto.randomUUID) return crypto.randomUUID(); } catch (e) {}
   const h = [...crypto.getRandomValues(new Uint8Array(16))].map((b) => b.toString(16).padStart(2, "0")).join("");

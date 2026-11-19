@@ -17,7 +17,7 @@ export const ROWS = 16;
 export function makeGrid(def) {
   const b = def.body, sedan = b.style === "sedan";
   // Optional shape knobs (body.*): noseTaper / noseLen round the front corners in plan, tailTaper the rear ones,
-  // side = x insets of the six lower-body rows, flare = arch lip (rolledArch: plain fender cut-outs instead), hoodCrown / roofCrown / roofCrownX = panel crown.
+  // side = x insets of the six lower-body rows, deckDrop = trunk lid falling to the tail, flare = arch lip (rolledArch: plain fender cut-outs instead), hoodCrown / roofCrown / roofCrownX = panel crown.
   const hw0 = b.hw, taperN = b.noseTaper ?? (sedan ? 0.055 : 0.035), taperT = b.tailTaper ?? (sedan ? 0.045 : 0.02);
   const nl = b.noseLen ?? 0.7, side = b.side || [0.07, 0.012, 0.004, 0, 0.008, 0.035], flare = b.flare ?? 0.02;
   const hwAt = (z) => {
@@ -32,9 +32,10 @@ export function makeGrid(def) {
     }
     return a;
   };
+  const dropAt = (z) => !b.deckDrop ? 0 : b.deckDrop * Math.pow(clamp((b.zDeckFront - z) / (b.zDeckFront - b.zTail), 0, 1), 1.6);
   const lower = (z, inset = 0) => {
-    const hw = hwAt(z) - inset;
-    const ys = [b.rockerY - 0.03, b.rockerY + 0.04, lerp(b.rockerY, b.creaseY, 0.52), b.creaseY, lerp(b.creaseY, b.beltY, 0.6), b.beltY];
+    const hw = hwAt(z) - inset, dd = dropAt(z);         // the sides follow a falling trunk lid down
+    const ys = [b.rockerY - 0.03, b.rockerY + 0.04, lerp(b.rockerY, b.creaseY, 0.52), b.creaseY - dd * 0.3, lerp(b.creaseY, b.beltY, 0.6) - dd * 0.75, b.beltY - dd];
     const xs = side.map((d) => hw - d);
     const a = Math.min(archTop(z), b.creaseY - 0.035);
     if (a > ys[0] && b.rolledArch) {
@@ -63,7 +64,8 @@ export function makeGrid(def) {
     return out;
   };
   const hood = (z, inset) => lid(z, hoodY(z), b.hoodCrown ?? 0.035, 0.18, inset);
-  const deck = (z, inset) => lid(z, b.deckY, 0.022, 0.16, inset);
+  // deckDrop: the trunk lid curves down this far by the tail (0: flat)
+  const deck = (z, inset) => lid(z, b.deckY - dropAt(z), 0.022 + (b.deckDrop ? 0.03 : 0), 0.16, inset);
   // Glass base line across the body (front cowl: dir +1 bulges forward, rear cowl: −1)
   const cowl = (z, y, dir) => {
     const hw = hwAt(z), out = [[hw - 0.05, y + 0.012, z], [hw - 0.062, y + 0.02, z], [hw - 0.078, y + 0.03, z]];

@@ -234,8 +234,20 @@ export function puncture(v, i) {
 }
 
 // Crash damage. sev is roughly the lost speed in m/s scaled up.
+// A crash this hard (crash severity: (closing speed m/s − 2.5) × 2.2, so about 100 km/h straight into something solid)
+// wrecks the vehicle: the engine is destroyed and stops, and a frontal hit smashes the radiator too
+export const WRECK_SEV = 53;
+function wreck(v, sev, frontal) {
+  if (sev < WRECK_SEV) return;
+  const e = v.slots.engine, r = v.slots.radiator, was = e && e.cond > 0;
+  if (e) e.cond = 0;
+  if (r && frontal) r.cond = Math.min(r.cond, 3);
+  if (was && v.occupied && !v.ai) v.say("The crash wrecked the engine", "crit", "wreck");
+}
+
 export function applyImpact(v, sev, frontal = true) {
   if (sev < 1) return;
+  wreck(v, sev, frontal);
   v.bodyCond = Math.max(0, v.bodyCond - sev * 1.1);
   const e = v.slots.engine, r = v.slots.radiator;
   if (e) e.cond = Math.max(0, e.cond - sev * 0.3);
@@ -253,6 +265,7 @@ export function impactAt(v, sev, lx, lz) {
   if (sev < 1) return null;
   const d = v.def;
   const zone = lz > d.zFront - 0.5 ? "front" : lz < d.zRear + 0.5 ? "rear" : "side";
+  wreck(v, sev, zone === "front");
   v.bodyCond = Math.max(0, v.bodyCond - sev * 1.1);
   const e = v.slots.engine, r = v.slots.radiator;
   if (zone === "front") {

@@ -856,6 +856,7 @@ function firstGesture() {
 }
 
 function onAnyGesture(ev) {
+  if (document.getElementById("splash")) return;      // the opening handles its own keys (main.js → menus.gesture)
   if (ev.type === "keydown" && (["Shift", "Control", "Alt", "Meta", "Escape", "Tab"].includes(ev.key) || ev.metaKey || ev.ctrlKey || ev.altKey)) return;
   if (screen() !== "gate") return;
   if (!root) return;
@@ -934,6 +935,8 @@ export const menus = {
       n.innerHTML = npContents();
     }
   },
+  // The player has pressed a key or clicked (the opening): sound may start, and no start gate is needed
+  gesture() { firstGesture(); },
   get current() { return rootName; },   // the name passed to show(), or null
   get screen() { return rootName ? screen() : null; },   // includes sub-screens: "settings", "controls", "credits", "whatsnew", "newjourney", "play", "leaderboard", "convoy", "account", "gate"
 };

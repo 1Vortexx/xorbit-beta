@@ -5,6 +5,7 @@ import { on, emit, notify, sfx } from "./core/bus.js";
 import { worldRoot, origin, rebase, resetOrigin } from "./core/origin.js";
 import { ws } from "./core/worldstate.js";
 import { setSeed, getSeed, heightAt, surfaceAt, hashStr, roadX, roadDir } from "./world/terrain.js";
+import { resolveCircle, circleFree } from "./core/collide.js";
 import { startSite, sitesBetween } from "./world/sites.js";
 import { World, prepare as prepareWorld, setVehicleLookup, setSiteFilter } from "./world/index.js";
 import { Sky, DAY_SECONDS } from "./sky.js";
@@ -19,7 +20,7 @@ import { Props } from "./props.js";
 import { Pockets } from "./pockets.js";
 import { Interaction } from "./interact.js";
 import { ITEMS, SHOP_STOCK, makeItem, itemLabel } from "./items.js";
-import { Needs } from "./survival.js";
+import { Needs, crashInjury, fallInjury, CRAWL_BELOW, STAND_AT } from "./survival.js";
 import { CameraRig } from "./camera.js";
 import { audio } from "./audio.js";
 import { music } from "./music.js";
@@ -36,7 +37,7 @@ import { Convoy } from "./convoy.js";
 import { Body } from "./body.js";
 import { MapMemory, Minimap, MapView, KIND_STYLE } from "./map.js";
 import { EngineSmoke } from "./smoke.js";
-import { identity, signIn, signOut, newTripId, reportTrip, pushAchievements, fetchAchievements, fetchBoard, fetchMine, putSave, getSave, dropSave } from "./online.js";
+import { identity, signIn, signOut, logLaunch, newTripId, reportTrip, pushAchievements, fetchAchievements, fetchBoard, fetchMine, putSave, getSave, dropSave } from "./online.js";
 
 const STEP = 1 / 120;
 const HOUR = DAY_SECONDS / 24;          // real seconds per in-game hour
@@ -142,6 +143,7 @@ function onPrefs() {
 function inputMode() {
   if (state === "playing") return game.vehicle || game.riding ? "drive" : "foot";
   if (state === "photo") return "photo";
+  if (state === "sleeping" && game.zz && !game.zz.go) return "drive";     // lying awake: the sleep key or Esc gets up
   if (state === "ui" || state === "paused") return "overlay";
   return "none";
 }
@@ -175,6 +177,7 @@ function focusPoints() {
 // ── Menus ──────────────────────────────────────────────
 function musicInfo() { return music.info(); }
 function showMain() {
+  audio.stopDeath();
   state = "menu";
   hud.setVisible(false);
   const { save, error } = loadSave();
@@ -338,7 +341,7 @@ function resetJourney(seed) {
   dialogueSpec = subtitle = null;
   smoke?.clear();
   encounters?.clear(); hitch?.clear(); npcs?.clear();
-  game.vehicle = null;
+  game.vehicle = game.parked = game.zz = game.ejected = null;
   interaction.clear?.();
   props.clear?.();
   vehicles.clear?.();
@@ -359,6 +362,7 @@ function seedFrom(text) {
 
 // ── Journey lifecycle ──────────────────────────────────
 function startJourney(save, opts = {}) {
+  audio.stopDeath();
   const fresh = !save || !save.world; // new journey, or one carried over from an older version of the game
   resetJourney(save ? save.seed : seedFrom(opts.seed));
   sitesLive = true;
@@ -563,9 +567,10 @@ function updateBody(dt) {
   const name = myName();
   if (!body || body.name !== name) { body?.dispose(); body = new Body(worldRoot, name); body.name = name; }
   const v = game.vehicle, ride = game.riding && convoy.vehicleOf(game.riding.id);
+  if (game.ejected) { body.update(dt, { thrown: game.ejected, pos: game.ejected.pos, yaw: game.ejected.yaw }); body.show("full"); return; }
   if (v) body.update(dt, { vehicle: v, seat: "driver" });
   else if (ride) body.update(dt, { vehicle: ride, seat: game.riding.seat });
-  else body.update(dt, { pos: player.pos, yaw: player.yaw, speed: Math.hypot(player.vel.x, player.vel.z) });
+  else body.update(dt, { pos: player.pos, yaw: player.yaw, speed: Math.hypot(player.vel.x, player.vel.z), crawl: player.crawling });
   // The photo camera starts at the eyes: the head appears once it has moved away
   const inHead = () => camera.getWorldPosition(_cam).distanceTo(body.rig.head.getWorldPosition(_head)) < 0.6;
   if (state === "photo") body.show(inHead() ? "headless" : "full");
@@ -589,7 +594,29 @@ const convoy = new Convoy({
     },
   }),
   onNotice: (text) => notify(text, { icon: "⛟", key: "convoy-seat" }),
+  onClock: adoptClock,
+  // Paused or awake through it: no rest, the leader's clock moves this player's time on
+  onSleep: (h) => {
+    if (game.zz && !game.zz.go) sleepNow(h);
+    else notify(`The convoy slept ${Math.round(h)} hours while you were away.`, { icon: "☾", key: "sleep", ms: 6000 });
+  },
 });
+// The convoy leader's time of day and weather (js/convoy.js): small drift is left alone, anything more snaps to theirs
+function adoptClock(c) {
+  if (state === "menu" || state === "dead" || state === "boot") return;
+  if (typeof c.tm === "number") {
+    let d = c.tm - sky.time;
+    if (d > 0.5) d -= 1; else if (d < -0.5) d += 1;
+    if (Math.abs(d) * DAY_SECONDS > 3) {
+      if (d > 0 && sky.time + d >= 1) game.day++;
+      sky.time = (((sky.time + d) % 1) + 1) % 1;
+      lastTime = sky.time;
+    }
+  }
+  const w = c.wx;
+  if (w && (w.current !== weather.current || w.target !== weather.target || Math.abs((w.blend ?? 1) - weather.blend) > 0.05)) weather.restore(w);
+  else if (w && typeof w.hoursLeft === "number") weather.hoursLeft = w.hoursLeft;
+}
 let convoyMsg = "", convoyBusy = false;
 function myName() {
   const user = identity();
@@ -607,13 +634,21 @@ function convoyInfo() {
   return { seed: getSeed(), diff: game.diff, hostile: game.hostile, time: sky.time, weather: weather.serialize(), p: [p.x, p.z] };
 }
 function convoyLocal() {
+  const o = convoyMove();
+  o.tm = sky.time; o.wx = weather.serialize();
+  if (game.zz && !game.zz.go) o.zz = game.zz.hours;
+  const pk = game.parked;
+  if (!game.vehicle && pk && vehicles.byId.get(pk.id) === pk) o.pk = pk;
+  return o;
+}
+function convoyMove() {
   const v = game.vehicle, r = game.riding;
   if (v) {
     const fs = Object.keys(v.def.seats).filter((k) => k !== "driver" && v.seats[k] === null);
     return { seed: getSeed(), m: "car", p: v.pos, q: v.quat, v: v.vel, sp: v.speed, vt: v.type, pa: v.paint, vs: v.seed, w: v.wearLook, st: v.steer, l: v.lights, fs };
   }
   if (r) { const car = convoy.vehicleOf(r.id); return { seed: getSeed(), m: "ride", host: r.id, seat: r.seat, p: player.pos, v: car ? car.vel : player.vel, sp: car ? Math.abs(car.speed) : 0 }; }
-  return { seed: getSeed(), m: "foot", p: player.pos, v: player.vel, sp: Math.hypot(player.vel.x, player.vel.z), yaw: player.yaw };
+  return { seed: getSeed(), m: "foot", p: player.pos, v: player.vel, sp: Math.hypot(player.vel.x, player.vel.z), yaw: player.yaw, cr: player.crawling };
 }
 function convoyView() {
   return {
@@ -831,6 +866,7 @@ function die(cause, summary = []) {
     finishTrip(cause || "Unknown");
   }
   audio.suspend();
+  audio.death(/crash|fall|beat|kill|stab|struck|shot/i.test(cause || ""));
   music.setContext("none");
   hud.setNowPlaying?.(null); // the menu track is fading out; do not announce it over the game
   releaseAll();
@@ -843,6 +879,7 @@ function die(cause, summary = []) {
       Exhaustion: "You pushed on too long without sleep.",
       Heatstroke: "The midday sun was too much without water.",
       "A crash": "The last crash was one too many.",
+      "A fall": "It was a long way down.",
     }[cause] || cause || "The desert won this time.",
     stats: [["Distance", fmtDist(game.stats.distance)], ["Days survived", game.day], ["Places found", game.stats.sites], ["Fuel bought", Math.round(game.stats.litres) + " L"], ...summary],
   });
@@ -854,7 +891,7 @@ function seat(v, quiet) {
     notify("Someone is already at the wheel."); return;
   }
   if (interaction.held) interaction.dropHeld?.();
-  game.vehicle = v;
+  game.vehicle = v; game.parked = null;
   v.occupied = true;
   v.setGearMode?.(prefs.gearbox);
   game.lastVehicleName = v.def.name;
@@ -875,11 +912,122 @@ function exitVehicle() {
   player.exitVehicle(v, getColliders(v.pos.x, v.pos.z, 10));
   v.releaseSeat("driver");
   v.occupied = false;
-  game.vehicle = null;
+  game.vehicle = null; game.parked = v;        // convoy members still see it standing here (js/convoy.js)
   syncLookLimit();
   look.yaw = player.yaw;
   look.pitch = 0;
   sfx("door_open");
+}
+
+// ── Thrown through the windscreen ──────────────────────
+// A head-on crash this bad (health lost) throws the driver out over the hood
+const EJECT_HURT = 70;
+const _preVel = new THREE.Vector3(), _nose = new THREE.Vector3(), _lost = new THREE.Vector3();
+// Most of the speed lost along the vehicle's nose: it stopped against something in front of it
+function headOn(v, before) {
+  _lost.subVectors(before, v.vel);
+  _nose.set(0, 0, 1).applyQuaternion(v.quat);
+  return _lost.length() > 12 && _lost.dot(_nose) > 0.6 * _lost.length();
+}
+// The body flies out over the hood, tumbling, hits the ground, bounces, rolls and slides to a stop, all watched from
+// a camera that pulls out of the cab to follow it. Only once it has lain still does control come back, or, if the
+// crash killed you, the journey end (main's death check waits for game.ejected to clear).
+const EJECT_G = 18, BODY_R = 0.3;
+const _camWant = new THREE.Vector3(), _push = { x: 0, z: 0 };
+function eject(v, vel) {
+  const d = v.def, b = d.body;
+  v.addDent(0, b.hoodYRear - d.comH + 0.3, b.zCowl - 0.25, 0, 0, 1, 45);      // out through the windscreen
+  v.releaseSeat("driver");
+  v.occupied = false;
+  game.vehicle = null; game.parked = v;
+  syncLookLimit();
+  const yaw = Math.atan2(vel.x, vel.z);
+  game.ejected = {
+    car: v, t: 0, rest: 0, landed: false, settled: false, spin: 0, yaw,
+    pos: v.localToWorld(0, b.roofY - d.comH + 0.15, b.zCowl + 0.25),            // the body's middle
+    vel: new THREE.Vector3(vel.x * 0.75, Math.max(0, vel.y) + 4.5, vel.z * 0.75),
+    dir: new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)),
+  };
+  player.vel.set(0, 0, 0); player.crouched = false;
+  hud.setVisible(false);
+  sfx("glass_crack", { pos: game.ejected.pos.clone(), vol: 1 });
+  if (!needs.dead) notify("You went through the windscreen.", { level: "bad", icon: "✚", key: "crash-hurt", ms: 6000 });
+}
+// A way to lie that doesn't put head or legs through whatever the body ended up against
+function clearYaw(p, yaw) {
+  const near = getColliders(p.x, p.z, 4), g = heightAt(p.x, p.z);
+  for (let k = 0; k < 8; k++) {
+    const a = yaw + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * (Math.PI / 4), sx = Math.sin(a), sz = Math.cos(a);
+    if ([-1.6, -0.8, 0.8, 1.6].every((d) => circleFree(p.x + sx * d, p.z + sz * d, 0.22, near, g, g + 0.5))) return a;
+  }
+  return yaw;
+}
+function ejectStep(dt) {
+  const e = game.ejected, p = e.pos, vel = e.vel;
+  e.t += dt;
+  const n = Math.max(1, Math.ceil(dt / (1 / 120))), h = dt / n;
+  let grounded = e.settled;                              // once it has come to rest it stays where it lies
+  for (let i = 0; i < n && !e.settled; i++) {
+    vel.y -= EJECT_G * h;
+    p.addScaledVector(vel, h);
+    // Walls, rocks and vehicles stop the body (not the car it just left, for the first moments)
+    const near = getColliders(p.x, p.z, 4).filter((o) => e.t > 0.4 || o.vehicle !== e.car);
+    _push.x = p.x; _push.z = p.z;
+    const hit = resolveCircle(_push, BODY_R, near, p.y - BODY_R, p.y + BODY_R);
+    if (hit) {
+      p.x = _push.x; p.z = _push.z;
+      const into = vel.x * hit.nx + vel.z * hit.nz;
+      if (into < 0) {                                    // lose most of the speed into the wall, keep a little bounce
+        vel.x -= 1.3 * into * hit.nx; vel.z -= 1.3 * into * hit.nz; vel.x *= 0.5; vel.z *= 0.5;
+        if (into < -6) { sfx("punch", { pos: p.clone(), vol: Math.min(1, -into / 15) }); needs.hurt(fallInjury(-into), "A crash"); }
+      }
+    }
+    const g = heightAt(p.x, p.z) + 0.16;                 // lying on the ground, the middle is this high
+    if (p.y <= g) {
+      p.y = g;
+      grounded = true;
+      if (vel.y < -2.5) {
+        const impact = -vel.y;
+        if (!e.landed) { e.landed = true; needs.hurt(fallInjury(impact + 6), "A crash"); }
+        sfx("land", { vol: Math.min(1, impact / 9), surface: surfaceAt(p.x, p.z) });
+        if (impact > 4) sfx("punch", { pos: p.clone(), vol: Math.min(1, impact / 14) });
+        vel.y = impact * 0.3;                            // a bounce, smaller each time, losing speed as it hits
+        vel.x *= 0.6; vel.z *= 0.6;
+      } else vel.y = 0;
+      // Rolling and sliding along the ground: a tumbling body drags hard
+      const hs = Math.hypot(vel.x, vel.z), drop = 14 * h, k = hs > drop ? (hs - drop) / hs : 0;
+      vel.x *= k; vel.z *= k;
+    }
+  }
+  const hs = e.settled ? 0 : Math.hypot(vel.x, vel.z);
+  // Tumbling: head over heels in the air, rolling with the ground speed, then lying still
+  if (!e.settled) e.spin += (grounded ? hs / 0.45 : 7) * dt;
+  if (grounded && hs < 0.35 && Math.abs(vel.y) < 0.6) e.rest += dt; else e.rest = 0;
+  if (e.rest > 0.15 && !e.settled) {
+    e.settled = true; e.yaw = clearYaw(p, e.yaw);
+    // Look down from over open ground, so the truck it ended up against isn't in the way
+    const near = getColliders(p.x, p.z, 5), g = heightAt(p.x, p.z);
+    e.camDir = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => k * Math.PI / 4)
+      .find((a) => circleFree(p.x + Math.sin(a) * 1.8, p.z + Math.cos(a) * 1.8, 0.6, near, g, g + 3)) ?? Math.atan2(-e.dir.x, -e.dir.z);
+  }
+  // The player (sounds, convoy, the map) follows the body
+  player.pos.set(p.x, heightAt(p.x, p.z), p.z);
+  // Camera: out of the cab to a spot behind, to the side and above the body, looking at it (off the line it travels,
+  // so whatever it was thrown over doesn't block the view)
+  const back = Math.max(4, Math.min(7, 3.5 + hs * 0.1)), sx = e.dir.z, sz = -e.dir.x;
+  if (e.settled) _camWant.set(p.x + Math.sin(e.camDir) * 1.1, p.y + 5.4, p.z + Math.cos(e.camDir) * 1.1);    // nearly overhead
+  else _camWant.set(p.x - e.dir.x * back * 0.55 + sx * back * 0.8, p.y + 2.6, p.z - e.dir.z * back * 0.55 + sz * back * 0.8);
+  _camWant.y = Math.max(_camWant.y, heightAt(_camWant.x, _camWant.z) + 1);
+  camera.position.lerp(_camWant, 1 - Math.exp(-dt * (e.t < 0.25 ? 5 : e.settled ? 2.5 : 12)));
+  camera.lookAt(p.x, p.y + 0.2, p.z);
+  camera.updateMatrixWorld(true);
+  // At rest: a moment lying there, then up (if alive) or the end
+  if (e.rest > (needs.dead ? 1.6 : 1.0) || e.t > 12) {
+    game.ejected = null;
+    if (!needs.dead) hud.setVisible(true);
+    player.pos.set(p.x, heightAt(p.x, p.z), p.z); player.vel.set(0, 0, 0); player.grounded = true;
+    player.yaw = look.yaw = e.yaw; look.pitch = player.pitch = 0;
+  }
 }
 
 // ── Shop, pockets, sleep ───────────────────────────────
@@ -933,15 +1081,39 @@ function nearestVehicle(p, range) {
   return best;
 }
 
+// In a convoy everyone on the road has to be asleep (in a cab or a bed) before the night skips ahead; until then this
+// player lies awake waiting (game.zz) and can get up again
 function sleep(where) {
   if (state !== "playing") return;
   if (needs.energy > 75) { notify("You're not tired enough to sleep", { key: "sleep", icon: "☾" }); return; }
   state = "sleeping";
   releaseAll();
   hud.dim(true);
+  const hours = Math.max(1, Math.min(9, (100 - needs.energy) / 13));
+  game.zz = { hours, where, go: false, shown: "" };
+  if (convoy.active && convoy.othersHere().length) sleepWait();
+  else sleepNow(hours);
+}
+function sleepWait() {
+  const z = game.zz;
+  if (z.go) return;
+  if (took("sleep")) { getUp(); return; }
+  const s = convoy.sleepers(z.hours);
+  if (s.asleep >= s.of && convoy.leader() === convoy.me.id) { convoy.wakeAll(s.hours); sleepNow(s.hours); return; }
+  const txt = `Waiting for the convoy to sleep · ${s.asleep}/${s.of} asleep\nPress ${bindingLabel("sleep")} or ${bindingLabel("pause")} to get up`;
+  if (txt !== z.shown) { z.shown = txt; hud.fade(0.85, txt); }
+}
+function getUp() {
+  game.zz = null; state = "playing"; last = performance.now();
+  releaseAll(); hud.fade(0, ""); hud.dim(false);
+  notify("You got up.", { key: "sleep", icon: "☾" });
+}
+function sleepNow(hours) {
+  const where = game.zz?.where;
+  if (game.zz) game.zz.go = true;
   hud.fade(1, "Sleeping…");
   setTimeout(() => {
-    const hours = Math.max(1, Math.min(9, (100 - needs.energy) / 13));
+    game.zz = null;
     const before = sky.time;
     sky.time = (sky.time + hours / 24) % 1;
     if (sky.time < before) game.day++;
@@ -1026,6 +1198,7 @@ function frame(now) {
     if (state === "playing") pause();
     else if (state === "paused" && menus.current === "pause") resume();
     else if (state === "ui" && menus.current !== "dialogue") resume();
+    else if (state === "sleeping" && game.zz && !game.zz.go) getUp();
   }
   if (took("photo") && state === "playing") {
     state = "photo";
@@ -1048,6 +1221,7 @@ function frame(now) {
   }
 
   if (state === "playing") tick(dt);
+  else if (state === "sleeping" && game.zz) sleepWait();
   else if (state === "photo") photo.update(dt, camera, () => renderer.render(scene, camera));
   else if (state === "menu") {
     sky.update(dt * 0.1, camera, menuFocus);
@@ -1062,7 +1236,7 @@ function frame(now) {
   if (state === "playing" && smoke) smoke.update(dt, vehicles, { camera, height: renderer.domElement.height, light: smokeLight() });
   if (convoy.voice.on) syncVoice();
   if (convoy.active && state !== "menu" && state !== "boot" && state !== "dead") {
-    convoy.tick(dt, state === "playing" ? convoyLocal() : null, focusPos());
+    convoy.tick(dt, state === "playing" || (state === "sleeping" && game.zz) ? convoyLocal() : null, focusPos());
     convoy.showPanel(state === "playing" && prefs.hud.show !== "off", prefs.units);
   }
   endFrame();
@@ -1143,6 +1317,7 @@ function tick(dt) {
   const lightsOn = game.lights === "on" || (game.lights === "auto" && (sky.night || weather.p.fog < 0.4));
   if (v) v.setLights(lightsOn);
   acc += dt;
+  if (v) _preVel.copy(v.vel);
   let steps = 0, first = true;
   const fp = focusPos(), convoyCars = convoy.active ? convoy.ghostCars(fp.x, fp.z, 300) : null;
   while (acc >= STEP && steps < 12) {
@@ -1156,8 +1331,13 @@ function tick(dt) {
   lastTel = tel;
   if (tel) {
     game.stats.distance += Math.abs(tel.speed) * dt;
+    let thrown = false;
     if (tel.impact > 0.5) {
-      needs.hurt(tel.impact * 0.45, "A crash");
+      const hurt = crashInjury(tel.impact);
+      needs.hurt(hurt, "A crash");
+      if (hurt >= 40) audio.crunch();
+      thrown = hurt >= EJECT_HURT && headOn(v, _preVel);
+      if (hurt >= 30 && !needs.dead && !thrown) notify(hurt >= 60 ? "You're badly hurt." : "That crash hurt.", { level: "bad", icon: "✚", key: "crash-hurt", ms: 5000 });
       rig.shake(tel.impact * 0.02);
       sfx("crash", { vol: Math.min(1, tel.impact / 20) });
     }
@@ -1165,6 +1345,7 @@ function tick(dt) {
     const my = v.camMotion ? v.camMotion.y || 0 : 0;
     rough += (Math.min(1, Math.abs(my - lastMotionY) * 60) - rough) * Math.min(1, dt * 6);
     lastMotionY = my;
+    if (thrown) { eject(v, _preVel); v = null; }
   }
 
   // On foot
@@ -1174,12 +1355,22 @@ function tick(dt) {
   if (!v && game.riding) {
     rideUpdate(dt);
     if (state !== "playing") return;
+  } else if (!v && game.ejected) {
+    ejectStep(dt);
   } else if (!v) {
     const fi = foot();
+    // Too badly hurt to stand: crawl until healed a little
+    const crawl = player.crawling ? needs.health < STAND_AT : needs.health < CRAWL_BELOW;
+    if (crawl !== player.crawling) {
+      player.crawling = crawl;
+      if (!needs.dead) notify(crawl ? "You're too badly hurt to stand. You can only crawl." : "You can stand again.", { level: crawl ? "bad" : "good", icon: "✚", key: "crawl", ms: 6000 });
+    }
+    player.lastImpact = 0;
     player.yaw = look.yaw;
     player.pitch = look.pitch;
     player.update(dt, fi, getColliders(player.pos.x, player.pos.z, 10), { needs, canSprint: needs.energy > 8, camMotion: prefs.a11y.reduceMotion ? 0 : prefs.camMotion });
     look.yaw = player.yaw;
+    if (player.lastImpact > 0) { const hurt = fallInjury(player.lastImpact); if (hurt > 0) needs.hurt(hurt, "A fall"); }
     player.applyCamera(camera);
     camera.updateMatrixWorld(true);
     ui = interaction.update(dt, fi) || NO_UI;
@@ -1192,7 +1383,7 @@ function tick(dt) {
   // Needs
   const indoors = !v && !!world.indoorsAt?.(player.pos.x, player.pos.z);
   needs.update(dt / HOUR, { temp, sprinting: !v && !game.riding && player.sprinting, sleeping: false, shade: !!v || !!game.riding || indoors, rate: d.needs });
-  if (needs.dead) { die(needs.cause); return; }
+  if (needs.dead && !game.ejected) { die(needs.cause); return; }
 
   // World
   const at = focusPos();
@@ -1284,6 +1475,7 @@ function recover(v, d) {
 
 // ── Boot ───────────────────────────────────────────────
 async function boot() {
+  logLaunch(identity(), { hasSave: !!loadSave().save });
   resize();
   menus.init({ prefs, handlers, difficulties: DIFF_LIST });
   hud.init({ prefs });
@@ -1413,5 +1605,5 @@ window.__lh = {
   get npcs() { return npcs; }, get combat() { return combat; }, convoy, get body() { return body; }, mapMemory, roadX, sitesBetween, get smoke() { return smoke; }, startRide, stopRide, look, get hudState() { return hudState; },
   get encounters() { return new URLSearchParams(location.search).get("dev") === "1" ? encounters : undefined; },
   startJourney, persist, pause, resume, snapshot, seat, exitVehicle, getColliders, handlers, music, audio,
-  tick, makeItem,
+  tick, makeItem, sleep,
 };

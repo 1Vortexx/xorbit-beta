@@ -6,7 +6,12 @@
 // vehicle step and colliders() to everything else). A player can ride in another's truck: they send "ride" with the
 // driver and seat, sit in that seat on every screen, and the driver's game holds the seat for them.
 // A paused player stays in the convoy: they keep sending where they are, flagged as paused, and their tag shows a
-// pause sign.
+// pause sign. A player on foot also sends where they left their truck (pk), so it stays parked on every screen.
+// Time of day and weather follow one clock: the lowest id among the players who aren't paused on this road (the
+// leader) sends its own in every message and everyone else adopts it. Sleep skips ahead only once everyone on the road
+// is asleep (in a cab or a bed) or paused: each sleeper sends the hours they want (zz), and when the leader sees all of
+// them asleep it sends "zz" with the longest, and the sleepers wake up that many hours later. Paused players only get
+// the new time (through the leader's clock), not the rest.
 import * as THREE from "three";
 import { Channel } from "./net/realtime.js";
 import { Vehicle } from "./vehicles/vehicle.js";
@@ -115,6 +120,17 @@ class Ghost {
     removeTarget(this.car.mesh);
     this.car.rig?.dispose(); this.root.remove(this.car.mesh); this.car = null;
   }
+  // The truck this member left behind (s.pk), standing where they parked it; hidden if they sent none
+  park(s, focus) {
+    const k = s.pk;
+    if (!k) { if (this.car) this.car.mesh.visible = false; return; }
+    const v = this.carFor(k);
+    if (this.body.mesh.parent === v.mesh) this.root.add(this.body.mesh);
+    v.pos.fromArray(k.p); v.quat.fromArray(k.q); v.vel.set(0, 0, 0);
+    v.speed = 0; v.steer = k.st || 0; v.lights = !!k.l;
+    v.update(0);
+    v.mesh.visible = !(focus && v.pos.distanceTo(focus) > FAR);
+  }
   setTag(paused, talking) {
     if (paused === this.paused && talking === this.talking) return;
     this.paused = paused; this.talking = talking;
@@ -129,7 +145,7 @@ class Ghost {
     this.setTag(!!st.s.ps, !!this.convoy.voice.state(this.id)?.speaking);
     if (st.m === "ride") {
       // Sitting in someone's truck: theirs on this screen (a ghost), or this player's own
-      if (this.car) this.car.mesh.visible = false;
+      this.park(st.s, focus);
       const host = this.convoy.vehicleOf(st.s.h), seat = host && host.def.seats[st.s.se] ? st.s.se : null;
       if (!seat) { this.body.show("hidden"); this.tag.visible = false; return st; }
       this.body.update(dt, { vehicle: host, seat });
@@ -149,9 +165,9 @@ class Ghost {
       this.body.update(dt, { vehicle: v, seat: "driver", steer: v.steer });
       this.tag.position.set(st.p.x, st.p.y + 2.2, st.p.z);
     } else {
-      if (this.car) this.car.mesh.visible = false;
+      this.park(st.s, focus);
       st.p.y = heightAt(st.p.x, st.p.z);
-      this.body.update(dt, { pos: st.p, yaw: st.yaw, speed: st.s.ps ? 0 : st.speed });
+      this.body.update(dt, { pos: st.p, yaw: st.yaw, speed: st.s.ps ? 0 : st.speed, crawl: !!st.s.cr });
       this.tag.position.set(st.p.x, st.p.y + 2.15, st.p.z);
     }
     this.body.show(far ? "hidden" : "full");
@@ -168,9 +184,11 @@ class Ghost {
 export class Convoy {
   // root: the world root (ghosts use absolute coordinates). onChange(): the member list or connection changed.
   // localVehicle(): the vehicle this player drives (riders sit in it); rideTarget(memberId): the interaction target
-  // for a member's truck; onNotice(text): someone got in or out
-  constructor({ root, onChange, localVehicle, rideTarget, onNotice } = {}) {
+  // for a member's truck; onNotice(text): someone got in or out; onClock({ tm, wx }): adopt the leader's time of day
+  // and weather; onSleep(hours): everyone is asleep, skip ahead
+  constructor({ root, onChange, localVehicle, rideTarget, onNotice, onClock, onSleep } = {}) {
     this.root = root; this.onChange = onChange || (() => {});
+    this.onClock = onClock || (() => {}); this.onSleep = onSleep || (() => {});
     this.localVehicle = localVehicle || (() => null); this.rideTarget = rideTarget || null; this.onNotice = onNotice || (() => {});
     this.claims = new Map();     // memberId → { v, seat }: seats held in this player's vehicle for riders
     // Voice chat (js/net/voice.js): its signalling rides on this channel as "rtc" messages addressed to one member
@@ -263,9 +281,15 @@ export class Convoy {
       m.seed = p.seed;
       if (!!p.ps !== m.paused) { m.paused = !!p.ps; this.onChange(); }
       if (!!p.vc !== m.voice) { m.voice = !!p.vc; this.onChange(); }
+      const zz = p.zz || 0;
+      if (zz && !m.zz && p.seed === this.mySeed) this.onNotice(`@${m.name} is asleep. Everyone has to sleep to skip ahead.`);
+      m.zz = zz;
       if (this.mySeed != null && p.seed !== this.mySeed) { if (m.ghost) { m.ghost.dispose(); m.ghost = null; } return; }
       if (!m.ghost && this.root) m.ghost = new Ghost(this.root, m.id, m.name, this);
       if (m.ghost) m.ghost.push(now(), p);
+      if (p.tm !== undefined && !p.ps && this.leader() === p.id) this.onClock(p);
+    } else if (ev === "zz") {
+      if (this.mySeed != null && p.seed === this.mySeed && p.h > 0) this.onSleep(p.h);
     } else if (ev === "rtc") {
       if (p.to === this.me.id) this.voice.receive(p.id, p);
     } else if (ev === "bye") {
@@ -284,7 +308,8 @@ export class Convoy {
       this._liveAt = performance.now();
       // 4×/s while moving, once a second when standing still
       this._sendT -= dt;
-      if (this._sendT <= 0) {
+      if (this._sendT <= 0 || (local.zz || 0) !== this._zz) {     // falling asleep or getting up goes out at once
+        this._zz = local.zz || 0;
         this._sendT = Math.abs(local.sp || 0) > 0.3 ? 0.25 : 1;
         this.post(this._last);
       }
@@ -307,6 +332,29 @@ export class Convoy {
     this.updatePanel(focus);
   }
 
+  // Who keeps the convoy's clock: the lowest id among players on this road who aren't paused (this one included,
+  // while it's playing)
+  leader() {
+    let best = this._liveAt && performance.now() - this._liveAt < 800 ? this.me.id : null;
+    for (const m of this.members.values()) {
+      if (m.paused || !m.ghost || m.seed !== this.mySeed) continue;
+      if (best === null || m.id < best) best = m.id;
+    }
+    return best;
+  }
+  // Other players on this road (ones on a different road don't share the clock)
+  othersHere() { return [...this.members.values()].filter((m) => m.ghost && m.seed === this.mySeed); }
+  // Sleep: { asleep, of, hours } for everyone on this road, this player included with the hours they want. Paused
+  // players count as asleep but don't choose how long
+  sleepers(mine) {
+    const o = this.othersHere(), z = o.filter((m) => m.zz > 0 || m.paused);
+    return { asleep: z.length + (mine > 0 ? 1 : 0), of: o.length + 1, hours: Math.max(mine || 0, ...z.map((m) => m.zz || 0)) };
+  }
+  // Everyone's asleep: wake them all after the same number of hours
+  wakeAll(h) {
+    if (this.channel && this.mySeed != null) this.channel.send("zz", { id: this.me.id, n: this.me.name, seed: this.mySeed, h });
+  }
+
   post(o) { this._sentAt = performance.now(); this.channel.send("st", o); }
   // Paused: where this player stopped, flagged, every couple of seconds
   keepAlive() {
@@ -319,9 +367,12 @@ export class Convoy {
   pack(l) {
     const o = { id: this.me.id, n: this.me.name, seed: l.seed, m: l.m, p: [r2(l.p.x), r2(l.p.y), r2(l.p.z)], v: [r2(l.v.x), r2(l.v.y), r2(l.v.z)], sp: r2(l.sp) };
     if (this.voice.on) o.vc = 1;
+    if (l.zz) o.zz = r2(l.zz);
+    if (l.tm !== undefined) { o.tm = r4(l.tm); o.wx = l.wx; }
+    if (l.pk) { const k = l.pk; o.pk = { p: [r2(k.pos.x), r2(k.pos.y), r2(k.pos.z)], q: [r4(k.quat.x), r4(k.quat.y), r4(k.quat.z), r4(k.quat.w)], vt: k.type, pa: k.paint, vs: k.seed, w: r2(k.wearLook), st: r2(k.steer || 0), l: k.lights ? 1 : 0 }; }
     if (l.m === "car") Object.assign(o, { q: [r4(l.q.x), r4(l.q.y), r4(l.q.z), r4(l.q.w)], vt: l.vt, pa: l.pa, vs: l.vs, w: r2(l.w), st: r2(l.st), l: l.l ? 1 : 0, fs: l.fs || [] });
     else if (l.m === "ride") Object.assign(o, { h: l.host, se: l.seat });
-    else o.yaw = r2(l.yaw);
+    else { o.yaw = r2(l.yaw); if (l.cr) o.cr = 1; }
     return o;
   }
 
@@ -363,7 +414,7 @@ export class Convoy {
   ghostCars(x, z, r = 60) {
     const out = [];
     for (const m of this.members.values()) {
-      const car = m.st && m.st.m === "car" && m.ghost && m.ghost.car;
+      const car = m.st && m.ghost && m.ghost.car;
       if (car && car.mesh.visible && Math.abs(car.pos.x - x) < r && Math.abs(car.pos.z - z) < r) out.push(car);
     }
     return out;
@@ -373,10 +424,9 @@ export class Convoy {
   colliders(x, z, r, out, cars = true) {
     for (const m of this.members.values()) {
       if (!m.st || !m.ghost) continue;
-      const p = m.st.p;
-      if (Math.abs(p.x - x) > r + 6 || Math.abs(p.z - z) > r + 6) continue;
-      if (m.st.m === "car" && m.ghost.car && m.ghost.car.mesh.visible) { if (cars) out.push(...m.ghost.car.colliders()); }
-      else if (m.st.m === "foot") out.push({ kind: "circle", x: p.x, z: p.z, r: 0.35, y0: p.y, y1: p.y + 1.8 });
+      const p = m.st.p, car = m.ghost.car, near = (q) => Math.abs(q.x - x) <= r + 6 && Math.abs(q.z - z) <= r + 6;
+      if (cars && car && car.mesh.visible && near(car.pos)) out.push(...car.colliders());
+      if (m.st.m === "foot" && near(p)) out.push({ kind: "circle", x: p.x, z: p.z, r: 0.35, y0: p.y, y1: p.y + 1.8 });
     }
     return out;
   }

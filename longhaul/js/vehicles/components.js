@@ -21,6 +21,13 @@ export const ENGINES = {
     torque: [[400, 250], [800, 350], [1600, 430], [2600, 465], [3600, 450], [4400, 400], [5000, 300], [5400, 160], [5800, 0]],
     heat: [0.45, 2.0], oilUse: 0.07, fuelIdle: 2.2, bsfc: 0.42,
   },
+  // The Meridian's hand-built V12: smooth, eager to rev and much stronger than anything else on the road. cyl: firing
+  // order for the engine sound (audio.js; six when absent)
+  engine_v12: {
+    label: "6.0 L V12", idle: 700, redline: 7200, inertia: 0.22, cyl: 12,
+    torque: [[400, 260], [700, 360], [1500, 470], [2500, 545], [3500, 590], [4500, 600], [5500, 575], [6500, 520], [7200, 440], [7600, 0]],
+    heat: [0.32, 1.5], oilUse: 0.03, fuelIdle: 2.0, bsfc: 0.38,
+  },
   engine_i4: {
     label: "2.3 L inline four", idle: 800, redline: 5400, inertia: 0.16,
     torque: [[500, 90], [800, 122], [1500, 150], [2600, 170], [3600, 166], [4600, 146], [5200, 120], [5600, 80], [6000, 0]],
@@ -51,7 +58,11 @@ export const COMPONENT_ITEMS = {
   // Roadblock crews' pursuit cars run this so they can run the player down; strip one from a wreck to keep it.
   engine_bigblock: {
     name: "Big-block V8", icon: "⚙", kind: "part", mass: 290, size: [0.78, 0.76, 0.9], price: 1600,
-    pocket: false, slot: "engine", fits: ["pickup", "sedan"], makeMesh: mesh("engine_bigblock"),
+    pocket: false, slot: "engine", fits: ["pickup", "sedan", "meridian"], makeMesh: mesh("engine_bigblock"),
+  },
+  engine_v12: {
+    name: "V12 engine", icon: "⚙", kind: "part", mass: 230, size: [0.72, 0.7, 1.0], price: 6500,
+    pocket: false, slot: "engine", fits: ["meridian"], makeMesh: mesh("engine_v12"),
   },
   engine_i4: {
     name: "Four-cylinder engine", icon: "⚙", kind: "part", mass: 140, size: [0.56, 0.66, 0.7], price: 420,
@@ -59,11 +70,11 @@ export const COMPONENT_ITEMS = {
   },
   battery: {
     name: "Battery", icon: "🔋", kind: "part", mass: 17, size: [0.19, 0.22, 0.28], price: 85,
-    pocket: false, slot: "battery", fits: ["pickup", "sedan"], makeMesh: mesh("battery"),
+    pocket: false, slot: "battery", fits: ["pickup", "sedan", "meridian"], makeMesh: mesh("battery"),
   },
   radiator: {
     name: "Radiator", icon: "♨", kind: "part", mass: 11, size: [0.68, 0.5, 0.12], price: 140,
-    pocket: false, slot: "radiator", fits: ["pickup", "sedan"], makeMesh: mesh("radiator"),
+    pocket: false, slot: "radiator", fits: ["pickup", "sedan", "meridian"], makeMesh: mesh("radiator"),
   },
   wheel_16: {
     name: "16\" truck wheel", icon: "⭕", kind: "part", mass: 29, size: [0.76, 0.26, 0.76], price: 110,
@@ -72,6 +83,11 @@ export const COMPONENT_ITEMS = {
   wheel_14: {
     name: "14\" car wheel", icon: "⭕", kind: "part", mass: 18, size: [0.62, 0.21, 0.62], price: 75,
     pocket: false, slot: "wheel", fits: ["sedan"], radius: 0.31, width: 0.2, makeMesh: mesh("wheel_14"),
+  },
+  // grip: multiplies the tyre's friction (1 when absent)
+  wheel_15ww: {
+    name: "15\" whitewall wheel", icon: "⭕", kind: "part", mass: 21, size: [0.72, 0.21, 0.72], price: 320,
+    pocket: false, slot: "wheel", fits: ["meridian"], radius: 0.36, width: 0.21, grip: 1.15, makeMesh: mesh("wheel_15ww"),
   },
 };
 

@@ -500,6 +500,80 @@
 
         .error-message.show { display: block; }
 
+        /* Banned account: fullscreen modal over the login screen (matches blocked.html) */
+        #banModal {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: #000;
+            font-family: var(--font);
+        }
+        #banModal.show { display: flex; }
+        .ban-card {
+            width: 100%;
+            max-width: 520px;
+            padding: 40px;
+            text-align: center;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .ban-icon {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: var(--error);
+            background: rgba(255,69,58,0.08);
+            border: 1px solid rgba(255,69,58,0.3);
+            border-radius: 8px;
+        }
+        .ban-title { font-size: 1.25rem; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+        .ban-name { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 26px; word-break: break-word; }
+        .ban-reason-box {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 26px;
+            padding: 16px 18px;
+            text-align: left;
+            background: rgba(255,69,58,0.06);
+            border: 1px solid rgba(255,69,58,0.2);
+            border-radius: 6px;
+        }
+        .ban-reason { font-size: 0.875rem; line-height: 1.6; color: var(--text-dim); white-space: pre-wrap; word-break: break-word; }
+        .ban-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        .ban-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            font: inherit;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+        }
+        .ban-btn.primary { color: #fff; background: var(--accent); border: none; }
+        .ban-btn.primary:hover { opacity: 0.85; }
+        .ban-btn.secondary { color: var(--text-muted); background: transparent; border: 1px solid var(--border-hi); }
+        .ban-btn.secondary:hover { color: var(--text); border-color: var(--text-faint); }
+        .ban-footer { margin-top: 20px; font-size: 0.8rem; color: var(--text-faint); }
+        @media (max-width: 600px) {
+            .ban-card { padding: 28px 20px; }
+            .ban-actions { flex-direction: column; }
+            .ban-btn { width: 100%; }
+        }
+
         /* ════════════════════════════════════════════════
            DASHBOARD SHELL
         ════════════════════════════════════════════════ */
@@ -2393,6 +2467,16 @@
 
         .image-upload-btn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
         .image-upload-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .msg-media-bubble { display: inline-block; max-width: 100%; }
+        .msg-video {
+            display: block;
+            max-width: 280px;
+            max-height: 300px;
+            border-radius: var(--r);
+            background: #000;
+        }
+        .msg-audio { display: block; width: 260px; max-width: 100%; }
 
         .msg-image {
             max-width: 260px;
@@ -6822,6 +6906,25 @@
     </div>
 </div>
 
+<!-- ══ BANNED ACCOUNT ══════════════════════════════════ -->
+<div id="banModal" role="alertdialog" aria-modal="true" aria-labelledby="banTitle" aria-describedby="banReason">
+    <div class="ban-card">
+        <div class="ban-icon"><i class="fas fa-ban"></i></div>
+        <h1 class="ban-title" id="banTitle">Account Suspended</h1>
+        <p class="ban-name" id="banName"></p>
+        <div class="ban-reason-box"><div class="ban-reason" id="banReason"></div></div>
+        <div class="ban-actions">
+            <button type="button" class="ban-btn primary" id="banReturnBtn" onclick="returnToLoginFromBan()">
+                <i class="fas fa-arrow-left"></i> Return to Login
+            </button>
+            <a class="ban-btn secondary" href="https://xorbit.org/support" target="_blank" rel="noopener">
+                <i class="fas fa-headset"></i> Contact Support
+            </a>
+        </div>
+        <div class="ban-footer">If you believe this is an error, please contact support.</div>
+    </div>
+</div>
+
 <!-- ══ USERNAME SETUP ══════════════════════════════════ -->
 <!-- Explanation step -->
 <div id="systemExplain" style="display:none">
@@ -7101,11 +7204,11 @@
                         <button class="reply-bar-close" onclick="cancelReply()" title="Cancel reply"><i class="fas fa-times"></i></button>
                     </div>
                     <div class="message-input-container">
-                        <input type="file" id="imageFileInput" accept="image/*" style="display:none" onchange="handleImageUpload(event)">
-                        <button class="image-upload-btn" id="imageUploadBtn" style="display:none" onclick="document.getElementById('imageFileInput').click()" title="Upload image (Premium)">
+                        <input type="file" id="imageFileInput" accept="image/*,video/*,audio/*" style="display:none" onchange="handleImageUpload(event)">
+                        <button class="image-upload-btn" id="imageUploadBtn" style="display:none" onclick="document.getElementById('imageFileInput').click()" title="Upload image, video or audio (Premium)">
                             <i class="fas fa-image"></i>
                         </button>
-                        <button class="composer-plus-btn" type="button" onclick="composerPlus()" title="Add a photo"><i class="fas fa-plus"></i></button>
+                        <button class="composer-plus-btn" type="button" onclick="composerPlus()" title="Add a photo, video or audio"><i class="fas fa-plus"></i></button>
                         <div class="composer-pill">
                         <textarea
                             id="messageInput"
@@ -8179,7 +8282,7 @@
         <div class="update-prompt-text" id="updatePromptText"></div>
     </div>
     <div class="update-prompt-actions">
-        <button type="button" class="update-prompt-later" onclick="dismissUpdatePrompt()">Later</button>
+        <button type="button" class="update-prompt-later" id="updatePromptLater" onclick="dismissUpdatePrompt()">Later</button>
         <button type="button" class="update-prompt-go" id="updatePromptGo" onclick="hardRefreshJitter()">Refresh now</button>
     </div>
 </div>
@@ -8294,6 +8397,11 @@
             try {
                 const session = JSON.parse(sharedAuth);
                 if (session.authenticated && session.email) {
+                    if (await restoreBlockedByBan(session.email, session.username)) {
+                        sessionStorage.removeItem('xorbit_auth_session');
+                        localStorage.removeItem('xorbit_auth_session');
+                        return;
+                    }
                     currentUser = {
                         id:    session.userId || null,
                         name:  session.username || session.email,
@@ -8309,13 +8417,17 @@
         // Fallback: DM-specific session stored on a previous direct login
         const saved = localStorage.getItem('xorbit_dm_user');
         if (saved) {
-            try {
-                currentUser = JSON.parse(saved);
+            let savedUser = null;
+            try { savedUser = JSON.parse(saved); } catch { localStorage.removeItem('xorbit_dm_user'); }
+            if (savedUser) {
+                if (await restoreBlockedByBan(savedUser.email, savedUser.name)) {
+                    localStorage.removeItem('xorbit_dm_user');
+                    return;
+                }
+                currentUser = savedUser;
                 document.documentElement.style.visibility = 'visible';
                 await showDashboard();
                 return;
-            } catch {
-                localStorage.removeItem('xorbit_dm_user');
             }
         }
 
@@ -8382,8 +8494,13 @@
                 .eq('password', password)
                 .single();
 
+            logJitterLogin(email, data, !data ? 'Invalid credentials' : null);
+
             if (error || !data) throw new Error('Invalid email or password.');
-            if (data.blocked) throw new Error('Your account has been suspended.');
+            if (isBanned(data)) {
+                showBanModal(data.name || data.email, data.ban_reason);
+                return;
+            }
 
             currentUser = { id: data.id, name: data.name, email: data.email, username: data.username || null, display_name: data.display_name || null };
             usernameCache[data.email] = data.username || null;
@@ -8397,6 +8514,77 @@
             btn.disabled = false;
             btn.innerHTML = '<i class="fas fa-arrow-right"></i> Login';
         }
+    }
+
+    // `blocked` has been stored as both a boolean and the string "true"
+    function isBanned(row) {
+        return !!row && (row.blocked === true || row.blocked === 'true');
+    }
+
+    // Records a Jitter sign-in in login_attempts (shown as "Jitter" in admin/logs.html).
+    // `row` is the clients row, or null if none matched. Fire-and-forget: never blocks sign-in.
+    function logJitterLogin(attempted, row, failureReason) {
+        let deviceUUID = null;
+        try { deviceUUID = localStorage.getItem('xorbit_device_uuid'); } catch {}
+        const banned = isBanned(row);
+        const entry = {
+            attempted_username: attempted,
+            attempted_email:    attempted && attempted.includes('@') ? attempted : null,
+            success:            !!row && !banned && !failureReason,
+            attempt_timestamp:  new Date().toISOString(),
+            user_agent:         navigator.userAgent,
+            device_uuid:        deviceUUID,
+            is_jitter:          true,
+        };
+        if (row) {
+            entry.client_id    = row.id;
+            entry.client_name  = row.name;
+            entry.client_email = row.email;
+        }
+        if (banned) entry.failure_reason = 'Account blocked';
+        else if (failureReason) entry.failure_reason = failureReason;
+        sb.from('login_attempts').insert(entry).then(({ error }) => {
+            if (error) console.warn('Jitter login log failed:', error.message);
+        });
+    }
+
+    // Page loaded with a saved sign-in: log it, and show the ban modal instead of the
+    // dashboard if the account has been banned since. Returns true if it was banned.
+    async function restoreBlockedByBan(email, name) {
+        let row = null;
+        try {
+            const { data, error } = await sb.from('clients')
+                .select('id, name, email, blocked, ban_reason')
+                .eq('email', email)
+                .maybeSingle();
+            if (error) throw error;
+            row = data;
+        } catch {
+            // Can't reach the server: log what we know and keep the existing behaviour
+            logJitterLogin(email, null, 'Saved sign-in not verified');
+            return false;
+        }
+        logJitterLogin(email, row, row ? null : 'Account not found');
+        if (!isBanned(row)) return false;
+        document.documentElement.style.visibility = 'visible';
+        document.getElementById('loginEmail').value = email;
+        showBanModal(row.name || name || email, row.ban_reason);
+        return true;
+    }
+
+    function showBanModal(name, reason) {
+        document.getElementById('banName').textContent   = name || '';
+        document.getElementById('banReason').textContent = reason || 'Your account has been suspended. Please contact support for more information.';
+        document.getElementById('loginPassword').value = '';
+        document.getElementById('loginError').classList.remove('show');
+        document.getElementById('banModal').classList.add('show');
+        document.getElementById('banReturnBtn').focus();
+    }
+
+    function returnToLoginFromBan() {
+        document.getElementById('banModal').classList.remove('show');
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('loginPassword').focus();
     }
 
     function toggleSidebar() {
@@ -8975,7 +9163,7 @@
     }
 
     function composerPlus() {
-        if (!currentUserIsPremium) { showToast('Sending photos is a Premium feature'); return; }
+        if (!currentUserIsPremium) { showToast('Sending photos, videos and audio is a Premium feature'); return; }
         document.getElementById('imageFileInput').click();
     }
 
@@ -9581,6 +9769,7 @@
             const chipIcon  = isSaved ? 'fa-check' : 'fa-clock';
             const chipText  = isSaved ? 'Saved locally' : expiry;
             // Message filter: how this message looks to me, and whether mine reached them
+            const media       = mediaMessage(msg.message);
             const profane     = !isImage && !msg.undelivered && hasProfanity(msg.message);
             const filterView  = !isMine && profane && !revealedProfanity.has(msg.id) ? myMessageFilter : 'off';
             const notReceived = isMine && profane && activeOtherFilter === 'block';
@@ -9621,6 +9810,8 @@
                         </button>
                     </div>
                    </div>`
+                : media
+                ? mediaMessageHTML(media)
                 : hangmanInviteCode(msg.message)
                 ? hangmanInviteCard(hangmanInviteCode(msg.message), senderDisplay, isMine)
                 : callLogState(msg.message)
@@ -10484,7 +10675,7 @@
     /* ── VERSION ─────────────────────────────────────────
        Shown under your name in the sidebar so you can tell which build is loaded.
        Bump it with every change to this file: date as YYMMDD, then a counter for that day. */
-    const JITTER_VERSION = '261110-3';
+    const JITTER_VERSION = '261117-1';
     document.getElementById('jitterVersion').textContent = 'Jitter v' + JITTER_VERSION;
 
     /* ── VERSION CHECK ───────────────────────────────────
@@ -10494,12 +10685,18 @@
        refresh: clear the page's caches and cookies, then reload from a new URL (?_v=…)
        so the browser can't serve its old copy. localStorage is kept (login and settings).
        Newer-only, so a row that hasn't been updated yet never sends people backwards.
-       Checked on load, every 5 minutes, on returning to the app, and live via Realtime. */
+       Checked on load, every 5 minutes, on returning to the app, and live via Realtime.
+       The row's min_version (supabase/jitter-force-update.sql) makes it compulsory: anything
+       older gets the prompt with no "Later", and refreshes itself unless it's on a call.
+       Copies too old to know about min_version are reloaded by sw.js instead. */
     const VERSION_CHECK_EVERY_MS = 5 * 60 * 1000;
     const JITTER_CHANNEL = location.hostname === 'xorbit.org' || location.hostname === 'www.xorbit.org' ? 'public' : 'beta';
     let latestJitterVersion = null;
     let updatePromptDismissed = null; // version the user said "Later" to
     let updatePromptTimer = null;
+    let updateRequired = false;     // running JITTER_VERSION is below the row's min_version
+    let forcedRefreshTimer = null;
+    const FORCED_REFRESH_DELAY_MS = 10 * 1000;
 
     // "261027-13" → [261027, 13], so 261027-13 is newer than 261027-9
     function jitterVersionNewer(a, b) {
@@ -10508,12 +10705,13 @@
         return pa[0] !== pb[0] ? pa[0] > pb[0] : (pa[1] || 0) > (pb[1] || 0);
     }
 
-    function onJitterVersion(version) {
+    function onJitterVersion(version, minVersion) {
+        if (minVersion && jitterVersionNewer(minVersion, JITTER_VERSION)) updateRequired = true;
         if (!version || !jitterVersionNewer(version, JITTER_VERSION)) return;
         latestJitterVersion = version;
         // Just hard-refreshed for this version but still got the old file: the push hasn't
         // finished deploying. Wait a few minutes instead of prompting in a loop.
-        if (new URLSearchParams(location.search).get('_v') === version && !updatePromptTimer) {
+        if (new URLSearchParams(location.search).get('_v') === version && !updatePromptTimer && !updateRequired) {
             updatePromptDismissed = version;
             updatePromptTimer = setTimeout(() => { updatePromptDismissed = null; updatePromptTimer = null; maybeShowUpdatePrompt(); }, 3 * 60 * 1000);
             return;
@@ -10523,18 +10721,34 @@
 
     async function checkJitterVersion() {
         try {
-            const { data, error } = await sb.from('jitter_version').select('version').eq('channel', JITTER_CHANNEL).maybeSingle();
-            if (!error && data) onJitterVersion(data.version);
+            let { data, error } = await sb.from('jitter_version').select('version, min_version').eq('channel', JITTER_CHANNEL).maybeSingle();
+            // Database without the min_version column yet (jitter-force-update.sql not run)
+            if (error) ({ data, error } = await sb.from('jitter_version').select('version').eq('channel', JITTER_CHANNEL).maybeSingle());
+            if (!error && data) onJitterVersion(data.version, data.min_version);
         } catch (_) { /* offline: try again next time */ }
     }
 
     function maybeShowUpdatePrompt() {
-        if (!latestJitterVersion || latestJitterVersion === updatePromptDismissed) return;
+        if (!latestJitterVersion) return;
+        if (latestJitterVersion === updatePromptDismissed && !updateRequired) return;
         // Never interrupt a call; endCall() calls this again
         if (typeof call !== 'undefined' && call) return;
-        document.getElementById('updatePromptText').innerHTML =
-            `You're on <b>v${escHtml(JITTER_VERSION)}</b>. Refresh to get <b>v${escHtml(latestJitterVersion)}</b>.`;
+        document.getElementById('updatePromptTitle').textContent = updateRequired ? 'Update required' : 'Jitter has been updated';
+        document.getElementById('updatePromptText').innerHTML = updateRequired
+            ? `v${escHtml(JITTER_VERSION)} is no longer supported. Refreshing to <b>v${escHtml(latestJitterVersion)}</b> in a few seconds…`
+            : `You're on <b>v${escHtml(JITTER_VERSION)}</b>. Refresh to get <b>v${escHtml(latestJitterVersion)}</b>.`;
+        document.getElementById('updatePromptLater').hidden = updateRequired;
         document.getElementById('updatePrompt').classList.add('show');
+        // One automatic refresh per version: if that still loaded an old file (the push isn't
+        // live yet), the prompt stays up without "Later" instead of refreshing in a loop
+        const alreadyTried = new URLSearchParams(location.search).get('_v') === latestJitterVersion;
+        if (updateRequired && !forcedRefreshTimer && !alreadyTried) {
+            forcedRefreshTimer = setTimeout(() => {
+                forcedRefreshTimer = null;
+                if (typeof call !== 'undefined' && call) return; // endCall() brings the prompt back
+                hardRefreshJitter();
+            }, FORCED_REFRESH_DELAY_MS);
+        }
     }
 
     function dismissUpdatePrompt() {
@@ -10580,10 +10794,20 @@
     setInterval(checkJitterVersion, VERSION_CHECK_EVERY_MS);
     sb.channel('jitter_version_changes')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'jitter_version', filter: `channel=eq.${JITTER_CHANNEL}` },
-            ({ new: row }) => onJitterVersion(row && row.version))
+            ({ new: row }) => row && onJitterVersion(row.version, row.min_version))
         .subscribe();
     // Coming back to the tab, or reopening the iPhone app from the background
     document.addEventListener('visibilitychange', () => { if (!document.hidden) checkJitterVersion(); });
+
+    // sw.js asks every open Jitter for its version when it updates and reloads any copy that
+    // doesn't answer (those predate this code and have no min_version check of their own).
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', (e) => {
+            if (e.data && e.data.type === 'jitter-version-ping' && e.ports[0]) {
+                e.ports[0].postMessage({ type: 'jitter-version-pong', version: JITTER_VERSION });
+            }
+        });
+    }
 
     /* ── SETTINGS ─────────────────────────────────────── */
     function openSettingsModal(page) {
@@ -10772,7 +10996,7 @@
     const LEET = { '@': 'a', '4': 'a', '$': 's', '5': 's', '0': 'o', '1': 'i', '3': 'e', '7': 't' };
 
     function hasProfanity(text) {
-        if (!text || typeof text !== 'string' || text.startsWith('[IMG]:')) return false;
+        if (!text || typeof text !== 'string' || text.startsWith('[IMG]:') || mediaMessage(text)) return false;
         // Undo simple letter swaps ("sh1t", "a$$"), but leave plain numbers like "455" alone
         const normalized = text.toLowerCase().split(/\s+/).map(word =>
             /[a-z]/.test(word) ? word.replace(/[@4$50137]/g, ch => LEET[ch]).replace(/!(?=[a-z])/g, 'i') : word
@@ -11414,34 +11638,62 @@
         if (e.key === 'Escape') { closeLightbox(); closeUnsaveModal(); closeSaveExplainModal(); closeDeleteGroupModal(); closeGroupModal(); }
     });
 
+    // Videos and audio go in the same bucket as photos, tagged like [IMG]: so they render inline
+    const MEDIA_KINDS = {
+        image: { tag: '[IMG]:', label: 'Image', preview: '[Image]', maxMB: 10 },
+        video: { tag: '[VID]:', label: 'Video', preview: '[Video]', maxMB: 50 },
+        audio: { tag: '[AUD]:', label: 'Audio', preview: '[Audio]', maxMB: 25 },
+    };
+
+    function mediaMessage(text) {
+        if (!text || typeof text !== 'string') return null;
+        if (text.startsWith('[VID]:')) return { kind: 'video', url: text.slice(6) };
+        if (text.startsWith('[AUD]:')) return { kind: 'audio', url: text.slice(6) };
+        return null;
+    }
+
+    function mediaMessageHTML({ kind, url }) {
+        const src = escHtml(url);
+        return kind === 'video'
+            ? `<div class="msg-media-bubble"><video class="msg-video" src="${src}" controls playsinline preload="metadata"></video></div>`
+            : `<div class="msg-media-bubble"><audio class="msg-audio" src="${src}" controls preload="metadata"></audio></div>`;
+    }
+
     async function handleImageUpload(event) {
         const file = event.target.files[0];
         event.target.value = '';
         if (!file || !activeConvId) return;
 
+        const kind = ['image', 'video', 'audio'].find(k => (file.type || '').startsWith(k + '/'));
+        if (!kind) {
+            showToast('Only images, videos and audio files can be sent.');
+            return;
+        }
+        const media = MEDIA_KINDS[kind];
+
         if (!currentUserIsPremium) {
-            showToast('Image uploads are a premium feature.');
+            showToast(`${media.label} uploads are a premium feature.`);
             return;
         }
 
-        if (file.size > 10 * 1024 * 1024) {
-            showToast('Image must be under 10MB.');
+        if (file.size > media.maxMB * 1024 * 1024) {
+            showToast(`${media.label} must be under ${media.maxMB}MB.`);
             return;
         }
 
         const imgConv  = conversations.find(c => c.id === activeConvId);
         const imgOther = imgConv ? getOtherEmail(imgConv) : null;
         if (imgOther && !(await canDeliverTo(imgOther))) {
-            showToast('Images can\'t be sent until they add you back.');
+            showToast(`${media.label} files can't be sent until they add you back.`);
             return;
         }
 
         const btn = document.getElementById('imageUploadBtn');
         btn.disabled = true;
-        showToast('Uploading image…');
+        showToast(`Uploading ${media.label.toLowerCase()}…`);
 
         try {
-            const ext  = file.name.split('.').pop() || 'jpg';
+            const ext  = file.name.includes('.') ? file.name.split('.').pop() : (file.type.split('/')[1] || 'bin');
             const path = `${currentUser.id}/${Date.now()}.${ext}`;
 
             const { error: upErr } = await sb.storage
@@ -11463,7 +11715,7 @@
                 conversation_id:      activeConvId,
                 sender_email:         currentUser.email,
                 sender_name:          currentUser.display_name || currentUser.username || currentUser.name,
-                message:              `[IMG]:${publicUrl}`,
+                message:              `${media.tag}${publicUrl}`,
                 reply_to_id:          replyingTo ? replyingTo.id : null,
                 reply_to_sender_name: replyingTo ? replyingTo.senderName : null,
                 reply_to_preview:     replyingTo ? replyingTo.preview : null,
@@ -11474,7 +11726,7 @@
             const conv = conversations.find(c => c.id === activeConvId);
             const imgConvUpdate = {
                 last_message_at:      new Date().toISOString(),
-                last_message_preview: '[Image]',
+                last_message_preview: media.preview,
             };
             if (conv && !conv.is_group) {
                 const recipientHideField = conv.participant_1_email === currentUser.email
@@ -11485,8 +11737,8 @@
 
             await loadMessages(activeConvId);
         } catch (err) {
-            console.error('Image upload error:', err);
-            showToast('Image upload failed. Please try again.');
+            console.error(`${media.label} upload error:`, err);
+            showToast(`${media.label} upload failed. Please try again.`);
         } finally {
             btn.disabled = false;
         }
@@ -14787,6 +15039,8 @@
             const url = msg.message.slice(6);
             const hidden = isImageHidden(url);
             contentHTML = `<div class="msg-image-wrap${hidden ? ' img-hidden' : ''}">${hidden ? IMAGE_REVEAL_BTN : ''}<img class="msg-image" ${hidden ? 'data-src' : 'src'}="${escapeHtml(url)}" alt="Image" onclick="openLightbox('${escapeHtml(url)}')" onerror="this.style.opacity='0.3'"></div>`;
+        } else if (mediaMessage(msg.message)) {
+            contentHTML = mediaMessageHTML(mediaMessage(msg.message));
         } else {
             const filterView = !isMine && hasProfanity(msg.message) && !revealedProfanity.has(msg.id) ? myMessageFilter : 'off';
             const textHTML   = `<div class="msg-text">${escapeHtml(msg.message)}</div>`;

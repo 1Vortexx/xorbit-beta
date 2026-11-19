@@ -9,7 +9,38 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(clients.claim());
+  // Chrome refuses client.navigate() until activation has finished, so sweep just after
+  setTimeout(reloadStaleJitter, 0);
 });
+
+// ── Stale Jitter sweep ─────────────────────────────────────────────
+// When this worker takes over, ask each open Jitter for its version. Current copies answer
+// (see VERSION CHECK in jittery.html) and enforce min_version themselves; copies from before
+// that code can't answer, so they're reloaded onto a fresh URL that skips the browser cache.
+const JITTER_PING_TIMEOUT_MS = 5000;
+
+async function reloadStaleJitter() {
+  const windows = await clients.matchAll({ type: "window" });
+  const jitters = windows.filter((c) => new URL(c.url).pathname.endsWith("/jittery.html"));
+  await Promise.all(jitters.map(async (client) => {
+    if (await answersVersionPing(client)) return;
+    const url = new URL(client.url);
+    url.searchParams.set("_v", Date.now());
+    try { await client.navigate(url.toString()); } catch (_) { /* not controlled by this worker */ }
+  }));
+}
+
+function answersVersionPing(client) {
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    const timer = setTimeout(() => resolve(false), JITTER_PING_TIMEOUT_MS);
+    channel.port1.onmessage = (e) => {
+      clearTimeout(timer);
+      resolve(!!(e.data && e.data.type === "jitter-version-pong"));
+    };
+    client.postMessage({ type: "jitter-version-ping" }, [channel.port2]);
+  });
+}
 
 // Pass-through fetch – no offline caching needed for the prompt to work
 self.addEventListener("fetch", () => {});

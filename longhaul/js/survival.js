@@ -3,6 +3,18 @@
 // exploring should fill the time, not meter-watching.
 const clamp = (v) => Math.max(0, Math.min(100, v));
 
+// Below this much health you can't stand and have to crawl; you get back up once you've healed past STAND_AT
+export const CRAWL_BELOW = 25, STAND_AT = 35;
+
+// Health lost in a crash of this severity (vehicle impact units: (closing speed m/s − 2.5) × 2.2). Bumps sting; past
+// about 70 km/h into something solid it gets serious fast: about 45 at 100 km/h, 85 at 130, fatal from about 150.
+export function crashInjury(sev) {
+  const kmh = (sev / 2.2 + 2.5) * 3.6, t = Math.max(0, Math.min(1, (kmh - 70) / 100));
+  return sev * 0.45 + 100 * Math.pow(t, 1.3);
+}
+// Health lost landing at this speed (m/s) on foot: a jump never hurts, a roof hurts, a cliff kills
+export function fallInjury(speed) { return speed > 11 ? (speed - 11) * 7 : 0; }
+
 export class Needs {
   constructor() { this.reset(); }
 
@@ -18,6 +30,8 @@ export class Needs {
 
   // hours: in-game hours passed. ctx: { temp, sprinting, sleeping, shade (in a cab or indoors), rate }
   update(hours, ctx) {
+    if (this.dead) return;          // nothing brings you back: healing here used to lift a fatal blow off zero before
+                                    // main.js checked for death, so you could never die
     const r = ctx.rate;
     const slow = ctx.sleeping ? 0.45 : 1;
     const heat = 0.7 + Math.max(0, ctx.temp - 18) / 30 * (ctx.shade ? 0.6 : 1);

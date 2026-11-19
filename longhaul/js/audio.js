@@ -410,6 +410,17 @@ function dropOthers() {
 }
 on("sfx", ({ name, opts }) => play(name, opts));
 
+// Dying: two recorded clips (audio/sfx) on their own <audio> elements, since main suspends the WebAudio context the
+// moment you die. A hard crash crunches the moment it happens (crunch()); a death flatlines once that has finished.
+const CRUNCH_MS = 2400;
+let deathClips = [], crunchAt = -1e9;
+function deathClip(src, delay, level) {
+  const a = new Audio(src);
+  a.volume = Math.max(0, Math.min(1, (muted ? 0 : vol.master * vol.sfx) * level));
+  const t = setTimeout(() => { a.play().catch(() => {}); }, delay);
+  deathClips.push({ a, t });
+}
+
 export const audio = {
   get ready() { return !!ctx; },
   get context() { return ctx; },
@@ -417,6 +428,26 @@ export const audio = {
   // Must be called from a user gesture the first time (browser autoplay rules)
   start() { try { if (!ctx) init(); if (ctx.state !== "running") ctx.resume(); } catch (e) {} },
   suspend() { try { if (pour) pour.out.gain.value = 0; dropOthers(); ctx && ctx.suspend(); } catch (e) {} },
+  // A bone-crunching hit, played on impact (a hard crash, survived or not)
+  crunch() {
+    if (performance.now() - crunchAt < 700) return;
+    crunchAt = performance.now();
+    deathClip("audio/sfx/death_crunch.mp3", 0, 1);
+  },
+  // violent: a crash, fall, beating or stabbing. The flatline waits for the crunch to finish: the one already playing
+  // from the impact, or one played now
+  death(violent) {
+    for (const { a, t } of deathClips) if (!/death_crunch/.test(a.src)) { clearTimeout(t); try { a.pause(); a.src = ""; } catch (e) {} }
+    deathClips = deathClips.filter(({ a }) => /death_crunch/.test(a.src));
+    const since = performance.now() - crunchAt;
+    if (violent && since > 20000) { this.crunch(); deathClip("audio/sfx/flatline.mp3", CRUNCH_MS, 0.85); }      // not crunched on impact
+    else deathClip("audio/sfx/flatline.mp3", since < CRUNCH_MS ? CRUNCH_MS - since : 0, 0.85);
+  },
+  // Leaving the game-over screen cuts the flatline off
+  stopDeath() {
+    for (const { a, t } of deathClips) { clearTimeout(t); try { a.pause(); a.src = ""; } catch (e) {} }
+    deathClips = []; crunchAt = -1e9;
+  },
   // Where the player's ears are (absolute world position); main calls this every frame.
   setListener(pos) {
     if (!pos) { listener = null; return; }
@@ -437,7 +468,7 @@ export const audio = {
     const running = tel && tel.ignition === "running";
     if (running) {
       const rpm = Math.max(500, tel.rpm), load = Math.max(0, Math.min(1, tel.load || 0));
-      const f = (rpm / 60) * 3; // six-cylinder four-stroke firing frequency
+      const f = (rpm / 60) * (tel.cyl || 6) / 2; // four-stroke firing frequency (a six unless the engine says)
       set(eng.o1.frequency, f, 0.04); set(eng.o2.frequency, f / 2, 0.04); set(eng.o3.frequency, f * 1.5, 0.04);
       set(eng.lp.frequency, 180 + rpm * 0.12 + load * 900 * (s.inCab ? 0.7 : 1), 0.08);
       set(eng.nf.frequency, 120 + rpm * 0.1, 0.1);
@@ -452,7 +483,7 @@ export const audio = {
       const o = list && list[i], t = o && o.tel;
       if (t && t.ignition === "running" && (o.dist || 0) < FAR) {
         const v = others[i] || (others[i] = otherVoice());
-        const rpm = Math.max(500, t.rpm || 0), load = Math.max(0, Math.min(1, t.load || 0)), f = (rpm / 60) * 3;
+        const rpm = Math.max(500, t.rpm || 0), load = Math.max(0, Math.min(1, t.load || 0)), f = (rpm / 60) * (t.cyl || 6) / 2;
         const a = Math.max(0, 1 - (o.dist || 0) / FAR) ** 2;
         set(v.o1.frequency, f, 0.05); set(v.o2.frequency, f / 2, 0.05);
         set(v.lp.frequency, (160 + rpm * 0.1 + load * 700) * (s.inCab ? 0.6 : 1), 0.1);

@@ -45,6 +45,26 @@ export async function prepare(report = () => {}) {
 const STARTER_PAINT = 0x4f8f8c;
 const POOP_PAINT = 0xa5382a;         // plain-paint fallback if the Poopmobile photo skin fails to load
 const POOP_CHANCE = 1 / 1000;        // the starter is The Poopmobile instead of the Brazos
+export const MERIDIAN_CHANCE = 1 / 500;   // a parked car is the Meridian instead (decided by its seed, same for everyone)
+const MERIDIAN_PAINT = 0x0b0c0e;
+
+// What a parked car with this seed turns out to be: the Meridian one time in 500
+export function parkedType(type, seed) {
+  if (type !== "sedan" && type !== "pickup") return type;
+  return mulberry((seed ^ 0x4d455249) >>> 0)() < MERIDIAN_CHANCE ? "meridian" : type;
+}
+// Showroom condition: every part new, all fluids full, nothing missing
+export function pristineVehicle(v) {
+  const d = v.def, s = v.slots;
+  v.paint = MERIDIAN_PAINT; v.wearLook = 0;
+  for (const k of ["engine", "battery", "radiator", ...WHEEL_SLOTS]) {
+    s[k] = makeComponent(k === "engine" ? d.defaultEngine : k.startsWith("wheel") ? d.wheel : k);
+  }
+  v.bodyCond = 100; v.fuel = d.tank; v.oil = d.oilCap; v.coolant = d.coolantCap;
+  v.odometer = 41 * 1609.344;
+  v.defects = [];
+  return v;
+}
 
 // Deterministic state of a recoverable vehicle from its spawn seed: worn parts and 1–3 defects that the player can
 // fix with parts and fluids the game provides.
@@ -126,9 +146,9 @@ export class Vehicles {
     return this._add(v);
   }
   _fromSeed(spawn) {
-    const type = VEHICLES[spawn.type] ? spawn.type : "sedan";
+    const type = parkedType(VEHICLES[spawn.type] ? spawn.type : "sedan", spawn.seed >>> 0);
     const v = new Vehicle({ id: spawn.id, type, seed: spawn.seed });
-    seedVehicle(v, spawn.seed);
+    if (v.def.pristine) pristineVehicle(v); else seedVehicle(v, spawn.seed);
     v.place(spawn.pos[0], spawn.pos[2], spawn.yaw || 0);
     v._spawn = { pos: [v.pos.x, v.pos.y, v.pos.z] };
     v.dirty = false;
@@ -156,7 +176,8 @@ export class Vehicles {
   // Extra (dev / debug / shops): add any vehicle. opts: { id, type, seed, x, z, yaw, pristine }
   spawn(opts) {
     const v = new Vehicle({ id: opts.id || ws.newId("V"), type: opts.type || "pickup", seed: opts.seed || 1, paint: opts.paint, wearLook: opts.wearLook });
-    if (opts.seed && !opts.pristine) seedVehicle(v, opts.seed);
+    if (v.def.pristine) pristineVehicle(v);
+    else if (opts.seed && !opts.pristine) seedVehicle(v, opts.seed);
     if (opts.paint !== undefined) v.paint = opts.paint;
     if (opts.wearLook !== undefined) v.wearLook = opts.wearLook;
     v.place(opts.x || 0, opts.z || 0, opts.yaw || 0);

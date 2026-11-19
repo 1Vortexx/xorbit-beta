@@ -301,7 +301,7 @@ export class Vehicle {
     const d = this.def, s = this.slots;
     const impact = this.impact; if (consumeImpact) this.impact = 0;
     return {
-      speed: this.speed, rpm: this.rpm, redline: this.redline, gear: this.gearLabel(), gearMode: this.gearMode, ignition: this.ign,
+      speed: this.speed, rpm: this.rpm, redline: this.redline, cyl: this.engineSpec?.cyl, gear: this.gearLabel(), gearMode: this.gearMode, ignition: this.ign,
       throttle: this.throttle, brake: this.brake, load: this.load, slip: this.slip, surface: this.surface, grounded: this.grounded,
       fuel: this.fuel, tank: d.tank, temp: this.temp, overheating: this.temp > OVERHEAT,
       oil: this.oil, oilCap: d.oilCap, oilPressure: this.oilPressure, coolant: this.coolant, coolantCap: d.coolantCap,
@@ -421,7 +421,7 @@ export class Vehicle {
       sdir.copy(n).cross(fdir).normalize();
       const vf = vp.dot(fdir), vs = vp.dot(sdir), vfa = Math.abs(vf);
 
-      const tyre = !item ? 0.42 : item.flat ? 0.5 : 0.7 + 0.3 * Math.min(1, item.cond / 60);
+      const tyre = !item ? 0.42 : item.flat ? 0.5 : (0.7 + 0.3 * Math.min(1, item.cond / 60)) * (COMPONENT_ITEMS[item.type].grip || 1);
       const Nstat = d.cornerMass[wi] * GRAVITY;
       let mu = S.mu * tyre * (1 - S.wet * wet) * clamp(1.08 - 0.08 * (N / Nstat), 0.82, 1.08);
       const roll = !item ? 0.5 : S.roll + (item.flat ? 0.13 : 0) + (env.sand ? 0.004 * env.sand : 0);

@@ -14,7 +14,7 @@ export const DEV_AVAILABLE = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.
 export const DEV_SEED = "devmap";
 
 const TARGETS = [[8, -2], [8, 2], [15, 0], [25, -4], [25, 4], [40, 0], [70, 0]];     // [metres downrange, metres right]
-const VEHICLES = ["pickup", "poopmobile", "sedan"];
+const VEHICLES = ["pickup", "poopmobile", "sedan", "meridian"];
 const ROW = 0.75;                                                                 // spacing of the laid-out items
 
 let ctx = null, help = null, keyFn = null, frame = null, targets = [], nextVehicle = 0;

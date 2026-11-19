@@ -4,23 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>X-ORBIT Logs Viewer</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 :root {
-    --bg:           #000;
-    --surface:      #070707;
-    --surface-2:    #050505;
-    --border:       #1a1a1a;
-    --border-hi:    #2a2a2a;
-    --text:         #fff;
-    --text-dim:     #ccc;
-    --text-muted:   #888;
-    --text-faint:   #555;
-    --text-ghost:   #444;
-    --text-dead:    #333;
+    /* Matches the admin dashboard's Orbit Control palette (dark) */
+    color-scheme: dark;
+    --bg:           #242022;
+    --surface:      #242022;
+    --surface-2:    #2c2729;
+    --border:       #342f31;
+    --border-hi:    #433d40;
+    --text:         #f1ede7;
+    --text-dim:     #d2ccc5;
+    --text-muted:   #a39b97;
+    --text-faint:   #857e7b;
+    --text-ghost:   #6c6563;
+    --text-dead:    #514b4a;
+    --lime:         #d8f06c;
+    --lime-soft:    rgba(216,240,108,0.11);
+    --lav-soft:     rgba(185,166,240,0.16);
+    --lav-ink:      #cdbdff;
+    --heading:      'Outfit', 'Inter', sans-serif;
 }
 
 body {
@@ -86,6 +93,7 @@ body {
 .new-logs-notification {
     position: fixed;
     top: 0;
+    z-index: 1000;
     left: 50%;
     transform: translateX(-50%) translateY(-60px);
     background: var(--text);
@@ -94,7 +102,6 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
-    z-index: 1000;
     transition: transform 0.3s ease;
     cursor: pointer;
     font-family: 'Orbitron', monospace;
@@ -130,6 +137,7 @@ body {
 
 /* ════════════════════════════════════════════════
    LOGS CONTAINER
+   No brand bar here: the admin dashboard around this iframe already has one.
 ════════════════════════════════════════════════ */
 .logs-container {
     display: none;
@@ -139,165 +147,124 @@ body {
 
 .logs-container.show { display: flex; }
 
-/* ─── TOP BAR ───────────────────────────────────── */
-.logs-header {
+/* ─── TOOLBAR ───────────────────────────────────── */
+.logs-toolbar {
     display: flex;
-    align-items: stretch;
-    height: 50px;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
     border-bottom: 1px solid var(--border);
     background: var(--surface-2);
     flex-shrink: 0;
 }
 
-.logs-brand {
-    font-family: 'Orbitron', monospace;
-    font-size: 0.82rem;
-    font-weight: 900;
-    color: var(--text);
-    letter-spacing: 3px;
-    padding: 0 24px;
-    border-right: 1px solid var(--border);
+.search-box {
     display: flex;
     align-items: center;
-    white-space: nowrap;
-    flex-shrink: 0;
+    gap: 8px;
+    flex: 1 1 280px;
+    min-width: 220px;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--border-hi);
+    background: var(--bg);
 }
-
-.logs-brand span {
-    background: var(--text);
-    color: var(--bg);
+.search-box:focus-within { border-color: var(--text-faint); }
+.search-box i { color: var(--text-ghost); font-size: 0.75rem; }
+.search-box input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+}
+.search-box input::placeholder { color: var(--text-ghost); }
+.search-box kbd {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--text-ghost);
+    border: 1px solid var(--border-hi);
     padding: 0 5px;
 }
-
-/* nav tabs */
-.logs-tabs {
-    display: flex;
-    align-items: stretch;
-    border-right: 1px solid var(--border);
-}
-
-.log-tab-btn {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    padding: 0 20px;
-    background: transparent;
-    border: none;
-    border-right: 1px solid var(--border);
-    border-bottom: 2px solid transparent;
-    cursor: pointer;
-    font-family: 'Orbitron', monospace;
-    font-size: 0.58rem;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--text-ghost);
-    transition: color 0.15s, background 0.15s, border-bottom-color 0.15s;
-    white-space: nowrap;
-}
-.log-tab-btn:last-child { border-right: none; }
-.log-tab-btn:hover { color: var(--text-muted); background: #080808; }
-.log-tab-btn.active {
-    color: var(--text);
-    background: var(--bg);
-    border-bottom-color: var(--text);
-}
-
-/* inline stats */
-.logs-top-stats {
-    display: flex;
-    align-items: stretch;
-    border-right: 1px solid var(--border);
-}
-
-.logs-top-stat {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    padding: 0 16px;
-    border-right: 1px solid var(--border);
-    white-space: nowrap;
-}
-.logs-top-stat:last-child { border-right: none; }
-
-.logs-top-stat-num {
-    font-family: 'Orbitron', monospace;
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: var(--text-muted);
-}
-
-.logs-top-stat-lbl {
-    font-size: 0.58rem;
-    color: var(--text-ghost);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-}
-
-.top-bar-spacer { flex: 1; }
-
-/* right side */
-.logs-header-right {
-    display: flex;
-    align-items: stretch;
-    border-left: 1px solid var(--border);
-}
-
-.log-count {
-    display: flex;
-    align-items: center;
-    padding: 0 18px;
-    font-size: 0.72rem;
-    color: var(--text-faint);
-    border-right: 1px solid var(--border);
-    white-space: nowrap;
-}
-
-.refresh-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0 18px;
-    background: transparent;
+.search-clear {
+    background: none;
     border: none;
     color: var(--text-ghost);
-    font-family: 'Orbitron', monospace;
-    font-size: 0.56rem;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
     cursor: pointer;
-    transition: color 0.15s, background 0.15s;
-    white-space: nowrap;
+    display: none;
 }
-.refresh-btn:hover { color: var(--text); background: #080808; }
-
-/* ─── FILTER BAR ────────────────────────────────── */
-.logs-filter-bar {
-    display: flex;
-    align-items: stretch;
-    height: 42px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface-2);
-    flex-shrink: 0;
-}
+.search-clear.show { display: block; }
+.search-clear:hover { color: var(--text); }
 
 .filter-item {
     display: flex;
     align-items: center;
-    height: 100%;
-    border-right: 1px solid var(--border);
-    padding: 0 14px;
-    gap: 8px;
+    gap: 6px;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
 }
 
+/* Toolbar items that don't fit move into the ▾ menu instead of wrapping onto a new line */
+.toolbar-items {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 0 1 auto;
+}
+.toolbar-items > * { flex-shrink: 0; }
+
+.more-wrap { position: relative; flex-shrink: 0; }
+.more-btn { position: relative; padding: 0 10px; }
+.more-btn .fa-chevron-down { transition: transform 0.15s; }
+.more-wrap.open .more-btn .fa-chevron-down { transform: rotate(180deg); }
+.more-wrap.open .more-btn { color: var(--text); border-color: var(--text-faint); }
+.more-dot {
+    display: none;
+    position: absolute;
+    top: 5px; right: 5px;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #7dd3fc;
+}
+.more-btn.has-active .more-dot { display: block; }
+
+.more-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 50;
+    min-width: 260px;
+    padding: 8px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border-hi);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+}
+.more-wrap.open .more-menu { display: flex; }
+.more-menu .filter-item,
+.more-menu .tool-btn { width: 100%; }
+.more-menu .filter-item { justify-content: space-between; }
+.more-menu .filter-item select,
+.more-menu .filter-item input { flex: 1; text-align: right; }
+.more-menu #customRange { flex-wrap: wrap; height: auto; padding: 6px 10px; }
+
 .filter-item label {
-    font-size: 0.58rem;
+    font-size: 0.56rem;
     color: var(--text-ghost);
     letter-spacing: 1px;
     text-transform: uppercase;
     white-space: nowrap;
-    flex-shrink: 0;
 }
 
 .filter-item input,
@@ -306,22 +273,90 @@ body {
     border: none;
     color: var(--text-dim);
     font-family: 'Share Tech Mono', monospace;
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     outline: none;
-    min-width: 0;
+    color-scheme: dark;
+}
+.filter-item select option { background: var(--surface); }
+
+.tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-faint);
+    font-family: 'Orbitron', monospace;
+    font-size: 0.54rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+}
+.tool-btn:hover:not(:disabled) { color: var(--text); border-color: var(--text-faint); }
+.tool-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.tool-btn.loading i { animation: spin 1s linear infinite; }
+
+/* ─── SUMMARY ROW ───────────────────────────────── */
+.logs-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 18px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    color: var(--text-ghost);
 }
 
-.filter-item input { width: 220px; }
-.filter-item input::placeholder { color: var(--text-ghost); }
-.filter-item select option { background: var(--surface); }
+.summary-stat {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    background: none;
+    border: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    padding: 0;
+}
+.summary-stat b {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+.summary-stat:hover b { color: var(--text); }
+.summary-stat.ok b   { color: #6ee7b7; }
+.summary-stat.bad b  { color: #f87171; }
+
+.active-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border: 1px solid var(--border-hi);
+    color: var(--text-muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem;
+}
+.chip button { background: none; border: none; color: var(--text-ghost); cursor: pointer; }
+.chip button:hover { color: var(--text); }
+
+.summary-spacer { flex: 1; }
 
 /* ─── TABLE AREA ────────────────────────────────── */
 .logs-content {
     flex: 1;
-    overflow-y: auto;
+    overflow: auto;
 }
 
-.logs-content::-webkit-scrollbar { width: 3px; }
+.logs-content::-webkit-scrollbar { width: 6px; height: 6px; }
 .logs-content::-webkit-scrollbar-track { background: transparent; }
 .logs-content::-webkit-scrollbar-thumb { background: var(--border-hi); }
 
@@ -338,9 +373,9 @@ body {
 }
 
 .logs-table th {
-    padding: 10px 14px;
+    padding: 9px 12px;
     text-align: left;
-    font-size: 0.58rem;
+    font-size: 0.56rem;
     font-weight: 700;
     color: var(--text-ghost);
     text-transform: uppercase;
@@ -348,22 +383,109 @@ body {
     border-bottom: 1px solid var(--border);
     white-space: nowrap;
 }
+.logs-table th.sortable { cursor: pointer; }
+.logs-table th.sortable:hover { color: var(--text-muted); }
 
 .logs-table td {
-    padding: 10px 14px;
+    padding: 7px 12px;
     border-bottom: 1px solid var(--border);
-    font-size: 0.78rem;
+    font-size: 0.76rem;
     color: var(--text-muted);
     vertical-align: middle;
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.logs-table tbody tr {
-    transition: background 0.12s;
-    position: relative;
+.logs-table tbody tr.log-row { cursor: pointer; transition: background 0.12s; }
+.logs-table tbody tr.log-row:hover td { background: rgba(255,255,255,0.035); }
+.logs-table tbody tr.log-row.open td { background: var(--lime-soft); }
+
+/* Runs of identical attempts collapse into one row */
+.repeat-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 2px 6px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--text);
+    background: var(--border-hi);
+    vertical-align: middle;
+}
+.group-caret { color: var(--text-ghost); font-size: 0.6rem; margin-right: 6px; transition: transform 0.15s; }
+tr.log-group.expanded .group-caret { transform: rotate(90deg); }
+.ts-span { display: block; font-size: 0.62rem; color: var(--text-dead); }
+.logs-table tbody tr.log-child { display: none; }
+.logs-table tbody tr.log-child.show { display: table-row; }
+.logs-table tbody tr.log-child td { background: var(--surface-2); }
+.logs-table tbody tr.log-child td:first-child { padding-left: 28px; }
+
+/* click a value to filter by it */
+.pivot {
+    cursor: pointer;
+    border-bottom: 1px dotted transparent;
+}
+.pivot:hover { color: var(--text); border-bottom-color: var(--text-faint); }
+
+/* expanded row */
+.log-detail td {
+    background: var(--surface-2);
+    white-space: normal;
+    max-width: none;
+    padding: 12px 16px 14px;
+}
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 10px 24px;
+}
+.detail-item { min-width: 0; }
+.detail-item.wide { grid-column: 1 / -1; }
+.detail-label {
+    font-size: 0.54rem;
+    color: var(--text-ghost);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+}
+.detail-value {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.74rem;
+    color: var(--text-dim);
+    word-break: break-all;
 }
 
-.logs-table tbody tr:hover td { background: #080808; }
-.logs-table tbody tr:hover td:first-child { border-left: 2px solid var(--text-faint); padding-left: 12px; }
+/* ─── PAGER ─────────────────────────────────────── */
+.logs-pager {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-2);
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    color: var(--text-faint);
+}
+.pager-range { flex: 1; min-width: 160px; }
+.pager-page {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.pager-page input {
+    width: 56px;
+    height: 28px;
+    background: var(--bg);
+    border: 1px solid var(--border-hi);
+    color: var(--text-dim);
+    font-family: 'Share Tech Mono', monospace;
+    text-align: center;
+    outline: none;
+}
+.logs-pager .tool-btn { height: 28px; }
 
 /* status badges */
 .success-badge,
@@ -384,6 +506,53 @@ body {
 .failed-badge  { color: #f87171; border-color: rgba(248,113,113,0.3); background: rgba(248,113,113,0.05); }
 .success-badge i, .failed-badge i { font-size: 0.6rem; }
 
+/* sign-in source: Jitter vs the X-ORBIT desktop */
+.source-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: 1px solid;
+    white-space: nowrap;
+}
+.source-badge.jitter { color: #7dd3fc; border-color: rgba(125,211,252,0.3); background: rgba(125,211,252,0.05); }
+.source-badge.xorbit { color: var(--text-faint); border-color: rgba(255,255,255,0.12); background: transparent; }
+.source-badge i { font-size: 0.6rem; }
+.source-badge.web     { color: #fbbf24; border-color: rgba(251,191,36,0.3); background: rgba(251,191,36,0.05); }
+.source-badge.desktop { color: #6ee7b7; border-color: rgba(110,231,183,0.3); background: rgba(110,231,183,0.05); }
+
+/* ─── TABS: which log is shown ──────────────────── */
+.logs-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 8px 14px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+    flex-shrink: 0;
+}
+.logs-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 12px 8px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-faint);
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-bottom: -1px;
+}
+.logs-tab:hover { color: var(--text); }
+.logs-tab.active { color: var(--text); border-bottom-color: var(--lav-ink, var(--text)); }
+.logs-tab i { font-size: 0.7rem; }
+
 .uuid-badge {
     font-family: 'Share Tech Mono', monospace;
     font-size: 0.7rem;
@@ -396,7 +565,7 @@ body {
 .col-user   { color: var(--text-dim); font-weight: bold; }
 .col-email  { color: var(--text-faint); }
 .col-reason { color: #f87171; font-size: 0.72rem; }
-.col-ua     { color: var(--text-ghost); font-size: 0.68rem; }
+.col-ua     { color: var(--text-ghost); font-size: 0.68rem; max-width: 220px; }
 
 /* empty / loading */
 .empty-state {
@@ -427,6 +596,40 @@ body {
     from { transform: rotate(0deg); }
     to   { transform: rotate(360deg); }
 }
+
+/* ── Theme details ── */
+body { background: var(--surface); }
+.logs-toolbar, .logs-pager { background: var(--surface); }
+.search-box, .filter-item, .tool-btn, .pager-page input { border-radius: 8px; background: var(--surface); }
+.search-box input, .filter-item input, .filter-item select { font-family: 'Inter', sans-serif; color: var(--text); }
+.search-box kbd { border-radius: 4px; }
+.tool-btn { font-family: 'Inter', sans-serif; font-size: 0.74rem; letter-spacing: 0; text-transform: none; font-weight: 600; color: var(--text-dim); }
+.tool-btn:hover:not(:disabled) { background: var(--surface-2); }
+.summary-stat b { font-family: var(--heading); font-size: 0.95rem; color: var(--text); }
+.summary-stat.ok b { color: #9ed36a; }
+.summary-stat.bad b { color: #ef6b66; }
+.chip { border-radius: 20px; background: var(--lav-soft); border-color: transparent; color: var(--lav-ink); font-family: 'Inter', sans-serif; }
+.logs-table thead { background: var(--surface); }
+.logs-table th { font-family: 'Inter', sans-serif; color: var(--text-dim); font-weight: 600; letter-spacing: 1.4px; }
+.logs-table td { color: var(--text-dim); }
+.col-user { color: var(--text); }
+.col-ts, .col-ua { color: var(--text-muted); }
+.col-reason { color: #ef6b66; }
+.success-badge, .failed-badge, .source-badge { border-radius: 6px; font-family: 'Inter', sans-serif; letter-spacing: 0.6px; }
+.success-badge { color: #9ed36a; border-color: rgba(158,211,106,0.35); background: rgba(158,211,106,0.12); }
+.failed-badge { color: #ef6b66; border-color: rgba(239,107,102,0.35); background: rgba(239,107,102,0.12); }
+.source-badge.jitter { color: var(--lav-ink); border-color: rgba(185,166,240,0.35); background: var(--lav-soft); }
+.source-badge.xorbit { color: var(--text-muted); border-color: var(--border-hi); }
+.uuid-badge { color: var(--text-dim); }
+.repeat-badge { border-radius: 10px; background: var(--lime); color: #1f1b1c; }
+.more-menu { border-radius: 12px; background: var(--surface); box-shadow: 0 18px 40px -12px rgba(0,0,0,0.65); }
+.more-dot { background: #9b82e6; }
+.new-logs-notification { border-radius: 0 0 10px 10px; font-family: 'Inter', sans-serif; letter-spacing: 0.4px; background: var(--lime); color: #1f1b1c; }
+.notification-close { border-radius: 6px; background: #1f1b1c; color: #f1ede7; }
+.detail-value { color: var(--text); }
+.logs-content::-webkit-scrollbar-thumb { background: var(--border-hi); border-radius: 6px; }
+.search-box, .filter-item, .tool-btn, .pager-page input { background: var(--surface-2); }
+.filter-item select option { background: var(--surface); color: var(--text); }
 </style>
 </head>
 <body>
@@ -454,64 +657,102 @@ body {
 <!-- Logs Container -->
 <div class="logs-container" id="logsContainer">
 
-    <!-- TOP BAR -->
-    <header class="logs-header">
-        <div class="logs-brand">X-<span>ORBIT</span></div>
+    <!-- TABS -->
+    <div class="logs-tabs" role="tablist">
+        <button class="logs-tab" role="tab" data-tab="login_attempts" onclick="switchLogTab('login_attempts')"><i class="fas fa-right-to-bracket"></i> Sign-ins</button>
+        <button class="logs-tab" role="tab" data-tab="longhaul_launches" onclick="switchLogTab('longhaul_launches')"><i class="fas fa-truck"></i> Long Haul launches</button>
+    </div>
 
-        <nav class="logs-tabs">
-            <button class="log-tab-btn active" data-tab="login_attempts" onclick="switchLogTab('login_attempts')">
-                <i class="fas fa-terminal"></i> Login Attempts
+    <!-- TOOLBAR -->
+    <div class="logs-toolbar" id="logsToolbar">
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" id="searchFilter" placeholder="Search username, email, client, device, reason or user agent" oninput="onSearchInput()" autocomplete="off" spellcheck="false">
+            <button class="search-clear" id="searchClear" onclick="clearSearch()" title="Clear search"><i class="fas fa-times"></i></button>
+            <kbd>/</kbd>
+        </div>
+        <div class="toolbar-items" id="toolbarItems">
+            <div class="filter-item">
+                <label>Status</label>
+                <select id="successFilter" onchange="applyFilters()">
+                    <option value="all">All</option>
+                    <option value="true" id="statusTrueOpt">Success</option>
+                    <option value="false" id="statusFalseOpt">Failed</option>
+                </select>
+            </div>
+            <div class="filter-item">
+                <label>Source</label>
+                <select id="sourceFilter" onchange="applyFilters()"></select>
+            </div>
+            <div class="filter-item" id="domainItem">
+                <label>Domain</label>
+                <input type="text" id="domainFilter" list="domainOptions" placeholder="@any" style="width:150px;" oninput="onDomainInput()" autocomplete="off" spellcheck="false">
+                <datalist id="domainOptions"></datalist>
+            </div>
+            <div class="filter-item">
+                <label>Range</label>
+                <select id="rangeFilter" onchange="onRangeChange()">
+                    <option value="all">All time</option>
+                    <option value="1h">Last hour</option>
+                    <option value="24h">Last 24 hours</option>
+                    <option value="7d">Last 7 days</option>
+                    <option value="30d">Last 30 days</option>
+                    <option value="custom">Custom…</option>
+                </select>
+            </div>
+            <div class="filter-item" id="customRange" style="display:none;">
+                <label>From</label>
+                <input type="datetime-local" id="fromFilter" onchange="applyFilters()">
+                <label>To</label>
+                <input type="datetime-local" id="toFilter" onchange="applyFilters()">
+            </div>
+            <button class="tool-btn" id="groupBtn" onclick="toggleGrouping()" title="Collapse repeated attempts into one row"><i class="fas fa-layer-group"></i> Grouped</button>
+            <button class="tool-btn" onclick="resetFilters()" title="Clear all filters"><i class="fas fa-filter-circle-xmark"></i> Reset</button>
+            <button class="tool-btn" id="exportBtn" onclick="exportCsv()" title="Download every log matching these filters"><i class="fas fa-download"></i> CSV</button>
+        </div>
+        <div class="more-wrap" id="moreWrap" style="display:none;">
+            <button class="tool-btn more-btn" id="moreBtn" onclick="toggleMoreMenu(event)" title="More filters">
+                <i class="fas fa-chevron-down"></i><span class="more-dot"></span>
             </button>
-        </nav>
-
-        <div class="logs-top-stats">
-            <div class="logs-top-stat">
-                <span class="logs-top-stat-num" id="statTotal">0</span>
-                <span class="logs-top-stat-lbl">Total</span>
-            </div>
-            <div class="logs-top-stat">
-                <span class="logs-top-stat-num" id="statSuccess">0</span>
-                <span class="logs-top-stat-lbl">Success</span>
-            </div>
-            <div class="logs-top-stat">
-                <span class="logs-top-stat-num" id="statFailed">0</span>
-                <span class="logs-top-stat-lbl">Failed</span>
-            </div>
-            <div class="logs-top-stat">
-                <span class="logs-top-stat-num" id="statToday">0</span>
-                <span class="logs-top-stat-lbl">Today</span>
-            </div>
+            <div class="more-menu" id="moreMenu"></div>
         </div>
+        <button class="tool-btn" id="refreshBtn" onclick="refreshLogs()"><i class="fas fa-sync-alt"></i> Refresh</button>
+    </div>
 
-        <div class="top-bar-spacer"></div>
-
-        <div class="logs-header-right">
-            <span class="log-count" id="logCount">0 logs</span>
-            <button class="refresh-btn" onclick="refreshLogs()">
-                <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-        </div>
-    </header>
-
-    <!-- FILTER BAR -->
-    <div class="logs-filter-bar">
-        <div class="filter-item">
-            <label>Search</label>
-            <input type="text" id="searchFilter" placeholder="username, email, UUID…" oninput="applyFilters()">
-        </div>
-        <div class="filter-item">
-            <label>Status</label>
-            <select id="successFilter" onchange="applyFilters()">
-                <option value="all">All</option>
-                <option value="true">Success</option>
-                <option value="false">Failed</option>
-            </select>
-        </div>
+    <!-- SUMMARY: counts for the current filters (click one to filter by it) -->
+    <div class="logs-summary">
+        <button class="summary-stat" onclick="setStatus('all')"><b id="statTotal">0</b> matching</button>
+        <button class="summary-stat ok" onclick="setStatus('true')"><b id="statSuccess">0</b> <span id="statSuccessLabel">success</span></button>
+        <button class="summary-stat bad" onclick="setStatus('false')"><b id="statFailed">0</b> <span id="statFailedLabel">failed</span></button>
+        <span class="summary-stat" style="cursor:default;"><b id="statToday">0</b> today</span>
+        <div class="active-chips" id="activeChips"></div>
+        <div class="summary-spacer"></div>
+        <span id="queryTime"></span>
     </div>
 
     <!-- TABLE -->
     <div class="logs-content" id="logsContent">
         <div class="loading"><i class="fas fa-circle-notch"></i> Loading logs…</div>
+    </div>
+
+    <!-- PAGER -->
+    <div class="logs-pager">
+        <span class="pager-range" id="logCount">0 logs</span>
+        <div class="filter-item" style="height:28px;">
+            <label>Per page</label>
+            <select id="pageSize" onchange="changePageSize()">
+                <option value="50">50</option>
+                <option value="100" selected>100</option>
+                <option value="250">250</option>
+                <option value="500">500</option>
+                <option value="1000">1000</option>
+            </select>
+        </div>
+        <button class="tool-btn" id="firstBtn" onclick="goToPage(1)" title="First page"><i class="fas fa-angles-left"></i></button>
+        <button class="tool-btn" id="prevBtn" onclick="goToPage(currentPage - 1)" title="Previous page"><i class="fas fa-angle-left"></i></button>
+        <span class="pager-page">Page <input type="number" id="pageInput" min="1" value="1" onchange="goToPage(parseInt(this.value, 10) || 1)"> of <span id="pageTotal">1</span></span>
+        <button class="tool-btn" id="nextBtn" onclick="goToPage(currentPage + 1)" title="Next page"><i class="fas fa-angle-right"></i></button>
+        <button class="tool-btn" id="lastBtn" onclick="goToPage(totalPages())" title="Last page"><i class="fas fa-angles-right"></i></button>
     </div>
 
 </div>
@@ -524,7 +765,56 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const { createClient } = supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+// Each tab is one table; filters, counts, grouping, paging and CSV all read from its entry here
+const LOG_TABS = {
+    login_attempts: {
+        table: 'login_attempts', time: 'attempt_timestamp', status: 'success', domain: true,
+        statusLabels: ['Success', 'Failed'], csv: 'login-attempts',
+        placeholder: 'Search username, email, client, device, reason or user agent',
+        search: ['attempted_username', 'attempted_email', 'client_name', 'client_email', 'device_uuid', 'failure_reason', 'user_agent'],
+        group: ['success', 'is_jitter', 'attempted_username', 'attempted_email', 'client_name', 'device_uuid', 'failure_reason', 'user_agent'],
+        sourceCol: 'is_jitter', sources: { jitter: ['Jitter', true], xorbit: ['X-ORBIT', false] },
+        headers: ['Status', 'Source', 'Username', 'Email', 'Client', 'Device UUID', 'Failure Reason', 'User Agent'],
+        cells: (log, extraBadge) => `
+        <td>
+            <span class="${log.success ? 'success-badge' : 'failed-badge'}">
+                <i class="fas fa-${log.success ? 'check' : 'times'}"></i>
+                ${log.success ? 'Success' : 'Failed'}
+            </span>${extraBadge || ''}
+        </td>
+        <td>${sourceBadge(log)}</td>
+        <td class="col-user">${pivot(log.attempted_username)}</td>
+        <td class="col-email">${emailCell(log.attempted_email)}</td>
+        <td>${pivot(log.client_name)}</td>
+        <td>${uuidCell(log.device_uuid)}</td>
+        <td class="col-reason">${escapeHtml(log.failure_reason || '—')}</td>
+        <td class="col-ua" title="${escapeHtml(log.user_agent)}">${escapeHtml(log.user_agent || '')}</td>`,
+    },
+    longhaul_launches: {
+        table: 'longhaul_launches', time: 'launched_at', status: 'signed_in', domain: false,
+        statusLabels: ['Signed in', 'Guest'], csv: 'longhaul-launches',
+        placeholder: 'Search player, device, platform, page or user agent',
+        search: ['username', 'device_uuid', 'platform', 'page_url', 'referrer', 'user_agent'],
+        group: ['signed_in', 'username', 'platform', 'device_uuid', 'has_save', 'screen', 'user_agent'],
+        sourceCol: 'platform', sources: { web: ['Web', 'web'], desktop: ['Desktop app', 'desktop'], xorbit: ['In X-ORBIT', 'xorbit'] },
+        headers: ['Player', 'Platform', 'Device UUID', 'Saved Journey', 'Screen', 'Referrer', 'User Agent'],
+        cells: (log, extraBadge) => `
+        <td class="col-user">
+            ${log.signed_in
+                ? `<span class="success-badge"><i class="fas fa-user"></i> ${pivot(log.username)}</span>`
+                : '<span class="source-badge xorbit"><i class="fas fa-user-secret"></i> Guest</span>'}${extraBadge || ''}
+        </td>
+        <td>${platformBadge(log.platform)}</td>
+        <td>${uuidCell(log.device_uuid)}</td>
+        <td>${log.has_save ? 'Yes' : '<span style="opacity:0.3;">—</span>'}</td>
+        <td>${escapeHtml(log.screen || '—')}</td>
+        <td class="col-reason" title="${escapeHtml(log.referrer)}">${escapeHtml(log.referrer || '—')}</td>
+        <td class="col-ua" title="${escapeHtml(log.user_agent)}">${escapeHtml(log.user_agent || '')}</td>`,
+    },
+};
 let currentTab = 'login_attempts';
+try { if (LOG_TABS[localStorage.getItem('xorbit_logs_tab')]) currentTab = localStorage.getItem('xorbit_logs_tab'); } catch (_) {}
+function tab() { return LOG_TABS[currentTab]; }
 let allLogs = [];
 let isAuthenticated = false;
 let authToken = null;
@@ -547,9 +837,14 @@ function showBlockedPage() {
 }
 
 function showLogsPage() {
+    if (document.getElementById('logsContainer').classList.contains('show')) return;
+    syncGroupBtn();
+    syncTabControls();
     document.getElementById('blockedPage').classList.remove('show');
     document.getElementById('logsContainer').classList.add('show');
+    layoutToolbar();
     loadLogs();
+    loadDomainOptions();
     startBackgroundCheck();
 }
 
@@ -578,50 +873,140 @@ function verifyAuthToken(token) {
     return token && typeof token === 'string' && token.startsWith('xorbit-admin-');
 }
 
+// Filtering, counting and paging all happen in the database, so every log is reachable,
+// not just the newest few hundred.
+let groupRepeats = true;
+try { groupRepeats = localStorage.getItem('xorbit_logs_group') !== 'off'; } catch (_) {}
+let currentPage = 1;
+let totalCount = 0;
+let sortAscending = false;
+let loadSeq = 0;
+let searchTimer = null;
+
+function pageSize() { return parseInt(document.getElementById('pageSize').value, 10); }
+function totalPages() { return Math.max(1, Math.ceil(totalCount / pageSize())); }
+
+function currentFilters() {
+    const range = document.getElementById('rangeFilter').value;
+    let from = null, to = null;
+    const ago = { '1h': 3600e3, '24h': 86400e3, '7d': 7 * 86400e3, '30d': 30 * 86400e3 }[range];
+    if (ago) from = new Date(Date.now() - ago).toISOString();
+    if (range === 'custom') {
+        const f = document.getElementById('fromFilter').value;
+        const t = document.getElementById('toFilter').value;
+        if (f) from = new Date(f).toISOString();
+        if (t) to = new Date(t).toISOString();
+    }
+    return {
+        search: document.getElementById('searchFilter').value.trim(),
+        success: document.getElementById('successFilter').value,
+        source: document.getElementById('sourceFilter').value,
+        domain: !tab().domain ? '' : document.getElementById('domainFilter').value.trim().toLowerCase().replace(/^@+/, '').replace(/[,()*%\\]/g, ''),
+        from, to,
+    };
+}
+
+// Applies the filters to a query. `skipStatus` lets the summary count success/failed separately.
+function withFilters(query, f, skipStatus) {
+    const t = tab();
+    if (f.search) {
+        {
+            // PostgREST's or() syntax treats , ( ) as separators, so drop them from the term
+            const term = f.search.replace(/[,()*%\\]/g, ' ').trim();
+            if (term) query = query.or(t.search.map(c => `${c}.ilike.*${term}*`).join(','));
+        }
+    }
+    if (!skipStatus && f.success !== 'all') query = query.eq(t.status, f.success === 'true');
+    if (t.sources[f.source]) query = query.eq(t.sourceCol, t.sources[f.source][1]);
+    if (f.domain) query = query.ilike('attempted_email', `%@${f.domain}`);
+    if (f.from) query = query.gte(t.time, f.from);
+    if (f.to) query = query.lte(t.time, f.to);
+    return query;
+}
+
+function countQuery(f, extra) {
+    let q = withFilters(supabaseClient.from(tab().table).select('id', { count: 'exact', head: true }), f, true);
+    return extra ? extra(q) : q;
+}
+
 async function loadLogs() {
     if (!isAuthenticated) { showBlockedPage(); return; }
 
+    const seq = ++loadSeq;
+    const t = tab();
+    const f = currentFilters();
+    const size = pageSize();
+    const start = (currentPage - 1) * size;
     const logsContent = document.getElementById('logsContent');
-    logsContent.innerHTML = '<div class="loading"><i class="fas fa-circle-notch"></i> Loading logs…</div>';
+    const refreshBtn = document.getElementById('refreshBtn');
+    refreshBtn.classList.add('loading');
+    if (!logsContent.querySelector('table')) {
+        logsContent.innerHTML = '<div class="loading"><i class="fas fa-circle-notch"></i> Loading logs…</div>';
+    }
+    renderChips(f);
+    const t0 = performance.now();
 
     try {
-        const result = await supabaseClient
-            .from('login_attempts')
-            .select('*')
-            .order('attempt_timestamp', { ascending: false })
-            .limit(500);
+        const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+        const [page, ok, bad, today, newest] = await Promise.all([
+            withFilters(supabaseClient.from(t.table).select('*', { count: 'exact' }), f)
+                .order(t.time, { ascending: sortAscending })
+                .range(start, start + size - 1),
+            countQuery(f, q => q.eq(t.status, true)),
+            countQuery(f, q => q.eq(t.status, false)),
+            withFilters(supabaseClient.from(t.table).select('id', { count: 'exact', head: true }), f)
+                .gte(t.time, startOfToday.toISOString()),
+            supabaseClient.from(t.table).select(t.time)
+                .order(t.time, { ascending: false }).limit(1),
+        ]);
+        if (seq !== loadSeq) return;   // a newer search already started
+        for (const r of [page, ok, bad, today]) if (r.error) throw r.error;
 
-        if (result.error) throw result.error;
+        allLogs = page.data || [];
+        totalCount = page.count ?? allLogs.length;
+        if (newest.data && newest.data.length) latestLogTimestamp = newest.data[0][t.time];
 
-        allLogs = result.data || [];
-        if (allLogs.length > 0) latestLogTimestamp = allLogs[0].attempt_timestamp;
+        // Jumped past the end (e.g. filters shrank the result) — go to the last real page
+        if (!allLogs.length && totalCount > 0 && currentPage > totalPages()) {
+            currentPage = totalPages();
+            return loadLogs();
+        }
 
-        updateStats(allLogs);
+        document.getElementById('statTotal').textContent   = totalCount.toLocaleString();
+        document.getElementById('statSuccess').textContent = (ok.count ?? 0).toLocaleString();
+        document.getElementById('statFailed').textContent  = (bad.count ?? 0).toLocaleString();
+        document.getElementById('statToday').textContent   = (today.count ?? 0).toLocaleString();
+        document.getElementById('queryTime').textContent   = `${Math.round(performance.now() - t0)} ms`;
+
         displayLogs(allLogs);
-        updateLogCount(allLogs.length);
+        updatePager(start);
     } catch (error) {
+        if (seq !== loadSeq) return;
         console.error('Error loading logs:', error);
         logsContent.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-exclamation-triangle"></i>
                 <p>Failed to load logs</p>
-                <p style="font-size:0.68rem;color:var(--text-ghost);">${error.message}</p>
+                <p style="font-size:0.68rem;color:var(--text-ghost);text-transform:none;">${escapeHtml(error.message)}</p>
             </div>`;
+    } finally {
+        if (seq === loadSeq) refreshBtn.classList.remove('loading');
     }
 }
 
 async function checkForNewLogs() {
     if (!isAuthenticated || !latestLogTimestamp) return;
+    const t = tab();
     try {
         const result = await supabaseClient
-            .from('login_attempts')
-            .select('attempt_timestamp')
-            .order('attempt_timestamp', { ascending: false })
+            .from(t.table)
+            .select(t.time)
+            .order(t.time, { ascending: false })
             .limit(1);
 
         if (result.error) throw result.error;
-        if (result.data && result.data.length > 0) {
-            if (result.data[0].attempt_timestamp > latestLogTimestamp) {
+        if (result.data && result.data.length > 0 && t === tab()) {
+            if (result.data[0][t.time] > latestLogTimestamp) {
                 showNewLogsNotification();
             }
         }
@@ -645,23 +1030,44 @@ function showNewLogsNotification() {
     setTimeout(() => dismissNotification(), 30000);
 }
 
-function refreshFromNotification() { dismissNotification(); refreshLogs(); }
+function refreshFromNotification() { dismissNotification(); currentPage = 1; refreshLogs(); }
 
 function dismissNotification(event) {
     if (event) event.stopPropagation();
     document.getElementById('newLogsNotification').classList.remove('show');
 }
 
-function updateStats(logs) {
-    const today = new Date().toDateString();
-    const success = logs.filter(l => l.success).length;
-    const failed  = logs.filter(l => !l.success).length;
-    const todayCount = logs.filter(l => new Date(l.attempt_timestamp).toDateString() === today).length;
+function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+}
 
-    document.getElementById('statTotal').textContent   = logs.length;
-    document.getElementById('statSuccess').textContent = success;
-    document.getElementById('statFailed').textContent  = failed;
-    document.getElementById('statToday').textContent   = todayCount;
+// A cell value you can click to search for it
+function pivot(value, cls) {
+    if (!value) return '<span style="opacity:0.3;">—</span>';
+    return `<span class="pivot ${cls || ''}" data-pivot="${escapeHtml(value)}" title="Filter by this">${escapeHtml(value)}</span>`;
+}
+
+// Back-to-back attempts that differ only by timestamp become one group
+function groupLogs(logs) {
+    const groups = [];
+    logs.forEach((log, i) => {
+        const last = groups[groups.length - 1];
+        if (groupRepeats && last && tab().group.every(k => (last.first[k] ?? null) === (log[k] ?? null))) {
+            last.indexes.push(i);
+        } else {
+            groups.push({ first: log, indexes: [i] });
+        }
+    });
+    return groups;
+}
+
+function logCells(log, tsHtml, extraBadge) {
+    const t = tab();
+    return `<td class="col-ts" title="${escapeHtml(log[t.time])}">${tsHtml}</td>` + t.cells(log, extraBadge);
+}
+
+function uuidCell(uuid) {
+    return uuid ? pivot(uuid, 'uuid-badge') : '<span style="opacity:0.3;">—</span>';
 }
 
 function displayLogs(logs) {
@@ -671,78 +1077,393 @@ function displayLogs(logs) {
         logsContent.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-inbox"></i>
-                <p>No logs found</p>
+                <p>No logs match these filters</p>
             </div>`;
         return;
     }
+
+    const t = tab();
+    const groups = groupLogs(logs);
+    const body = groups.map((g, gi) => {
+        if (g.indexes.length === 1) {
+            return `<tr class="log-row" data-index="${g.indexes[0]}">${logCells(g.first, formatTimestamp(g.first[t.time]))}</tr>`;
+        }
+        const oldest = logs[g.indexes[g.indexes.length - 1]];
+        const ts = `<i class="fas fa-chevron-right group-caret"></i>${formatTimestamp(g.first[t.time])}`
+            + `<span class="ts-span">since ${formatTimestamp(oldest[t.time])}</span>`;
+        const head = `<tr class="log-row log-group" data-group="${gi}" title="${g.indexes.length} identical rows — click to expand">`
+            + logCells(g.first, ts, `<span class="repeat-badge">×${g.indexes.length}</span>`) + '</tr>';
+        const children = g.indexes.map(i =>
+            `<tr class="log-row log-child" data-index="${i}" data-parent="${gi}">${logCells(logs[i], formatTimestamp(logs[i][t.time]))}</tr>`
+        ).join('');
+        return head + children;
+    }).join('');
 
     logsContent.innerHTML = `
         <table class="logs-table">
             <thead>
                 <tr>
-                    <th>Timestamp</th>
-                    <th>Status</th>
-                    <th>Username</th>
-                    <th>Email</th>
-                    <th>Client</th>
-                    <th>Device UUID</th>
-                    <th>Failure Reason</th>
-                    <th>User Agent</th>
+                    <th class="sortable" onclick="toggleSort()" title="Sort by time">Timestamp <i class="fas fa-arrow-${sortAscending ? 'up' : 'down'}"></i></th>
+                    ${t.headers.map(h => `<th>${h}</th>`).join('')}
                 </tr>
             </thead>
-            <tbody>
-                ${logs.map(log => `
-                    <tr>
-                        <td class="col-ts">${formatTimestamp(log.attempt_timestamp)}</td>
-                        <td>
-                            <span class="${log.success ? 'success-badge' : 'failed-badge'}">
-                                <i class="fas fa-${log.success ? 'check' : 'times'}"></i>
-                                ${log.success ? 'Success' : 'Failed'}
-                            </span>
-                        </td>
-                        <td class="col-user">${log.attempted_username || '—'}</td>
-                        <td class="col-email">${log.attempted_email || '—'}</td>
-                        <td>${log.client_name || '—'}</td>
-                        <td>${log.device_uuid ? `<span class="uuid-badge">${log.device_uuid}</span>` : '<span style="opacity:0.3;">—</span>'}</td>
-                        <td class="col-reason">${log.failure_reason || '—'}</td>
-                        <td class="col-ua">${truncate(log.user_agent, 40)}</td>
-                    </tr>
-                `).join('')}
-            </tbody>
+            <tbody>${body}</tbody>
         </table>`;
+    shownRows = groups.length;
 }
 
-function switchLogTab(tab) {
-    if (!isAuthenticated) return;
-    currentTab = tab;
-    document.querySelectorAll('.log-tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
-    loadLogs();
+let shownRows = 0;
+
+function toggleGrouping() {
+    groupRepeats = !groupRepeats;
+    try { localStorage.setItem('xorbit_logs_group', groupRepeats ? 'on' : 'off'); } catch (_) {}
+    syncGroupBtn();
+    displayLogs(allLogs);
+    updatePager((currentPage - 1) * pageSize());
+}
+
+function syncGroupBtn() {
+    const btn = document.getElementById('groupBtn');
+    btn.innerHTML = `<i class="fas fa-layer-group"></i> ${groupRepeats ? 'Grouped' : 'Ungrouped'}`;
+    btn.style.color = groupRepeats ? 'var(--text)' : '';
+}
+
+// The name part searches for that address, the @domain part filters by domain
+function emailCell(email) {
+    const at = email ? email.lastIndexOf('@') : -1;
+    if (at < 1) return pivot(email);
+    const domain = email.slice(at + 1);
+    return `<span class="pivot" data-pivot="${escapeHtml(email)}" title="Filter by this">${escapeHtml(email.slice(0, at))}</span>`
+        + `<span class="pivot" data-domain="${escapeHtml(domain)}" title="Show everyone @${escapeHtml(domain)}">@${escapeHtml(domain)}</span>`;
+}
+
+function onDomainInput() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 300);
+}
+
+// Suggest the domains seen in recent logs, most common first
+async function loadDomainOptions() {
+    try {
+        const { data, error } = await supabaseClient.from('login_attempts')
+            .select('attempted_email')
+            .not('attempted_email', 'is', null)
+            .order('attempt_timestamp', { ascending: false })
+            .limit(5000);
+        if (error) throw error;
+        const counts = {};
+        for (const r of data || []) {
+            const d = (r.attempted_email || '').split('@')[1];
+            if (d) counts[d.toLowerCase()] = (counts[d.toLowerCase()] || 0) + 1;
+        }
+        document.getElementById('domainOptions').innerHTML = Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([d, n]) => `<option value="@${escapeHtml(d)}">${n.toLocaleString()} recent</option>`)
+            .join('');
+    } catch (err) {
+        console.error('Error loading domains:', err);
+    }
+}
+
+// Click a value to filter by it; click anywhere else on a row to see every field
+document.addEventListener('click', (e) => {
+    const d = e.target.closest('[data-domain]');
+    if (d) {
+        document.getElementById('domainFilter').value = '@' + d.dataset.domain;
+        applyFilters();
+        return;
+    }
+    const p = e.target.closest('[data-pivot]');
+    if (p) {
+        document.getElementById('searchFilter').value = p.dataset.pivot;
+        applyFilters();
+        return;
+    }
+    const row = e.target.closest('tr.log-row');
+    if (!row) return;
+    if (row.classList.contains('log-group')) {
+        const open = row.classList.toggle('expanded');
+        document.querySelectorAll(`tr.log-child[data-parent="${row.dataset.group}"]`).forEach(c => {
+            c.classList.toggle('show', open);
+            if (!open) {
+                c.classList.remove('open');
+                if (c.nextElementSibling?.classList.contains('log-detail')) c.nextElementSibling.remove();
+            }
+        });
+        return;
+    }
+    const next = row.nextElementSibling;
+    if (next && next.classList.contains('log-detail')) {
+        next.remove();
+        row.classList.remove('open');
+        return;
+    }
+    const log = allLogs[+row.dataset.index];
+    if (!log) return;
+    const fields = Object.keys(log).sort((a, b) => (a === 'user_agent') - (b === 'user_agent'));
+    const detail = document.createElement('tr');
+    detail.className = 'log-detail';
+    detail.innerHTML = `<td colspan="${tab().headers.length + 1}"><div class="detail-grid">${fields.map(k => `
+        <div class="detail-item${k === 'user_agent' ? ' wide' : ''}">
+            <div class="detail-label">${escapeHtml(k.replace(/_/g, ' '))}</div>
+            <div class="detail-value">${log[k] === null || log[k] === '' ? '—' : escapeHtml(log[k])}</div>
+        </div>`).join('')}</div></td>`;
+    row.after(detail);
+    row.classList.add('open');
+});
+
+function switchLogTab(name) {
+    if (!isAuthenticated || !LOG_TABS[name] || name === currentTab) return;
+    currentTab = name;
+    try { localStorage.setItem('xorbit_logs_tab', name); } catch (_) {}
+    document.getElementById('successFilter').value = 'all';
+    document.getElementById('sourceFilter').value = 'all';
+    latestLogTimestamp = null;
+    allLogs = [];
+    dismissNotification();
+    syncTabControls();
+    document.getElementById('logsContent').innerHTML = '<div class="loading"><i class="fas fa-circle-notch"></i> Loading logs…</div>';
+    applyFilters();
+}
+
+// Labels, source options and which filters apply follow the tab
+function syncTabControls() {
+    const t = tab();
+    document.querySelectorAll('.logs-tab').forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === currentTab);
+        b.setAttribute('aria-selected', b.dataset.tab === currentTab);
+    });
+    document.getElementById('statusTrueOpt').textContent = t.statusLabels[0];
+    document.getElementById('statusFalseOpt').textContent = t.statusLabels[1];
+    document.getElementById('statSuccessLabel').textContent = t.statusLabels[0].toLowerCase();
+    document.getElementById('statFailedLabel').textContent = t.statusLabels[1].toLowerCase();
+    document.getElementById('sourceFilter').innerHTML = '<option value="all">All</option>'
+        + Object.entries(t.sources).map(([k, [label]]) => `<option value="${k}">${escapeHtml(label)}</option>`).join('');
+    document.getElementById('domainItem').style.display = t.domain ? '' : 'none';
+    document.getElementById('searchFilter').placeholder = t.placeholder;
+    layoutToolbar();
 }
 
 function applyFilters() {
-    const searchTerm = document.getElementById('searchFilter').value.toLowerCase();
-    const successFilter = document.getElementById('successFilter').value;
+    currentPage = 1;
+    document.getElementById('searchClear').classList.toggle('show', !!document.getElementById('searchFilter').value);
+    loadLogs();
+}
 
-    let filtered = allLogs;
+function onSearchInput() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 300);
+}
 
-    if (searchTerm) {
-        filtered = filtered.filter(log =>
-            (log.attempted_username || '').toLowerCase().includes(searchTerm) ||
-            (log.attempted_email || '').toLowerCase().includes(searchTerm) ||
-            (log.client_name || '').toLowerCase().includes(searchTerm) ||
-            (log.device_uuid || '').toLowerCase().includes(searchTerm) ||
-            (log.user_agent || '').toLowerCase().includes(searchTerm)
-        );
+function clearSearch() {
+    document.getElementById('searchFilter').value = '';
+    applyFilters();
+}
+
+function setStatus(value) {
+    document.getElementById('successFilter').value = value;
+    applyFilters();
+}
+
+function onRangeChange() {
+    document.getElementById('customRange').style.display =
+        document.getElementById('rangeFilter').value === 'custom' ? 'flex' : 'none';
+    layoutToolbar();
+    applyFilters();
+}
+
+// ── Toolbar overflow: keep one row, push whatever doesn't fit (from the right) into the ▾ menu
+let toolbarOrder = null;
+
+function layoutToolbar() {
+    const toolbar = document.getElementById('logsToolbar');
+    const itemsEl = document.getElementById('toolbarItems');
+    const menu = document.getElementById('moreMenu');
+    const moreWrap = document.getElementById('moreWrap');
+    if (!toolbar.offsetWidth) return;
+    if (!toolbarOrder) toolbarOrder = [...itemsEl.children];
+
+    // Put everything back in order, then measure
+    toolbarOrder.forEach(el => itemsEl.appendChild(el));
+    moreWrap.style.display = '';
+    const cs = getComputedStyle(toolbar);
+    const gap = parseFloat(cs.columnGap) || 8;
+    const fixed = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
+        + 220 /* search box min width */
+        + moreWrap.offsetWidth + document.getElementById('refreshBtn').offsetWidth + gap * 3;
+    let room = toolbar.clientWidth - fixed;
+
+    const widths = toolbarOrder.map(el => el.offsetWidth);
+    const total = widths.reduce((sum, w) => sum + (w ? w + gap : 0), 0);
+    let overflowing = false;
+    if (total <= room + moreWrap.offsetWidth + gap) {
+        moreWrap.style.display = 'none';   // everything fits without the ▾ button
+    } else {
+        toolbarOrder.forEach((el, i) => {
+            const w = widths[i] ? widths[i] + gap : 0;
+            if (!overflowing && w <= room) { room -= w; return; }
+            overflowing = true;
+            menu.appendChild(el);
+        });
     }
-
-    if (successFilter !== 'all') {
-        const filterValue = successFilter === 'true';
-        filtered = filtered.filter(log => log.success === filterValue);
+    if (!menu.children.length) {
+        moreWrap.style.display = 'none';
+        moreWrap.classList.remove('open');
     }
+    updateMoreDot();
+}
 
-    displayLogs(filtered);
-    updateLogCount(filtered.length);
+function toggleMoreMenu(e) {
+    e.stopPropagation();
+    document.getElementById('moreWrap').classList.toggle('open');
+}
+
+// A dot on ▾ when a filter tucked inside it is doing something
+function updateMoreDot() {
+    const menu = document.getElementById('moreMenu');
+    const active = [...menu.querySelectorAll('select, input')].some(el =>
+        el.id === 'successFilter' || el.id === 'sourceFilter' || el.id === 'rangeFilter' ? el.value !== 'all' : !!el.value);
+    document.getElementById('moreBtn').classList.toggle('has-active', active);
+}
+
+document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('moreWrap');
+    if (wrap.classList.contains('open') && !wrap.contains(e.target)) wrap.classList.remove('open');
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') document.getElementById('moreWrap').classList.remove('open');
+});
+new ResizeObserver(() => layoutToolbar()).observe(document.getElementById('logsToolbar'));
+
+function resetFilters() {
+    document.getElementById('searchFilter').value = '';
+    document.getElementById('successFilter').value = 'all';
+    document.getElementById('sourceFilter').value = 'all';
+    document.getElementById('domainFilter').value = '';
+    document.getElementById('rangeFilter').value = 'all';
+    document.getElementById('fromFilter').value = '';
+    document.getElementById('toFilter').value = '';
+    document.getElementById('customRange').style.display = 'none';
+    layoutToolbar();
+    applyFilters();
+}
+
+function renderChips(f) {
+    updateMoreDot();
+    const chips = [];
+    if (f.search) chips.push(['search', `“${f.search}”`]);
+    const t = tab();
+    if (f.success !== 'all') chips.push(['success', t.statusLabels[f.success === 'true' ? 0 : 1]]);
+    if (t.sources[f.source]) chips.push(['source', t.sources[f.source][0]]);
+    if (f.domain) chips.push(['domain', '@' + f.domain]);
+    const range = document.getElementById('rangeFilter');
+    if (range.value !== 'all') chips.push(['range', range.options[range.selectedIndex].text]);
+    document.getElementById('activeChips').innerHTML = chips.map(([k, label]) =>
+        `<span class="chip">${escapeHtml(label)}<button onclick="clearFilter('${k}')" title="Remove"><i class="fas fa-times"></i></button></span>`
+    ).join('');
+}
+
+function clearFilter(key) {
+    if (key === 'search') document.getElementById('searchFilter').value = '';
+    if (key === 'success') document.getElementById('successFilter').value = 'all';
+    if (key === 'source') document.getElementById('sourceFilter').value = 'all';
+    if (key === 'domain') document.getElementById('domainFilter').value = '';
+    if (key === 'range') {
+        document.getElementById('rangeFilter').value = 'all';
+        document.getElementById('customRange').style.display = 'none';
+        layoutToolbar();
+    }
+    applyFilters();
+}
+
+function toggleSort() {
+    sortAscending = !sortAscending;
+    currentPage = 1;
+    loadLogs();
+}
+
+function goToPage(page) {
+    const target = Math.min(Math.max(1, page), totalPages());
+    if (target === currentPage) { document.getElementById('pageInput').value = currentPage; return; }
+    currentPage = target;
+    document.getElementById('logsContent').scrollTop = 0;
+    loadLogs();
+}
+
+function changePageSize() {
+    currentPage = 1;
+    loadLogs();
+}
+
+function updatePager(start) {
+    const pages = totalPages();
+    const end = start + allLogs.length;
+    document.getElementById('logCount').textContent = totalCount
+        ? `Showing ${(start + 1).toLocaleString()}–${end.toLocaleString()} of ${totalCount.toLocaleString()} logs`
+            + (groupRepeats && shownRows < allLogs.length ? ` · ${shownRows.toLocaleString()} rows after grouping repeats` : '')
+        : '0 logs';
+    document.getElementById('pageInput').value = currentPage;
+    document.getElementById('pageInput').max = pages;
+    document.getElementById('pageTotal').textContent = pages.toLocaleString();
+    document.getElementById('firstBtn').disabled = document.getElementById('prevBtn').disabled = currentPage <= 1;
+    document.getElementById('nextBtn').disabled = document.getElementById('lastBtn').disabled = currentPage >= pages;
+}
+
+// Downloads every log matching the current filters, a page of 1000 at a time
+async function exportCsv() {
+    const btn = document.getElementById('exportBtn');
+    btn.disabled = true;
+    const f = currentFilters();
+    const rows = [];
+    try {
+        for (let from = 0; ; from += 1000) {
+            btn.innerHTML = `<i class="fas fa-circle-notch"></i> ${rows.length.toLocaleString()}…`;
+            const { data, error } = await withFilters(supabaseClient.from(tab().table).select('*'), f)
+                .order(tab().time, { ascending: sortAscending })
+                .range(from, from + 999);
+            if (error) throw error;
+            rows.push(...data);
+            if (data.length < 1000) break;
+        }
+        const cols = rows.length ? Object.keys(rows[0]) : [];
+        const cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+        const csv = [cols.join(','), ...rows.map(r => cols.map(c => cell(r[c])).join(','))].join('\n');
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+        a.download = `${tab().csv}-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+    } catch (error) {
+        console.error('Error exporting logs:', error);
+        alert('Export failed: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-download"></i> CSV';
+    }
+}
+
+// "/" jumps to search, Esc clears it, ←/→ change page
+document.addEventListener('keydown', (e) => {
+    const typing = /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);
+    if (e.key === '/' && !typing) { e.preventDefault(); document.getElementById('searchFilter').focus(); }
+    else if (e.key === 'Escape' && document.activeElement.id === 'searchFilter') { clearSearch(); document.activeElement.blur(); }
+    else if (!typing && e.key === 'ArrowRight') goToPage(currentPage + 1);
+    else if (!typing && e.key === 'ArrowLeft') goToPage(currentPage - 1);
+});
+
+function sourceBadge(log) {
+    return log.is_jitter
+        ? '<span class="source-badge jitter"><i class="fas fa-comment-dots"></i> Jitter</span>'
+        : '<span class="source-badge xorbit"><i class="fas fa-desktop"></i> X-ORBIT</span>';
+}
+
+function platformBadge(platform) {
+    const [cls, icon, label] = {
+        web:     ['web', 'globe', 'Web'],
+        desktop: ['desktop', 'download', 'Desktop app'],
+        xorbit:  ['jitter', 'desktop', 'In X-ORBIT'],
+    }[platform] || ['xorbit', 'question', platform || 'Unknown'];
+    return `<span class="source-badge ${cls}"><i class="fas fa-${icon}"></i> ${escapeHtml(label)}</span>`;
 }
 
 function refreshLogs() {
@@ -755,15 +1476,6 @@ function formatTimestamp(timestamp) {
         month: 'short', day: 'numeric', year: 'numeric',
         hour: '2-digit', minute: '2-digit', second: '2-digit'
     });
-}
-
-function truncate(text, maxLength) {
-    if (!text) return '';
-    return text.length > maxLength ? text.substring(0, maxLength) + '…' : text;
-}
-
-function updateLogCount(count) {
-    document.getElementById('logCount').textContent = `${count} log${count !== 1 ? 's' : ''}`;
 }
 
 window.addEventListener('message', (event) => {

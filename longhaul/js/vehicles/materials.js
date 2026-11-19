@@ -107,6 +107,18 @@ function paintTextures(color, wear, seed) {
   return { map: tex(c, { aniso: 8 }), roughnessMap: tex(rc, { srgb: false }) };
 }
 
+// Showroom lacquer: deep clear-coated paint with no dust or fading (the Meridian)
+export function glossPaint(color) {
+  const key = color + ":gloss";
+  let m = paintCache.get(key);
+  if (!m) {
+    m = new THREE.MeshPhysicalMaterial({ color, roughness: 0.22, metalness: 0.35, clearcoat: 1, clearcoatRoughness: 0.06, side: THREE.DoubleSide, envMapIntensity: 1.4 });
+    m.name = "paint";
+    paintCache.set(key, m);
+  }
+  return m;
+}
+
 // Per colour / wear level paint material (cached). wear 0..1 is bucketed to 3 looks.
 export function paintMaterial(color, wear = 0.5) {
   const lvl = wear < 0.34 ? 0 : wear < 0.67 ? 1 : 2;

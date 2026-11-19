@@ -5,7 +5,8 @@ import * as THREE from "three";
 import { M, materialsReady, prepareMaterials } from "./materials.js";
 import { Batch, box, rbox, cyl, torus, tube, lathe, sphere } from "./loft.js";
 
-const WHEELS = { wheel_16: { R: 0.38, w: 0.25, paint: 0xcfc8b6 }, wheel_14: { R: 0.31, w: 0.2, paint: 0x9a9c9e } };
+// ww: whitewall band on the outer sidewall and a full chrome hubcap
+const WHEELS = { wheel_16: { R: 0.38, w: 0.25, paint: 0xcfc8b6 }, wheel_14: { R: 0.31, w: 0.2, paint: 0x9a9c9e }, wheel_15ww: { R: 0.36, w: 0.21, paint: 0x101010, ww: true } };
 const RUST = 0x6b3a1c;
 function mix(a, b, t) {
   const ch = (s) => Math.round(((a >> s) & 255) + (((b >> s) & 255) - ((a >> s) & 255)) * t);
@@ -13,7 +14,7 @@ function mix(a, b, t) {
 }
 
 function wheelMesh(type, item) {
-  const { R, w, paint } = WHEELS[type], hw = w / 2, rr = R * 0.59;
+  const { R, w, paint, ww } = WHEELS[type], hw = w / 2, rr = R * 0.59;
   const wear = 1 - (item?.cond ?? 70) / 100;
   const g = new THREE.Group();
   const b = new Batch();
@@ -29,6 +30,18 @@ function wheelMesh(type, item) {
     b.add(rbox(0.05, 0.012, 0.022, 0.005, 1), M.vc, { p: [Math.cos(a) * r, hw * 0.47, Math.sin(a) * r], r: [0, -a + Math.PI / 2, 0], c: 0x0c0c0c });
   }
   b.add(cyl(0.004, 0.004, 0.03, 5), M.vc, { p: [rr - 0.03, hw * 0.62, 0], r: [0, 0, 0.5], c: 0x111111 });   // valve stem
+  if (ww) {
+    // Whitewall band following the sidewall bulge, then a domed chrome hubcap with a ring of flutes and a centre badge
+    const band = [[rr + 0.012, hw * 1.0], [R - 0.045, hw * 1.0]];
+    for (const ring of [band, band.slice().reverse()]) b.add(lathe(ring, 36), M.vc, { c: 0xf4f1e8 });
+    const hc = rr * 0.8;
+    b.add(lathe([[hc, hw * 0.9], [hc * 0.94, hw * 1.0], [hc * 0.7, hw * 1.08], [hc * 0.35, hw * 1.16], [hc * 0.12, hw * 1.2], [0.001, hw * 1.21]], 28), M.vcMetal, { c: 0xf2f2ee });
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * 6.283, r = hc * 0.72;
+      b.add(rbox(0.05, 0.006, 0.012, 0.003, 1), M.vcMetal, { p: [Math.cos(a) * r, hw * 1.03, Math.sin(a) * r], r: [0, -a, 0], c: 0xb8b8b4 });
+    }
+    b.add(cyl(hc * 0.22, hc * 0.22, 0.006, 18), M.vc, { p: [0, hw * 1.215, 0], c: 0x7a1a14 });
+  }
   b.build(g);
   g.userData.radius = R; g.userData.width = w;
   return g;
@@ -49,6 +62,7 @@ const ENGINE_LOOK = {
   engine_i6: { n: 6, vee: false, L: 0.98, H: 0.74, blockW: 0.3, blockL: 0.74, paint: 0x2c5a86, cover: 0x356b9c },
   engine_v8: { n: 8, vee: true, L: 0.86, H: 0.74, blockW: 0.42, blockL: 0.62, paint: 0xb04a1c, cover: 0xc9c9c4 },
   engine_bigblock: { n: 8, vee: true, L: 0.9, H: 0.76, blockW: 0.46, blockL: 0.66, paint: 0x1c1c1e, cover: 0xd8dadc },
+  engine_v12: { n: 12, vee: true, L: 1.0, H: 0.7, blockW: 0.44, blockL: 0.84, paint: 0x6a0f12, cover: 0xd9d9d6 },
   engine_i4: { n: 4, vee: false, L: 0.7, H: 0.66, blockW: 0.27, blockL: 0.5, paint: 0x3d3f42, cover: 0x8f1f1a },
 };
 
@@ -107,8 +121,9 @@ function engineMesh(type, item) {
       b.add(rbox(0.16, 0.1, bl, 0.015), M.vcRough, { p: [s * 0.17, topY + 0.01, 0], r, c: paint });
       b.add(rbox(0.13, 0.07, bl - 0.06, 0.028), M.vcMetal, { p: [s * 0.215, topY + 0.075, 0], r, c: mix(cover, RUST, wear * 0.35) });
       b.add(cyl(0.034, 0.034, bl * 0.84, 8, "z"), M.vcRough, { p: [s * 0.3, topY - 0.07, 0], c: rusty });
-      for (let i = 0; i < 4; i++) {
-        const z = -bl * 0.38 + (i / 3) * bl * 0.76;
+      const nb = k.n / 2;
+      for (let i = 0; i < nb; i++) {
+        const z = -bl * 0.38 + (i / (nb - 1)) * bl * 0.76;
         b.add(cyl(0.022, 0.022, 0.07, 6, "x"), M.vcRough, { p: [s * 0.265, topY - 0.05, z], c: rusty });
         b.add(tube([[0, topY + 0.13, -bl * 0.36], [s * 0.1, topY + 0.19, (z - bl * 0.36) / 2], [s * 0.2, topY + 0.115, z]], 0.005, 6, 4), M.vc, { c: 0x141414 });
       }
